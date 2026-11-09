@@ -41,7 +41,7 @@ export function buildAttentionRows(view: ImportView, draft: ImportDraft | null):
       key: `${issue.code}-${index}`,
       title: importIssueCopy(issue.code, issue.message).title,
       message: issue.message,
-      detail: `${issue.sourcePage ? `PDF p.${issue.sourcePage} · ` : ''}${importIssueCopy(issue.code, issue.message).hint}`,
+      detail: `${issue.sourcePage ? `p.${issue.sourcePage} · ` : ''}${importIssueCopy(issue.code, issue.message).hint}`,
       action: 'Fix',
       ariaLabel: `Fix issue: ${issue.message}`,
       target: {

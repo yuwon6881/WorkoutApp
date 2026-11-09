@@ -1,44 +1,38 @@
 import { describe, expect, it } from 'vitest';
 import type { ImportView } from '../types';
-import { isStoppedImport, resumableImport } from './importSelection';
+import { resumableImport } from './importSelection';
 
-function view(id: string, status: ImportView['status'], error = ''): ImportView {
+function view(id: string, status: ImportView['status'], overrides: Partial<ImportView> = {}): ImportView {
   return {
-    id, status, error, fileName: `${id}.pdf`, pages: 1, created: '', model: '', stage: 'outline',
-    chunksDone: 0, chunksTotal: 0, currentChunkLabel: null, unresolvedCount: 0,
-    draft: null, unresolved: [], acceptable: false, programId: null, revision: 1
+    id, status, error: '', fileName: `${id}.json`, pages: 0, created: '', model: 'external', stage: 'done',
+    unresolvedCount: 0, draft: null, unresolved: [], acceptable: false, programId: null, revision: 1,
+    ...overrides
   };
 }
 
 describe('saved import selection', () => {
-  it('leaves old failures and interrupted errors for explicit selection', () => {
-    const failed = view('legacy', 'failed', 'An old error');
-    const interrupted = view('stopped', 'pending', 'Reading stopped');
-    expect(resumableImport([failed, interrupted])).toBeNull();
-    expect(isStoppedImport(failed)).toBe(true);
-    expect(isStoppedImport(interrupted)).toBe(true);
+  it('never opens a failed or stopped import left by an earlier importer', () => {
+    const failed = view('legacy', 'failed', { error: 'An old error', stage: 'failed' });
+    const stopped = view('stopped', 'pending', { error: 'Reading stopped' });
+    const midRead = view('mid-read', 'pending');
+    expect(resumableImport([failed, stopped, midRead])).toBeNull();
   });
 
-  it('resumes the newest live read ahead of older drafts and failures', () => {
-    const pending = view('current', 'pending');
+  it('resumes the newest ready draft or version choice', () => {
+    const choice = view('choice', 'pending', { stage: 'select', alternatives: [{ id: 'a', name: 'A', chunkCount: 1, dayCount: 3 }] });
     const ready = view('older-ready', 'ready');
-    expect(resumableImport([view('legacy', 'failed'), pending, ready])).toBe(pending);
-    expect(resumableImport([ready, pending])).toBe(ready);
-    expect(isStoppedImport(pending)).toBe(false);
+    expect(resumableImport([view('legacy', 'failed'), choice, ready])).toBe(choice);
+    expect(resumableImport([ready, choice])).toBe(ready);
   });
 
-  it('returns to upload when the unrelated current import has been discarded', () => {
-    const old = view('legacy', 'failed', 'The PDF has no text');
-    const current = view('current', 'ready');
-    expect(resumableImport([current, old])).toBe(current);
-    expect(resumableImport([old])).toBeNull();
+  it('returns to upload when nothing is waiting for review', () => {
     expect(resumableImport([view('done', 'accepted'), view('removed', 'discarded')])).toBeNull();
     expect(resumableImport([])).toBeNull();
   });
 
   it('returns to the ready draft after another import is discarded, never to the discarded one', () => {
     const draft = view('draft', 'ready');
-    const ghost = view('ghost', 'failed', 'The read could not be completed');
+    const ghost = view('ghost', 'ready');
     expect(resumableImport([ghost, draft], new Set(['ghost']))).toBe(draft);
     // A list fetched before the discard landed still carries the discarded draft.
     expect(resumableImport([draft], new Set(['draft']))).toBeNull();

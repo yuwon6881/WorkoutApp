@@ -46,7 +46,7 @@ function renderEditor(warmup = false, readOnly = false) {
   }));
 }
 
-describe('PDF import set review fields', () => {
+describe('import set review fields', () => {
   it('retains printed load and compound rep instructions in editable and saved day review', () => {
     for (const readOnly of [false, true]) {
       const markup = renderEditor(false, readOnly);

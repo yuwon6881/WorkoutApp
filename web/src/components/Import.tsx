@@ -3,41 +3,31 @@ import type { Exercise, ImportDraft, ImportView } from '../types';
 import { ApiError, api } from '../lib/api';
 import { buildAttentionRows, type ImportIssueTarget } from '../lib/importAttentionRows';
 import { resumableImport } from '../lib/importSelection';
-import { localPdfRead, useLocalPdfRead } from '../lib/localPdfRead';
 import { CardFeedback } from './ui/CardFeedback';
 import { AlertTriangle, Loader2 } from 'lucide-react';
 import { BackButton } from './ui/BackButton';
 import { DraftOutline, type DraftOutlineHandle } from './ImportDraftTree';
 import { useImportPipeline } from './useImportPipeline';
 import { useImportDraftSaver } from './useImportDraftSaver';
-import { ImportFailedPanel } from './ImportFailedPanel';
 import { ImportFailureBanner } from './ImportFailureBanner';
 import { ImportAlternatives } from './ImportAlternatives';
-import { ImportProgressCard } from './ImportProgressCard';
-import { ImportReadingStopped } from './ImportReadingStopped';
 import { ImportRestoreDraftModal } from './ImportRestoreDraftModal';
 import { ImportReviewPanel } from './ImportReviewPanel';
 import { ImportExternalPanel } from './ImportExternalPanel';
-import { ImportUploadPanel } from './ImportUploadPanel';
-import { StoppedImports } from './StoppedImports';
+import { ImportSourceBar } from './ImportSourceBar';
 import './Import.css';
 import './ImportReviewSurface.css';
-
-function hasStructuredTerminalError(view: ImportView | null) {
-  return Boolean(view?.error && view.reviewIssues?.some(issue => view.error.includes(`[${issue.code}]`)));
-}
 
 export function ImportReview({ exercises, imports, onBack, onChanged, notify }: {
   exercises: Exercise[]; imports: ImportView[]; onBack: () => void; onChanged: () => Promise<void>; notify?: (message: string) => void;
 }) {
-  const [selected, setSelected] = useState<ImportView | null>(() => localPdfRead() ? null : resumableImport(imports));
+  const [selected, setSelected] = useState<ImportView | null>(() => resumableImport(imports));
   const [draft, setDraft] = useState<ImportDraft | null>(selected?.draft ?? null);
   const [expandedDay, setExpandedDay] = useState<string | null>(null);
   const [saveError, setSaveError] = useState('');
   const [confirmRestoreDraft, setConfirmRestoreDraft] = useState(false);
   const [alternativeChoice, setAlternativeChoice] = useState<string | null>(null);
   const [acknowledgedUncertainty, setAcknowledgedUncertainty] = useState(false);
-  const file = useRef<HTMLInputElement>(null);
   const jsonFile = useRef<HTMLInputElement>(null);
   const reviewRef = useRef<HTMLElement>(null);
   const outlineRef = useRef<DraftOutlineHandle>(null);
@@ -58,20 +48,19 @@ export function ImportReview({ exercises, imports, onBack, onChanged, notify }: 
     }, 150);
   }, [notify]);
 
-  const pipeline = useImportPipeline({ selected, setSelected, setDraft, onChanged, onComplete: handleComplete });
+  const pipeline = useImportPipeline({ setSelected, setDraft, onChanged, onComplete: handleComplete });
   const saver = useImportDraftSaver({ selected, setSelected, draft, setDraft, onChanged, setSaveError });
   const busy = pipeline.busy || saver.pending;
-  const localRead = useLocalPdfRead();
   /// Imports thrown away on this screen. The list prop is refreshed after a discard, so until it
   /// lands it can still carry the row that was just removed.
   const discarded = useRef(new Set<string>());
 
   // Discarding one import must not hide another that is still waiting for review: once the
-  // screen is idle with nothing selected, it returns to the next live read or ready draft, the
-  // same one it would open on a fresh visit. When imports update in the background, keep
+  // screen is idle with nothing selected, it returns to the next ready draft, the same one
+  // it would open on a fresh visit. When imports update in the background, keep
   // the selected row in sync with its latest status and draft.
   useEffect(() => {
-    if (busy || localRead || saver.localDirty) return;
+    if (busy || saver.localDirty) return;
     if (!selected) {
       const next = resumableImport(imports, discarded.current);
       if (next) setSelected(next);
@@ -85,12 +74,7 @@ export function ImportReview({ exercises, imports, onBack, onChanged, notify }: 
       setSelected(matching);
       if (matching.draft) setDraft(matching.draft);
     }
-  }, [busy, imports, localRead, selected, saver.localDirty]);
-
-  function discard(view: ImportView) {
-    discarded.current.add(view.id);
-    return pipeline.cancel(view);
-  }
+  }, [busy, imports, selected, saver.localDirty]);
 
   useEffect(() => {
     let cancelled = false;
@@ -122,8 +106,8 @@ export function ImportReview({ exercises, imports, onBack, onChanged, notify }: 
     outlineRef.current?.focusIssue(target);
   }
 
-  // Any import in flight or open collapses the upload hero to the slim source bar, so the screen
-  // shows one thing at a time instead of the hero above every state.
+  // An open import replaces the entry panel with the slim source bar, so the screen shows one
+  // thing at a time.
   const hasDraft = Boolean(selected);
 
   return <div className="import-page">
@@ -134,52 +118,33 @@ export function ImportReview({ exercises, imports, onBack, onChanged, notify }: 
       </div>
     </div>
 
-    <input name="program-pdf" ref={file} type="file" accept="application/pdf,.pdf" hidden aria-label="Program PDF"
-      onChange={e => {
-        const chosen = e.target.files?.[0];
-        e.target.value = '';
-        if (chosen) { setSaveError(''); void pipeline.upload(chosen); }
-      }} />
     <input name="program-json" ref={jsonFile} type="file" accept="application/json,.json" hidden aria-label="Program JSON file"
       onChange={e => {
         const chosen = e.target.files?.[0];
         e.target.value = '';
         if (chosen) { setSaveError(''); void pipeline.uploadExternal(chosen); }
       }} />
-    <ImportUploadPanel hasDraft={hasDraft} external={selected?.model === 'external'} fileName={selected?.fileName} busy={busy} onChooseFile={() => file.current?.click()}
-      // A JSON file dropped on the PDF reader belongs to the ChatGPT import, not a failed PDF read.
-      onDropFile={dropped => { setSaveError(''); void (/\.json$/i.test(dropped.name) ? pipeline.uploadExternal(dropped) : pipeline.upload(dropped)); }}
-      footer={<StoppedImports imports={imports} busy={busy} onSelect={view => {
-        pipeline.clearFailure();
-        setSaveError('');
-        setSelected(view);
-        setDraft(view.draft);
-      }} />}>
-      <ImportProgressCard uploadProgress={pipeline.uploadProgress} selected={selected} busy={busy}
-        onCancelUpload={pipeline.cancelUpload} onDiscard={view => void discard(view)} />
-      {saver.pending && <p className="muted" role="status">Saving your changes…</p>}
-      {pipeline.notice && <p className="muted" role="status">{pipeline.notice}</p>}
-      {pipeline.failure && selected?.status !== 'failed'
-        && !hasStructuredTerminalError(selected)
-        && <ImportFailureBanner failure={pipeline.failure} onDismiss={pipeline.clearFailure} />}
-      {saveError && <CardFeedback message={saveError} action={{ label: 'Retry save', disabled: busy,
-        onClick: () => void saver.retry().catch(failure => setSaveError(failure instanceof Error ? failure.message : 'Could not save changes.')) }} />}
-    </ImportUploadPanel>
 
-    {/* A separate choice beside the PDF reader; hidden once a draft is open, like the upload hero. */}
-    {!hasDraft && <ImportExternalPanel busy={busy} failure={pipeline.externalFailure}
-      progress={pipeline.progress?.label === 'Checking the JSON file' ? pipeline.progress : null}
-      onChooseFile={() => jsonFile.current?.click()} onDismissFailure={pipeline.clearFailure}
-      onDropFile={dropped => { setSaveError(''); void pipeline.uploadExternal(dropped); }}
-      onSubmitText={text => { setSaveError(''); void pipeline.uploadExternal(text); }} />}
+    {/* The entry panel is replaced by the slim source bar once a draft is open. */}
+    {hasDraft
+      ? <ImportSourceBar fileName={selected?.fileName} busy={busy} onChooseFile={() => jsonFile.current?.click()} />
+      : <ImportExternalPanel busy={busy} failure={pipeline.externalFailure}
+        progress={pipeline.progress}
+        onChooseFile={() => jsonFile.current?.click()} onDismissFailure={pipeline.clearFailure}
+        onDropFile={dropped => { setSaveError(''); void pipeline.uploadExternal(dropped); }}
+        onSubmitText={text => { setSaveError(''); void pipeline.uploadExternal(text); }} />}
+
+    {hasDraft && pipeline.progress && <p className="muted" role="status">{pipeline.progress.label}…</p>}
+    {saver.pending && <p className="muted" role="status">Saving your changes…</p>}
+    {pipeline.notice && <p className="muted" role="status">{pipeline.notice}</p>}
+    {pipeline.failure && <ImportFailureBanner failure={pipeline.failure} onDismiss={pipeline.clearFailure} />}
+    {saveError && <CardFeedback message={saveError} action={{ label: 'Retry save', disabled: busy,
+      onClick: () => void saver.retry().catch(failure => setSaveError(failure instanceof Error ? failure.message : 'Could not save changes.')) }} />}
 
     {selected && selected.status === 'pending' && selected.stage === 'select' && selected.alternatives?.length
       ? <ImportAlternatives view={selected} choice={alternativeChoice} busy={busy} onChoose={setAlternativeChoice}
         onContinue={() => alternativeChoice && void pipeline.chooseAlternative(selected, alternativeChoice)} />
       : null}
-    {selected && selected.status === 'pending' && selected.stage !== 'select' && selected.error
-      && <ImportReadingStopped error={selected.error} busy={busy} onRetry={() => void pipeline.resume(selected)} onDiscard={() => void discard(selected)} />}
-
     {selected && !draft && selected.status === 'ready' && !selected.error && (
       <section className="panel" role="status">
         <div className="empty-message">
@@ -231,7 +196,5 @@ export function ImportReview({ exercises, imports, onBack, onChanged, notify }: 
         }} />}
     </>}
 
-    {selected && selected.status === 'failed' && <ImportFailedPanel view={selected} busy={busy}
-      onChooseFile={() => file.current?.click()} onDiscard={() => void discard(selected)} />}
   </div>;
 }

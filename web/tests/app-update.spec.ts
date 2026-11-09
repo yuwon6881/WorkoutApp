@@ -36,9 +36,9 @@ test('Reload activates the waiting update and navigates the current tab', async 
   expect(await page.evaluate(() => !!navigator.serviceWorker.controller)).toBe(true);
 });
 
-// A tab may remain open across a deployment. Its worker must retain the import view and
-// the text helper even after the server has removed that version's hashed files.
-test('the installed shell retains the import view and its text helper', async ({ page }) => {
+// A tab may remain open across a deployment. Its worker must retain the import view even
+// after the server has removed that version's hashed files.
+test('the installed shell retains the import view', async ({ page }) => {
   await page.goto('/');
   await page.evaluate(async () => { await navigator.serviceWorker.ready; });
   const cached = await page.evaluate(async () => {
@@ -47,6 +47,4 @@ test('the installed shell retains the import view and its text helper', async ({
     return requests.flat().map(request => new URL(request.url).pathname);
   });
   expect(cached.some(path => /\/assets\/Import-[^/]+\.js$/.test(path))).toBe(true);
-  expect(cached.some(path => /\/assets\/pdfText-[^/]+\.js$/.test(path))).toBe(true);
-  expect(cached.some(path => /\/assets\/pdf-[^/]+\.js$/.test(path))).toBe(false);
 });

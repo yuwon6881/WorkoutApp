@@ -5,13 +5,11 @@
   content-visibility: auto;
   contain-intrinsic-size: auto 180px;
 }
-.history-windowed .history-item-wrap,
-.import-windowed > li {
+.history-windowed .history-item-wrap {
   content-visibility: auto;
   contain-intrinsic-size: auto 72px;
 }
 .render-windowed > article:focus-within,
-.history-windowed .history-item-wrap:focus-within,
-.import-windowed > li:focus-within {
+.history-windowed .history-item-wrap:focus-within {
   content-visibility: visible;
 }

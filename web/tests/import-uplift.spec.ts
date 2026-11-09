@@ -35,8 +35,8 @@ for (const theme of ['dark', 'light']) {
     await signIn(page, 'e2e-responsive');
     const launch = await (await page.request.get('/api/bootstrap/launch')).json();
     let view: ImportView = { id: '00000000-0000-4000-8000-000000000091', status: 'ready', stage: 'done',
-      fileName: 'Powerbuilding review.pdf', pages: 48, error: '', created: '2026-10-14T00:00:00Z', model: 'layout-fixture',
-      chunksDone: 12, chunksTotal: 12, currentChunkLabel: null, unresolvedCount: 0, draft, unresolved: [],
+      fileName: 'Powerbuilding review.json', pages: 0, error: '', created: '2026-10-14T00:00:00Z', model: 'external',
+      unresolvedCount: 0, draft, unresolved: [],
       acceptable: true, programId: null, reviewIssues: [
         { code: 'external_uncertainty', message: 'BACK SQUAT: Working sets are printed as a range (1-3); used the lowest set count (1)', severity: 'info', sourcePage: 3, workoutLineId: 'day-0', exerciseLineId: 'exercise-0-0' },
         { code: 'external_uncertainty', message: 'BACK SQUAT: Check the movement', severity: 'info', sourcePage: 3, workoutLineId: 'day-0', exerciseLineId: 'exercise-0-0' },
@@ -159,29 +159,5 @@ for (const theme of ['dark', 'light']) {
     await first.locator('.iex-save-bar').getByRole('button', { name: 'Cancel', exact: true }).click();
     await expect(first.locator('.iex-save-bar')).toHaveCount(0);
     await dialog.getByRole('button', { name: 'Close dialog', exact: true }).click();
-
-    // Sections are read side by side and none has committed yet: the bar and the tiles still move.
-    const sectionStates = ['saved', 'saved', 'saved', 'checking', 'repairing', 'reading', 'reading', 'reading', 'reading', 'queued', 'queued', 'queued'];
-    view = { ...view, status: 'pending', stage: 'extract', draft: null, chunksDone: 0,
-      progress: { sectionsCompleted: 0, sectionsQueued: 3, sectionsReading: 4, sectionsVerifying: 1, sectionsRepairing: 1,
-        sectionsWithResponses: 5, startedAtUtc: new Date(Date.now() - 75_000).toISOString(), lastProgressAtUtc: new Date().toISOString(), sectionStates } };
-    await page.reload();
-    const progress = page.locator('.ipc-progress-track');
-    await expect(progress).toBeVisible();
-    await expect(progress).toHaveCSS('height', '4px');
-    await expect(page.locator('.ipc-section')).toHaveCount(sectionStates.length);
-    await expect(page.locator('.ipc-section--reading')).toHaveCount(4);
-    expect(Number(await progress.getAttribute('aria-valuenow'))).toBeGreaterThan(30);
-    await expect(page.locator('.ipc-elapsed')).toHaveText(/^1:1\d$/);
-    await expect(page.locator('.ipc-stat-chip--accent')).toContainText('3done');
-    const progressCard = page.locator('.ipc-card');
-    const bounds = (await progressCard.boundingBox())!;
-    const contents = await progressCard.locator(':scope > *').filter({ visible: true }).evaluateAll(elements => elements.map(element => {
-      const rect = element.getBoundingClientRect();
-      return { left: rect.left, right: rect.right };
-    }));
-    await page.screenshot({ path: info.outputPath(`progress-${theme}.png`), fullPage: true });
-    expect(contents.every(rect => rect.left >= bounds.x && rect.right <= bounds.x + bounds.width), JSON.stringify({ bounds, contents })).toBe(true);
-    expect(await progressCard.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
   });
 }

@@ -1,8 +1,7 @@
 import { expect, test } from '@playwright/test';
 import type { Locator, Page } from '@playwright/test';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 import { signIn as auth } from './signIn';
-import { pdf } from './pdfFixture';
 import type { Exercise, ExerciseInsight, ImportView, MuscleBalanceView, ShellBootstrap } from '../src/types';
 
 // Geometry checks use reduced motion so the swipe discovery animation cannot shift controls.
@@ -506,9 +505,9 @@ for (const theme of ['dark', 'light']) {
     await expect(detail).toBeHidden();
 
     await navigate(page, 'Workouts');
-    await openNewMenu(page, 'Import a PDF program');
+    await openNewMenu(page, 'Import a program');
     await screenshot('import-upload');
-    // Uploading is rate limited per session, as it should be, and every viewport shares one
+    // Creating an import is rate limited per session, as it should be, and every viewport shares one
     // account here. The review screen is what this suite checks, so the first run creates the
     // draft and the rest open the one that already exists.
     // The list resumes a ready draft before its detail request has finished. Checking the heading
@@ -516,10 +515,10 @@ for (const theme of ['dark', 'light']) {
     const importsResponse = await page.request.get('/api/imports');
     expect(importsResponse.ok()).toBe(true);
     const savedImports: ImportView[] = await importsResponse.json();
-    const savedDraft = savedImports.some(view => view.fileName === 'responsive.pdf'
-      && (view.status === 'ready' || view.status === 'pending') && !view.error);
+    const savedDraft = savedImports.some(view => view.fileName === 'external-small.json'
+      && view.status === 'ready' && !view.error);
     if (!savedDraft)
-      await page.getByLabel('Program PDF').setInputFiles({ name: 'responsive.pdf', mimeType: 'application/pdf', buffer: pdf() });
+      await page.getByLabel('Program JSON file').setInputFiles(resolve('tests', 'fixtures', 'external-small.json'));
     await expect(page.getByRole('heading', { name: 'Review' })).toBeVisible({ timeout: 60000 });
     await screenshot('import-review');
     const dayToggle = page.locator('.draft-day-summary').first();

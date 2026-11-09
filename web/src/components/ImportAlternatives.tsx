@@ -3,8 +3,8 @@ import type { ImportView } from '../types';
 import { Button } from './ui/Button';
 import './ImportAlternatives.css';
 
-/// The PDF holds several programs, or one week printed in versions: the lifter picks one before
-/// detailed extraction starts.
+/// The document holds several programs, or one week printed in versions: the lifter picks one before
+/// the draft is built.
 export function ImportAlternatives({ view, choice, busy, onChoose, onContinue }: {
   view: ImportView;
   choice: string | null;
@@ -29,7 +29,7 @@ export function ImportAlternatives({ view, choice, busy, onChoose, onContinue }:
           <p className="ialt-description">
             {isWeekVersion
               ? 'This program prints a week in versions and asks you to run only one. Choose the version to import; the program is kept in order around it.'
-              : 'This PDF contains several programs. Choose one before detailed extraction; its consecutive phases will stay together.'}
+              : 'This document contains several programs. Choose one to import; its consecutive phases stay together.'}
           </p>
         </div>
       </header>

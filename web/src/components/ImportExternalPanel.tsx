@@ -127,7 +127,7 @@ export function ImportExternalPanel({ busy, failure, progress, onChooseFile, onD
         <div className="iep-head-text">
           <h2 id="iep-title" className="iep-title">Import with an AI assistant</h2>
           <p className="muted small-copy">
-            Use this when the PDF reader gets a program wrong, or for an Excel file. An AI assistant reads your
+            Works with a PDF, an Excel file or other program documents. An AI assistant reads your
             document and gives you a JSON file to upload here.
           </p>
         </div>

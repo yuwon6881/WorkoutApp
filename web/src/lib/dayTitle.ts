@@ -1,4 +1,4 @@
-/// The title to show beside a day's slot label. PDFs often print the slot inside the title
+/// The title to show beside a day's slot label. Documents often print the slot inside the title
 /// ("DAY 1 LOWER FOCUSED FULL BODY" in slot 1), which would read "Day 1 · Day 1 Lower…". The
 /// repeated number is dropped for display only; the stored name stays as printed. A title numbered
 /// differently from its slot keeps its number, because it says something the slot does not.

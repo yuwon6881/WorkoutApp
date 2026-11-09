@@ -91,9 +91,7 @@ export default defineConfig({
       // App Link (`/open`) redirects and asset links are answered by hosting, never by the shell.
       navigateFallbackDenylist: [/^\/assets\//, /^\/api\//, /^\/health$/, /^\/open(?:\/|$)/, /^\/\.well-known\//],
       globPatterns: ['**/*.{js,css,html,png,svg,woff2}'],
-      // Keep PDF.js and its large worker on demand; cache the import view and its text helper
-      // with the shell so an older tab can open Import after a deployment.
-      globIgnores: ['**/assets/pdf-*.js', '**/assets/pdf.worker-*', '**/assets/firebase-push-*.js',
+      globIgnores: ['**/assets/firebase-push-*.js',
         // Plus Jakarta Sans's Cyrillic and Vietnamese subsets load only for text that needs them, so they
         // are fetched on demand rather than installed with the shell.
         '**/assets/plus-jakarta-sans-cyrillic*', '**/assets/plus-jakarta-sans-vietnamese*', '**/assets/*-wght-italic*',

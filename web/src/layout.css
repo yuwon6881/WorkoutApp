@@ -263,8 +263,7 @@ html { -webkit-tap-highlight-color: transparent; }
    would sit on top of it, so it steps aside until typing is done. The rest bar sits under the
    workout header, clear of the keyboard, and stays: typing the next load is when it matters. */
 html[data-keyboard='open'] .bottom-nav,
-html[data-keyboard='open'] .resume-workout,
-html[data-keyboard='open'] .import-progress-pill { display: none; }
+html[data-keyboard='open'] .resume-workout { display: none; }
 
 /* A waiting app update (app/useAppUpdate.ts), offered above the bottom navigation. */
 .update-banner {
@@ -319,7 +318,6 @@ html[data-keyboard='open'] .import-progress-pill { display: none; }
   .exercise-grid > .exercise-card .exercise-card-badges { margin-left: 0; }
 }
 
-
 /* app/usePullToRefresh.ts: the indicator grows with the pull and turns accent once far enough. */
 .pull-refresh {
   display: grid;
@@ -372,7 +370,6 @@ html[data-keyboard='open'] .import-progress-pill { display: none; }
   .import-exercise { padding: 10px; }
   .set-grid-wrap .rep-mode-btn { font-size: 14px; }
 }
-
 
 .rep-range-sep { font-size: var(--font-secondary); }
 
@@ -442,16 +439,12 @@ html[data-keyboard='open'] .import-progress-pill { display: none; }
 .resume-progress { position: absolute; right: 0; bottom: 0; left: 0; height: 3px; background: var(--border); }
 .resume-progress > span { display: block; height: 100%; background: var(--accent); transform-origin: left center; transition: transform 420ms cubic-bezier(.32, .72, 0, 1); }
 
-/* Floating bottom items stack instead of overlapping: a toast and the import progress pill rise
+/* Floating bottom items stack instead of overlapping: a toast rises
    above the bar while it is showing. */
-.resume-workout ~ .toast,
-.import-progress-pill.has-resume { bottom: 102px; }
+.resume-workout ~ .toast { bottom: 102px; }
 @media (max-width: 639px) {
   .resume-workout.button { right: 12px; bottom: calc(82px + env(safe-area-inset-bottom)); left: 12px; width: auto; max-width: none; }
-  .resume-workout ~ .toast,
-  .import-progress-pill.has-resume { bottom: calc(160px + env(safe-area-inset-bottom)); }
-  .import-progress-pill ~ .toast { bottom: calc(138px + env(safe-area-inset-bottom)); }
-  .import-progress-pill.has-resume ~ .toast { bottom: calc(216px + env(safe-area-inset-bottom)); }
+  .resume-workout ~ .toast { bottom: calc(160px + env(safe-area-inset-bottom)); }
   .app-shell:has(.resume-workout) main { padding-bottom: 104px; }
 }
 @media (prefers-reduced-motion: reduce) {

@@ -34,7 +34,6 @@ import { Auth, Dashboard, ExerciseDetailModal, ExerciseLibrary, ImportReview, Mu
 import { AppContexts } from './app/AppContexts';
 import { useAppTheme } from './app/useAppTheme';
 const AiAssistantPanel = lazy(() => import('./components/AiAssistantPanel').then(module => ({ default: module.AiAssistantPanel })));
-const ImportWatchBridge = lazy(() => import('./components/ImportWatchBridge').then(module => ({ default: module.ImportWatchBridge })));
 const InstallAppCard = lazy(() => import('./components/InstallAppCard').then(module => ({ default: module.InstallAppCard })));
 const ConnectionRecovery = lazy(() => import('./components/ui/ConnectionRecovery').then(module => ({ default: module.ConnectionRecovery })));
 import type { AiUiAction } from './lib/api/ai';
@@ -101,7 +100,6 @@ export default function App() {
   useEffect(() => { if (training && workoutSession) setStartingName(null); }, [training, workoutSession]);
   const importBlocked = Boolean(workoutSession?.active);
   useEffect(() => { if (importBlocked) prefetchView('resumeWorkout'); }, [importBlocked]);
-  useEffect(() => { if (signedOut) void import('./lib/localPdfRead').then(module => module.resetLocalPdfRead()); }, [signedOut]);
 
   useAppTheme(data?.preferences.theme, signedOut);
   // A session summary credits muscles from the exercise library, which Overview does not load.
@@ -414,9 +412,6 @@ export default function App() {
     {workoutSession?.active && !training && tab !== 'overview' && restState && <Suspense fallback={null}>
       <ResumeWorkoutButton session={workoutSession} rest={restState} onResume={() => setTraining(true)} />
     </Suspense>}
-
-    <Suspense fallback={null}><ImportWatchBridge imports={data.imports} active={tab !== 'import'} training={training}
-      withResume={Boolean(workoutSession?.active)} onOpen={openImport} onFinished={app.reload} onLocalFailure={setToast} /></Suspense>
 
     {(startingName !== null || (training && workoutSession)) && (
       <Suspense fallback={null}>

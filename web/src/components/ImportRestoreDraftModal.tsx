@@ -28,7 +28,7 @@ export function ImportRestoreDraftModal({ onClose, onRestore }: {
     <Modal title="Restore default draft" onClose={() => !restoring && onClose()}>
       <div className="modal-body irev-modal-body" aria-busy={restoring}>
         <p className="irev-modal-consequence">
-          Reset all exercises, mappings, notes, sets, and rep ranges across this entire program to the initial extracted version from the PDF?
+          Reset all exercises, mappings, notes, sets, and rep ranges across this entire program to the initial imported version?
         </p>
         <p className="muted irev-modal-secondary">
           All manual adjustments made since extraction will be replaced with the default baseline.

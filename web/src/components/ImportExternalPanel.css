@@ -1,4 +1,4 @@
-/* ImportExternalPanel (prefix: iep-) - the ChatGPT-assisted import, a separate choice beside the PDF reader. */
+/* ImportExternalPanel (prefix: iep-) - the AI-assisted JSON import, the only way to create a program from a document. */
 
 .panel.iep-panel {
   display: flex;

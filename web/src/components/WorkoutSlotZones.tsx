@@ -31,11 +31,11 @@ export function ActiveSlotDropZone({ over, occupied, hasLibrary, onNewWorkout, o
         </div>
         <div className="active-slot-empty-copy pp-slot-copy">
           <h3>Ready for your first workout</h3>
-          <p className="pp-slot-help-text">Build one by hand, or import a program from a PDF. It will wait in your library until you drag it here.</p>
+          <p className="pp-slot-help-text">Build one by hand, or import one from a document. It will wait in your library until you drag it here.</p>
         </div>
       </div>
       <div className="slot-card-actions pp-first-run-actions">
-        <Button variant="secondary" onClick={onImport} className="pp-first-run-btn"><FileText size={15} />Import a PDF</Button>
+        <Button variant="secondary" onClick={onImport} className="pp-first-run-btn"><FileText size={15} />Import a program</Button>
         <Button variant="primary" onClick={onNewWorkout} className="pp-first-run-btn"><Plus size={15} />Build a workout</Button>
       </div>
     </section>;

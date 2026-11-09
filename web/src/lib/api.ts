@@ -1,12 +1,11 @@
 import {fetchWithAvailabilityRecovery} from './availabilityRecovery';
 import { integrationGeneration, signalIntegrationPending } from './integrationDispatch';
 import type { ExerciseLoadSettings, LoadRule, LoadSettingsOverview } from './exerciseLoads';
-import type { PdfExtraction } from './pdfText';
 import { sharedReads } from './readCoordinator';
 import { readFieldErrors, type ExternalImportFieldError, type ExternalImportPrompt } from './externalImport';
 import type { OneRepMaxView } from './oneRepMax';
 import type { Exercise, GymExerciseOverride, GymsView, HistorySummaryPage, ShellBootstrap, TrackingMode, Unit } from '../types';
-import type { Bootstrap, CustomExerciseCreated, DraftWorkout, ExerciseClearPreview, ExerciseInsight, HistoryPage, ImportDraft, ImportStatusView, ImportView, MuscleBalanceRange, MuscleBalanceView, Preferences, ProgressSummary, Program, ProgramDayActionInput, ProgramEditInput, ProgramEditorDocument, ProgramSummary, ProgramWeekResetInput, RestMutationInput, Session, Template, TemplateSubstitutionResult, WatchDevice, WorkoutActivityItem } from '../types';
+import type { Bootstrap, CustomExerciseCreated, DraftWorkout, ExerciseClearPreview, ExerciseInsight, HistoryPage, ImportDraft, ImportView, MuscleBalanceRange, MuscleBalanceView, Preferences, ProgressSummary, Program, ProgramDayActionInput, ProgramEditInput, ProgramEditorDocument, ProgramSummary, ProgramWeekResetInput, RestMutationInput, Session, Template, TemplateSubstitutionResult, WatchDevice, WorkoutActivityItem } from '../types';
 
 export class ApiError extends Error {
   constructor(message: string, readonly status: number, readonly retryAfterMs: number | null = null,
@@ -36,12 +35,6 @@ async function coordinateRead<T>(key: string, path: string, signal: AbortSignal 
 
 export async function call<T>(path: string, method = 'GET', body?: unknown, signal?: AbortSignal, extraHeaders?: Record<string, string>): Promise<T> {
   const load = async (sharedSignal?: AbortSignal) => (await requestWithMeta<T>(path, method, body, sharedSignal, extraHeaders)).data as T;
-  return method === 'GET' ? coordinateRead(path + ':' + JSON.stringify(extraHeaders ?? {}), path, signal, load) : load(signal);
-}
-
-async function callWithMeta<T>(path: string, method = 'GET', body?: unknown, signal?: AbortSignal,
-  extraHeaders?: Record<string, string>): Promise<{ data: T | null; notModified: boolean; etag: string | null }> {
-  const load = (sharedSignal?: AbortSignal) => requestWithMeta<T>(path, method, body, sharedSignal, extraHeaders);
   return method === 'GET' ? coordinateRead(path + ':' + JSON.stringify(extraHeaders ?? {}), path, signal, load) : load(signal);
 }
 
@@ -82,17 +75,6 @@ async function requestWithMeta<T>(path: string, method: string, body?: unknown, 
   return { data: (response.status === 204 ? undefined : payload) as T, notModified: false, etag };
 }
 
-/// Posts JSON gzipped where the browser can compress a stream, and as plain JSON where it
-/// cannot. The server accepts both, so an older browser stays able to import a smaller document
-/// rather than losing the feature entirely.
-async function callCompressed<T>(path: string, body: unknown): Promise<T> {
-  const json = JSON.stringify(body);
-  if (typeof CompressionStream === 'undefined') return call<T>(path, 'POST', body);
-  const stream = new Blob([json]).stream().pipeThrough(new CompressionStream('gzip'));
-  const compressed = new Uint8Array(await new Response(stream).arrayBuffer());
-  return call<T>(path, 'POST', compressed, undefined, { 'Content-Type': 'application/json', 'Content-Encoding': 'gzip' });
-}
-
 function safeParse(text: string, status: number): { message?: string } & Record<string, unknown> {
   try { return JSON.parse(text); } catch { return { message: [429,502,503,504].includes(status)?'The service is temporarily unavailable. Try again shortly.':'The server sent a response this app could not read.' }; }
 }
@@ -123,7 +105,7 @@ export const api = {
       return api.shell(signal);
     }
     return { ...launch, activeProgram: launch.activeProgram ? { ...launch.activeProgram, days: [], completedTemplateIds: [] } : null,
-      imports: launch.imports.map(row => ({ ...row, draft: null, unresolved: [], acceptable: false, currentChunkLabel: null })) };
+      imports: launch.imports.map(row => ({ ...row, draft: null, unresolved: [], acceptable: false })) };
   },
   exercises: (signal?: AbortSignal) => call<Exercise[]>('/api/exercises', 'GET', undefined, signal),
   historySummaries: (beforeAt?: string | null, beforeId?: string | null, signal?: AbortSignal) =>
@@ -221,17 +203,10 @@ export const api = {
 
   imports: () => call<ImportView[]>('/api/imports'),
   getImport: (id: string) => call<ImportView>(`/api/imports/${id}`),
-  getImportStatus: (id: string) => call<ImportStatusView>(`/api/imports/${id}/status`),
-  getImportStatusMeta: (id: string, etag?: string, signal?: AbortSignal) => callWithMeta<ImportStatusView>(`/api/imports/${id}/status`, 'GET', undefined, signal, etag ? { 'If-None-Match': etag } : undefined),
-  createImport: (source: PdfExtraction) => callCompressed<ImportView>('/api/imports', {
-    fileName: source.fileName, pageCount: source.pageCount, pages: source.pages, links: source.links
-  }),
   externalImportPrompt: () => call<ExternalImportPrompt>('/api/imports/external/prompt'),
   /// Send the original bytes so invalid UTF-8 cannot be silently replaced before validation.
   createExternalImport: (bytes: Uint8Array) => call<ImportView>('/api/imports/external', 'POST',
     bytes, undefined, { 'Content-Type': 'application/json' }),
-  extractImport: (id: string) => call<ImportView>(`/api/imports/${id}/extract`, 'POST'),
-  retryImport: (id: string) => call<ImportView>(`/api/imports/${id}/retry`, 'POST'),
   editImport: (id: string, draft: Pick<ImportDraft, 'programName'> | ImportDraft, revision?: number) => call<ImportView>(`/api/imports/${id}`, 'PUT', revision == null ? draft : { ...draft, revision }),
   editImportDay: (id: string, day: DraftWorkout, revision?: number) => call<ImportView>(`/api/imports/${id}/days/${day.lineId}`, 'PUT', revision == null ? day : { ...day, revision }),
   editImportDays: (id: string, days: DraftWorkout[], revision?: number) => call<ImportView>(`/api/imports/${id}/days`, 'PUT', { days, revision }),

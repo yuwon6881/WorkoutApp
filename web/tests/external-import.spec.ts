@@ -70,7 +70,6 @@ for (const theme of ['light', 'dark']) {
     await page.getByRole('button', { name: 'Continue with selected version' }).click();
     await expect(page.getByRole('heading', { name: 'Review', exact: true })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Source JSON' })).toBeVisible();
-    await expect(page.getByText('How your PDF is read')).toHaveCount(0);
     await expect(page.getByText('Check the movement')).toBeVisible();
     await expect(page.getByText('WorkoutApp has not checked this JSON against the original document.')).toBeVisible();
     await page.getByText(/^Source references/).click();

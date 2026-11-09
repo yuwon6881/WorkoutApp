@@ -1,6 +1,6 @@
-/* Slim "Source PDF" bar shown once an import exists (split from ImportUploadPanel.css). */
-/* Draft State (Slim Bar) */
-.panel.import-upload-panel.has-draft.iup-panel--draft {
+/* Slim "Source JSON" bar shown once an import exists. */
+
+.panel.import-source-bar {
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -9,13 +9,13 @@
 }
 
 @media (max-width: 639px) {
-  .panel.import-upload-panel.has-draft.iup-panel--draft {
+  .panel.import-source-bar {
     padding: 12px 14px;
     gap: 8px;
   }
 }
 
-.iup-draft-bar {
+.isb-bar {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -24,7 +24,7 @@
   width: 100%;
 }
 
-.iup-draft-main {
+.isb-main {
   display: flex;
   align-items: center;
   gap: 12px;
@@ -33,12 +33,12 @@
 }
 
 @media (max-width: 639px) {
-  .iup-draft-main {
+  .isb-main {
     gap: 10px;
   }
 }
 
-.iup-draft-icon-tile {
+.isb-icon-tile {
   display: grid;
   place-items: center;
   flex: 0 0 38px;
@@ -51,19 +51,19 @@
 }
 
 @media (max-width: 639px) {
-  .iup-draft-icon-tile {
+  .isb-icon-tile {
     flex: 0 0 34px;
     width: 34px;
     height: 34px;
     border-radius: 8px;
   }
-  .iup-draft-icon-tile svg {
+  .isb-icon-tile svg {
     width: 16px;
     height: 16px;
   }
 }
 
-.iup-draft-info {
+.isb-info {
   display: flex;
   flex-direction: column;
   gap: 2px;
@@ -71,7 +71,7 @@
   flex: 1 1 auto;
 }
 
-.import-upload-panel .iup-draft-heading {
+.import-source-bar .isb-heading {
   /* The global h2 rule sets its size with !important. */
   font-size: var(--font-secondary) !important;
   font-weight: 650;
@@ -82,7 +82,7 @@
   margin: 0;
 }
 
-.iup-draft-filename {
+.isb-filename {
   display: block;
   font-size: 14px;
   font-weight: 600;
@@ -95,16 +95,16 @@
 }
 
 @media (max-width: 639px) {
-  .iup-draft-filename {
+  .isb-filename {
     font-size: var(--font-secondary);
   }
 }
 
-.iup-draft-action {
+.isb-action {
   flex: 0 0 auto;
 }
 
-.iup-draft-choose-btn {
+.isb-choose-btn {
   min-height: 40px;
   padding: 8px 14px;
   font-size: var(--font-secondary);
@@ -114,7 +114,7 @@
 }
 
 @media (max-width: 1023px) {
-  .iup-draft-choose-btn {
+  .isb-choose-btn {
     min-height: 44px;
   }
 }
@@ -122,13 +122,13 @@
 /* Below ~400 px the bar cannot hold the icon, file name and button on one line, so the action
    drops to its own full-width row instead of squeezing the name into a few letters. */
 @media (max-width: 399px) {
-  .iup-draft-bar {
+  .isb-bar {
     flex-wrap: wrap;
   }
-  .iup-draft-action {
+  .isb-action {
     flex: 1 1 100%;
   }
-  .iup-draft-choose-btn {
+  .isb-choose-btn {
     width: 100%;
     justify-content: center;
   }

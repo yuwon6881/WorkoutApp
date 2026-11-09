@@ -168,7 +168,7 @@ export const ImportReviewPanel = forwardRef<HTMLElement, {
                             <div className="irev-uncertainty-row-title-line">
                               <strong className="irev-uncertainty-row-title">{subject}</strong>
                               {issue.sourcePage && (
-                                <span className="pill irev-source-pill" aria-label={`PDF page ${issue.sourcePage}`}>p.{issue.sourcePage}</span>
+                                <span className="pill irev-source-pill" aria-label={`Source page ${issue.sourcePage}`}>p.{issue.sourcePage}</span>
                               )}
                             </div>
                             <span className="irev-uncertainty-row-reason">{reason}</span>
@@ -177,7 +177,7 @@ export const ImportReviewPanel = forwardRef<HTMLElement, {
                           <div className="irev-uncertainty-row-title-line">
                             <span className="irev-uncertainty-row-message">{issue.message}</span>
                             {issue.sourcePage && (
-                              <span className="pill irev-source-pill" aria-label={`PDF page ${issue.sourcePage}`}>p.{issue.sourcePage}</span>
+                              <span className="pill irev-source-pill" aria-label={`Source page ${issue.sourcePage}`}>p.{issue.sourcePage}</span>
                             )}
                           </div>
                         )}
