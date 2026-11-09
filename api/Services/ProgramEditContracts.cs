@@ -52,7 +52,7 @@ internal static class ProgramDayComparer
             if (!SameSet(sets[index], input.Sets[index], strict)) return false;
         if (!strict) return true;
         var substitutions = Json.Read<List<string>>(row.SubstitutionsJson);
-        var supplied = (input.Substitutions ?? []).Where(value => !string.IsNullOrWhiteSpace(value)).Select(Text).Take(2).ToList();
+        var supplied = (input.Substitutions ?? []).Where(value => !string.IsNullOrWhiteSpace(value)).Select(Text).Take(Validation.MaxSubstitutions).ToList();
         return substitutions.SequenceEqual(supplied) && row.SourcePage == input.SourcePage;
     }
 

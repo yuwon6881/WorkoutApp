@@ -371,7 +371,7 @@ public sealed partial class WorkoutService(
             row.PrescriptionJson = Json.Write(exercise.Prescription);
             row.SequenceGroup = exercise.SequenceGroup?.Trim() ?? "";
             row.RestSeconds = exercise.RestSeconds;
-            row.SubstitutionsJson = Json.Write((exercise.Substitutions ?? []).Take(2).Select(s => s.Trim()).ToList());
+            row.SubstitutionsJson = Json.Write((exercise.Substitutions ?? []).Take(Validation.MaxSubstitutions).Select(s => s.Trim()).ToList());
             row.LoadModel = loadModel;
             row.SourceTemplateExerciseId = exercise.SourceTemplateExerciseId ?? row.SourceTemplateExerciseId;
             row.SourceSlotKey = exercise.SourceSlotKey ?? row.SourceSlotKey;

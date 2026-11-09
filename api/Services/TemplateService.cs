@@ -156,7 +156,7 @@ public sealed partial class TemplateService(AppDb db, CatalogService catalog)
             row.Note = inputExercise.Note?.Trim() ?? ""; row.Position = position++;
             row.SetsJson = Json.Write(inputExercise.Sets); row.SequenceGroup = inputExercise.SequenceGroup?.Trim() ?? "";
             row.RestSeconds = inputExercise.RestSeconds;
-            row.SubstitutionsJson = Json.Write((inputExercise.Substitutions ?? []).Where(s => !string.IsNullOrWhiteSpace(s)).Select(s => s.Trim()).Take(2).ToList());
+            row.SubstitutionsJson = Json.Write((inputExercise.Substitutions ?? []).Where(s => !string.IsNullOrWhiteSpace(s)).Select(s => s.Trim()).Take(Validation.MaxSubstitutions).ToList());
             row.SourcePage = inputExercise.SourcePage;
             var demoLinks = inputExercise.DemoLinks is null
                 ? Json.Read<Dictionary<string, string>>(row.DemoLinksJson)
@@ -315,7 +315,7 @@ public sealed partial class TemplateService(AppDb db, CatalogService catalog)
                 SourceName = exercise.SourceName.Trim(), Note = exercise.Note?.Trim() ?? "", Position = position++,
                 SetsJson = Json.Write(exercise.Sets), SequenceGroup = exercise.SequenceGroup?.Trim() ?? "",
                 RestSeconds = exercise.RestSeconds,
-                SubstitutionsJson = Json.Write((exercise.Substitutions ?? []).Where(s => !string.IsNullOrWhiteSpace(s)).Select(s => s.Trim()).Take(2).ToList()),
+                SubstitutionsJson = Json.Write((exercise.Substitutions ?? []).Where(s => !string.IsNullOrWhiteSpace(s)).Select(s => s.Trim()).Take(Validation.MaxSubstitutions).ToList()),
                 SourcePage = exercise.SourcePage, SlotKey = exercise.SlotKey ?? Guid.NewGuid(),
                 DemoLinksJson = Json.Write(ImportDemoLinks.NormalizeMap(exercise.DemoLinks)),
                 DemoUrl = ImportDemoLinks.ForName(exercise.DemoLinks, exercise.SourceName)

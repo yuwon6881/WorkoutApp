@@ -130,8 +130,16 @@ export function ExerciseLibrary({ exercises, onSelect, exclude = emptyIds, onOpe
 
   const isRelevant = (e: Exercise) => (ranks.get(e.id) ?? 4) < 4;
   const showBoundary = isSwapping && !query.trim() && muscle === 'All muscles';
-  const relevantList = showBoundary ? ordered.filter(isRelevant) : ordered;
-  const otherList = showBoundary ? ordered.filter(e => !isRelevant(e)) : [];
+  // What the source document itself suggests for this movement gets its own section, apart from
+  // the library's similarity ranking. It shows only while nothing narrows the list.
+  const showRecommended = isSwapping && preferredNames.length > 0 && !query.trim() && muscle === 'All muscles'
+    && source === 'all' && category === 'all';
+  const recommended = showRecommended ? ordered.filter(e => ranks.get(e.id) === 0) : [];
+  const recommendedIds = new Set(recommended.map(e => e.id));
+  const unmatchedSuggestions = showRecommended ? preferredNames.filter(name => !exercises.some(e =>
+    [e.name, ...e.aliases].some(alias => normalized(alias) === normalized(name)))) : [];
+  const relevantList = (showBoundary ? ordered.filter(isRelevant) : ordered).filter(e => !recommendedIds.has(e.id));
+  const otherList = showBoundary ? ordered.filter(e => !isRelevant(e) && !recommendedIds.has(e.id)) : [];
 
   const currentMatches = current && searchScores.has(current.id)
     && (source === 'all' || (source === 'custom' ? current.isCustom : !current.isCustom))
@@ -139,9 +147,11 @@ export function ExerciseLibrary({ exercises, onSelect, exclude = emptyIds, onOpe
     && (muscle === 'All muscles' || [current.muscle, ...(current.secondaryMuscles ?? [])].some(val => val.toLowerCase() === muscle.toLowerCase()));
   const showCurrentAtTop = isSwapping && current && currentMatches && (muscle === 'All muscles' || [current.muscle, ...(current.secondaryMuscles ?? [])].some(val => val.toLowerCase() === muscle.toLowerCase()));
 
-  function renderCategoryGroups(items: Exercise[]) {
-    return categoryOrder.map(cat => {
-      const catItems = items.filter(e => getExerciseCategory(e) === cat);
+  function renderCategoryGroups(items: Exercise[], heading?: string) {
+    const groups: [string, Exercise[]][] = heading
+      ? [[heading, items]]
+      : categoryOrder.map(cat => [cat, items.filter(e => getExerciseCategory(e) === cat)]);
+    return groups.map(([cat, catItems]) => {
       if (!catItems.length) return null;
       return (
         <section className="category-group" key={cat} aria-label={`${cat} exercises`}>
@@ -305,6 +315,17 @@ export function ExerciseLibrary({ exercises, onSelect, exclude = emptyIds, onOpe
             <span className="picker-add-label">Current</span>
           </Button>
         </article>
+      </div>
+    )}
+
+    {recommended.length > 0 && (
+      <div className="picker-recommended">
+        {renderCategoryGroups(recommended, 'Recommended in your program')}
+        {unmatchedSuggestions.length > 0 && (
+          <p className="muted picker-recommended-note">
+            Also suggested, not in the library: {unmatchedSuggestions.join(', ')}.
+          </p>
+        )}
       </div>
     )}
 

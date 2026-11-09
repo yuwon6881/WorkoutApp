@@ -58,6 +58,29 @@ describe('ExerciseLibrary UI and grouping', () => {
     expect(markup).toContain('title="Barbell bench press"');
   });
 
+  it('lists what the program document suggests in its own section when swapping, once', () => {
+    const markup = renderToStaticMarkup(createElement(ExerciseLibrary, {
+      exercises: sampleExercises, action: 'swap', currentExerciseId: 'ex-bench', onSelect: () => {},
+      preferredNames: ['Push-up', 'Machine chest press', 'Reverse hyper']
+    }));
+    expect(markup).toContain('Recommended in your program');
+    // Each suggestion appears once: in the section, not again in its category group.
+    expect(markup.match(/aria-label="Swap Push-up"/g)).toHaveLength(1);
+    expect(markup.match(/aria-label="Swap Machine Chest Press"/g)).toHaveLength(1);
+    // A suggestion the library does not have is named rather than dropped.
+    expect(markup).toContain('not in the library: Reverse hyper');
+    expect(markup.indexOf('Recommended in your program')).toBeLessThan(markup.indexOf('aria-label="Swap Incline Dumbbell Press"'));
+  });
+
+  it('shows no recommended section without suggestions or outside a swap', () => {
+    const swapWithout = renderToStaticMarkup(createElement(ExerciseLibrary, {
+      exercises: sampleExercises, action: 'swap', currentExerciseId: 'ex-bench', onSelect: () => {} }));
+    const addWith = renderToStaticMarkup(createElement(ExerciseLibrary, {
+      exercises: sampleExercises, action: 'add', onSelect: () => {}, preferredNames: ['Push-up'] }));
+    expect(swapWithout).not.toContain('Recommended in your program');
+    expect(addWith).not.toContain('Recommended in your program');
+  });
+
   it('prioritizes the current exercise category in the group order', () => {
     // When swapping a Body Weight exercise (Push-up), Body Weight group comes first
     const bwMarkup = renderToStaticMarkup(createElement(ExerciseLibrary, {

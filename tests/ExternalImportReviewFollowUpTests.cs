@@ -296,6 +296,25 @@ public sealed class ExternalImportReviewFollowUpTests
     }
 
     [Fact]
+    public async Task Every_listed_substitution_survives_program_creation_and_workout_start_for_the_swap_picker()
+    {
+        var h = await Harness.Create();
+        await h.SignIn();
+        await h.Seed(new SeedExercise("bench", "Bench press", "Chest", "Barbell", null));
+        var names = new[] { "Dumbbell press", "Machine press", "Push-up", "Cable fly", "Dip" };
+        var file = "{\"version\":1,\"program\":{\"name\":\"P\",\"days\":[{\"key\":\"a\",\"week\":1,\"name\":\"A\",\"exercises\":["
+            + "{\"sourceName\":\"Bench press\",\"substitutions\":[" + string.Join(',', names.Select(name => $"\"{name}\"")) + "],"
+            + "\"sets\":[{\"repMin\":8,\"repMax\":10}]}]}]}}";
+        var imports = h.Imports(new HttpClientHandler());
+        var view = await imports.CreateExternalImport(file, "p.json", default);
+
+        await imports.Accept(view.Id, default, view.Revision);
+
+        var saved = await h.Db.TemplateExercises.AsNoTracking().Select(row => row.SubstitutionsJson).ToListAsync();
+        Assert.Equal(names, Json.Read<List<string>>(Assert.Single(saved)));
+    }
+
+    [Fact]
     public async Task A_value_the_file_states_stays_marked_as_supplied_rather_than_checked()
     {
         const string file = """

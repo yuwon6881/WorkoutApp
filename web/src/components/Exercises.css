@@ -344,3 +344,11 @@
   font-variant-numeric: tabular-nums;
   overflow-wrap: anywhere;
 }
+
+.picker-recommended {
+  margin-bottom: 16px;
+}
+.picker-recommended-note {
+  margin: 8px 0 0;
+  font-size: 0.875rem;
+}
