@@ -15,6 +15,7 @@ public sealed class ExternalImportPromptTests
         Assert.Contains($"within 0-{ExternalImportLimits.MaxRir}", prompt);
         Assert.Contains($"sourceWeekDays (1-{ExternalImportLimits.MaxCycleDays})", prompt);
         Assert.Contains("set program.sourceWeekDays to its length", prompt);
+        Assert.Contains($"as options, at most {ImportUncertainty.MaxOptions}", prompt);
         Assert.Contains($"each group needs at least {ExternalImportLimits.MinSupersetExercises} exercises", prompt);
         foreach (var host in ImportDemoLinks.ApprovedHosts) Assert.Contains(host, prompt);
         foreach (var instruction in new[] { "complete source", "uncertain", "weeks", "days", "exercises", "parts", "merge", "one JSON file", "overlap", "nested" })

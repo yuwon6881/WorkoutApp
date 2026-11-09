@@ -195,7 +195,8 @@ export function ImportReview({ exercises, imports, onBack, onChanged, notify }: 
         busy={busy}
         acknowledgedUncertainty={acknowledgedUncertainty} onAcknowledgeUncertainty={setAcknowledgedUncertainty}
         onNameChange={programName => saver.editLocal({ ...draft, programName })}
-        onNameCommit={() => void saver.persist(draft)} onFocusIssue={focusReviewIssue} />
+        onNameCommit={() => void saver.persist(draft)} onFocusIssue={focusReviewIssue}
+        exercises={exercises} onApplyOption={next => void saver.persistExercise(next)} />
       {draft.workouts.length > 0 ? (
         <DraftOutline
           ref={outlineRef}

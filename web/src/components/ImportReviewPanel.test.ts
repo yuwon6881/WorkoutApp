@@ -136,3 +136,25 @@ describe('import gym review', () => {
     })).toBe('library');
   });
 });
+
+describe("import uncertain details with suggested answers", () => {
+  const draft = { programName: "Plan", workouts: [{ lineId: "d", name: "Day one", exercises: [{ lineId: "e", sourceName: "HEX BAR", exerciseId: null, sets: [],
+    uncertainty: { flag: true, reason: "Name cut off", options: [{ label: "Shrug", exerciseId: "x1" }, { label: "Deadlift", exerciseId: "x2" }] } }] }] } as unknown as ImportDraft;
+  const view = { unresolved: [], acceptable: true, reviewIssues: [
+    { code: "external_uncertainty", message: "HEX BAR: Name cut off", severity: "info", workoutLineId: "d", exerciseLineId: "e" }
+  ] } as unknown as ImportView;
+  const render = (extra: object) => renderToStaticMarkup(createElement(ImportReviewPanel, { view, draft, attentionRows: [],
+    onNameChange: () => {}, onNameCommit: () => {}, onFocusIssue: () => {}, ...extra }));
+
+  it("offers each option by its library name next to Inspect", () => {
+    const html = render({ exercises: [{ id: "x1", name: "Hex-bar shrug" }, { id: "x2", name: "Hex-bar deadlift" }], onApplyOption: () => {} });
+    expect(html).toContain("Suggested answers");
+    expect(html).toContain("Hex-bar shrug");
+    expect(html).toContain("Hex-bar deadlift");
+    expect(html).toContain("Inspect");
+  });
+
+  it("shows no answers when the assistant offered none or nothing can apply them", () => {
+    expect(render({ exercises: [] })).not.toContain("Suggested answers");
+  });
+});

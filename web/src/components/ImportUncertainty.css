@@ -288,3 +288,31 @@
     justify-content: flex-end;
   }
 }
+
+/* Answers the assistant offered for a flagged detail */
+.irev-uncertainty-options {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+  min-width: 0;
+}
+
+.irev-uncertainty-options-hint {
+  font-size: 0.875rem;
+  color: var(--muted);
+  line-height: 1.4;
+}
+
+.irev-uncertainty-option-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-width: 0;
+}
+
+.irev-uncertainty-option {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  text-align: left;
+}

@@ -22,14 +22,14 @@ internal static class ExternalImportFieldHints
             ["uncertainty"] = "uncertainty must be an object like {\"flag\":true,\"reason\":\"Short plain explanation\"}.",
             ["sourceReference"] = "sourceReference must be an object such as {\"kind\":\"pdfPage\",\"page\":2}.",
         };
-        foreach (var name in new[] { "days", "exercises", "sets", "members", "dayKeys", "alternativeGroups" })
+        foreach (var name in new[] { "days", "exercises", "sets", "members", "dayKeys", "alternativeGroups", "options" })
             hints[name] = $"{name} must be a list, like [ ... ].";
         foreach (var name in new[] { "repMin", "repMax", "restSeconds", "week", "phaseWeek", "sourceWeekDays" })
             hints[name] = $"{name} must be a whole number such as 8, written without quotes.";
         foreach (var name in new[] { "warmup", "isRestDay", "flag" })
             hints[name] = $"{name} must be true or false, written without quotes.";
         foreach (var name in new[] { "name", "key", "id", "sourceName", "notes", "focus", "block", "phase", "kind", "type", "tempo",
-            "loadText", "repsText", "restText", "rir", "sequenceGroup", "description", "reason" })
+            "loadText", "label", "exerciseName", "repsText", "restText", "rir", "sequenceGroup", "description", "reason" })
             hints[name] = $"{name} must be text, written in quotes.";
         return hints;
     }

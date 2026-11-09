@@ -48,13 +48,50 @@ public sealed record ImportSourceReference(string Kind, int? Page = null, string
     }
 }
 
-public sealed record ImportUncertainty(bool Flag, string? Reason = null)
+/// One answer the assistant offers for a flagged detail. On an exercise it names a movement (the server fills in
+/// ExerciseId from the library and drops a name the library does not hold); on a set it gives the reps or effort to use.
+public sealed record ImportOption(string Label, string? ExerciseName = null, Guid? ExerciseId = null,
+    int? RepMin = null, int? RepMax = null, double? TargetRpe = null);
+
+public enum ImportOptionScope { None, Exercise, Set }
+
+public sealed record ImportUncertainty(bool Flag, string? Reason = null, List<ImportOption>? Options = null)
 {
-    public static void Validate(ImportUncertainty? uncertainty)
+    public const int MaxOptions = 4;
+
+    public static void Validate(ImportUncertainty? uncertainty, ImportOptionScope scope = ImportOptionScope.None)
     {
         if (uncertainty is null) return;
         // An unflagged reason ("clearly printed") is harmless: review only ever surfaces flagged items,
         // so rejecting the whole file for it would cost a correction round trip for nothing.
         Validation.Text(uncertainty.Reason, 200, "Uncertainty reason");
+        if (uncertainty.Options is not { Count: > 0 } options) return;
+        Validation.Require(scope != ImportOptionScope.None, "Options can be offered on an exercise or a set, not here.");
+        Validation.Require(options.Count <= MaxOptions, $"Offer at most {MaxOptions} options.");
+        foreach (var option in options)
+        {
+            Validation.Require(option is not null, "Remove the empty option.");
+            Validation.Name(option!.Label, "Option label", 80);
+            if (scope == ImportOptionScope.Exercise) ValidateExerciseOption(option);
+            else ValidateSetOption(option);
+        }
+    }
+
+    private static void ValidateExerciseOption(ImportOption option)
+    {
+        Validation.Name(option.ExerciseName, "Option exercise name", 160);
+        Validation.Require(option.RepMin is null && option.RepMax is null && option.TargetRpe is null,
+            "An exercise option names a movement; put reps or effort options on a set.");
+    }
+
+    private static void ValidateSetOption(ImportOption option)
+    {
+        Validation.Require(option.ExerciseName is null, "A set option gives reps or effort; put movement options on the exercise.");
+        Validation.Require((option.RepMin is null) == (option.RepMax is null), "Give both rep bounds or neither.");
+        Validation.Require(option.RepMin is not null || option.TargetRpe is not null, "A set option needs reps or a target RPE.");
+        if (option.RepMin is { } min && option.RepMax is { } max)
+            Validation.Require(min is >= 1 and <= 1000 && max is >= 1 and <= 1000 && min <= max, "Option reps must be 1 to 1000, lowest first.");
+        if (option.TargetRpe is { } rpe)
+            Validation.Require(rpe is >= 6 and <= 10 && Math.Abs(rpe * 2 - Math.Round(rpe * 2)) < 1e-9, "Option target RPE must be 6 to 10 in half points.");
     }
 }

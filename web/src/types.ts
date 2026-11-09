@@ -141,7 +141,9 @@ export type ImportSourceReference =
   | { kind: 'sheetCell'; sheet: string; cell: string }
   | { kind: 'text'; text: string }
   | { kind: 'none' };
-export type ImportUncertainty = { flag: boolean; reason?: string | null };
+/// An answer the assistant offered for a flagged detail: a library movement on an exercise, reps or effort on a set.
+export type ImportOption = { label: string; exerciseName?: string | null; exerciseId?: string | null; repMin?: number | null; repMax?: number | null; targetRpe?: number | null };
+export type ImportUncertainty = { flag: boolean; reason?: string | null; options?: ImportOption[] | null };
 export type DraftSet = {
   repMin: number | null; repMax: number | null; targetRpe: number | null; restSeconds: number | null; tempo: string | null; loadText: string | null; notes: string | null;
   repsSource: Provenance; rpeSource: Provenance; restSource: Provenance; repsText: string | null; restText: string | null;

@@ -1,6 +1,8 @@
 import { forwardRef } from 'react';
 import { AlertTriangle, Check, ChevronRight, HelpCircle, Info } from 'lucide-react';
-import type { ImportDraft, ImportView } from '../types';
+import type { Exercise, ImportDraft, ImportView } from '../types';
+import { applyImportOption, optionsAt } from '../lib/importOptions';
+import { ImportUncertaintyOptions } from './ImportUncertaintyOptions';
 import type { AttentionRow, ImportIssueTarget } from '../lib/importAttentionRows';
 import { Field } from './ui/Field';
 import { Button } from './ui/Button';
@@ -42,7 +44,10 @@ export const ImportReviewPanel = forwardRef<HTMLElement, {
   acknowledgedUncertainty?: boolean;
   onAcknowledgeUncertainty?: (value: boolean) => void;
   busy?: boolean;
-}>(function ImportReviewPanel({ view, draft, attentionRows, onNameChange, onNameCommit, onFocusIssue, acknowledgedUncertainty, onAcknowledgeUncertainty, busy }, ref) {
+  /// The library, to name the movements the assistant offered, and what to do with the draft once one is chosen.
+  exercises?: Exercise[];
+  onApplyOption?: (next: ImportDraft) => void;
+}>(function ImportReviewPanel({ view, draft, attentionRows, onNameChange, onNameCommit, onFocusIssue, acknowledgedUncertainty, onAcknowledgeUncertainty, busy, exercises = [], onApplyOption }, ref) {
   const checkGym = useGymAvailabilityCheck();
   const hasUncertainty = (view.reviewIssues ?? []).some(issue => issue.code === 'external_uncertainty');
   // Match the editor’s occurrence groups so each replacement can reach its repeats.
@@ -150,6 +155,7 @@ export const ImportReviewPanel = forwardRef<HTMLElement, {
                 const hasColon = colonIndex > -1;
                 const subject = hasColon ? issue.message.slice(0, colonIndex) : null;
                 const reason = hasColon ? issue.message.slice(colonIndex + 2) : issue.message;
+                const options = onApplyOption ? optionsAt(draft, issue) : [];
                 return (
                   <li key={`${issue.exerciseLineId}-${issue.setIndex}-${index}`} className="irev-uncertainty-row" role="listitem">
                     <div className="irev-uncertainty-row-main">
@@ -174,6 +180,10 @@ export const ImportReviewPanel = forwardRef<HTMLElement, {
                               <span className="pill irev-source-pill" aria-label={`PDF page ${issue.sourcePage}`}>p.{issue.sourcePage}</span>
                             )}
                           </div>
+                        )}
+                        {options.length > 0 && (
+                          <ImportUncertaintyOptions options={options} library={exercises} busy={busy}
+                            onChoose={option => { const next = applyImportOption(draft, issue, option, exercises); if (next) onApplyOption?.(next); }} />
                         )}
                       </div>
                     </div>

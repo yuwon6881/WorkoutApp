@@ -77,7 +77,8 @@ internal static class ExternalImportSchema
         if (TryProperty(owner, "uncertainty", out var value) && value.ValueKind != JsonValueKind.Null)
         {
             Relative("uncertainty", () => {
-                Object(value, "uncertainty", ["flag", "reason"]);
+                Object(value, "uncertainty", ["flag", "reason", "options"]);
+                Each(value, "options", option => Object(option, "option", ["label", "exerciseName", "repMin", "repMax", "targetRpe"]));
                 Validation.Require(TryProperty(value, "flag", out var flag) && flag.ValueKind is JsonValueKind.True or JsonValueKind.False,
                     "Uncertainty requires a true or false flag.");
             });

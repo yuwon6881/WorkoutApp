@@ -123,7 +123,7 @@ public sealed partial class ImportService
             "Remove spaces at the beginning and end of the superset label."));
         ExternalImportPath.At(path + ".sets", () => Validation.Require(exercise.Sets is not null, "Add a sets list to each exercise."));
         ExternalImportPath.Reference(path + ".sourceReference", exercise.SourceReference);
-        ExternalImportPath.At(path + ".uncertainty", () => ImportUncertainty.Validate(exercise.Uncertainty));
+        ExternalImportPath.At(path + ".uncertainty", () => ImportUncertainty.Validate(exercise.Uncertainty, ImportOptionScope.Exercise));
         ExternalImportPath.At(path + ".substitutions", () => Validation.Substitutions(exercise.Substitutions));
         var sets = exercise.Sets!.Select((set, index) => {
             var setPath = $"{path}.sets[{index}]";
@@ -149,7 +149,7 @@ public sealed partial class ImportService
         var (matched, paused) = ImportPause.ForFile(library, exercise.SourceName, exercise.Notes, CatalogMatching.Find(library, exercise.SourceName), sets);
         return new DraftExercise(Guid.NewGuid(), exercise.SourceName, matched,
             exercise.Notes, paused,exercise.SequenceGroup ?? "", exercise.Substitutions, RestSeconds: exercise.RestSeconds,
-            DemoUrl: demo, DemoLinks: links) { SourceReference = exercise.SourceReference, Uncertainty = exercise.Uncertainty };
+            DemoUrl: demo, DemoLinks: links) { SourceReference = exercise.SourceReference, Uncertainty = ExternalImportOptions.ForExercise(exercise.Uncertainty, library, matched) };
     }
 
     private static string? CheckedDemo(string? url)
@@ -178,7 +178,7 @@ public sealed partial class ImportService
     {
         if (set is null) throw new DomainException("Add the missing set object.");
         ExternalImportPath.Reference(path + ".sourceReference", set.SourceReference);
-        ExternalImportPath.At(path + ".uncertainty", () => ImportUncertainty.Validate(set.Uncertainty));
+        ExternalImportPath.At(path + ".uncertainty", () => ImportUncertainty.Validate(set.Uncertainty, ImportOptionScope.Set));
         if (set.Rir is not null) ExternalImportPath.At(path + ".rir", () => {
             Validation.Text(set.Rir, 16, "RIR");
             Validation.Require(Regex.IsMatch(set.Rir, @"^\d{1,2}(?:\.\d+)?(?:\s*[-–]\s*\d{1,2}(?:\.\d+)?)?\+?$", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase)
@@ -211,6 +211,6 @@ public sealed partial class ImportService
         return new DraftSet(set.RepMin, set.RepMax, targetRpe, restSeconds, set.Tempo, set.LoadText, notes,
             Source(set.RepMin is not null || set.RepMax is not null), Source(targetRpe is not null), Source(restSeconds is not null),
             set.RepsText, set.RestText, rir, set.Warmup || set.Type == "warmup")
-            { SourceReference = set.SourceReference, Uncertainty = set.Uncertainty };
+            { SourceReference = set.SourceReference, Uncertainty = ExternalImportOptions.ForSet(set.Uncertainty) };
     }
 }
