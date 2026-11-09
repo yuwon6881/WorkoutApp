@@ -9,8 +9,13 @@ internal static class ImportPause
     private static readonly Regex Pause = new(@"(?<!rest-)(?<!rest )\bpause(?:d|s|ing)?\b", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
     private static readonly Regex NotRepPause = new(@"\b(?:no|not|without|avoid)\s+paus(?:e|es|ing)\b|(?<!rest-)(?<!rest )\bpaus(?:e|es|ing)\b[^.!?]{0,35}\b(?:between|after)\s+(?:the\s+)?sets?\b", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
 
+    /// A pause the lifter may skip ("optionally pause") does not make the set a pause set.
+    private static readonly Regex OptionalPause = new(@"\boptional(?:ly)?\b[^.!?;]{0,20}\bpaus", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+    private static readonly Regex Sentences = new(@"(?<!\d)\.|\.(?!\d)|[!?;]", RegexOptions.CultureInvariant);
+
     public static bool Requested(string? name, string? notes)
-        => Pause.IsMatch(name ?? "") || (!NotRepPause.IsMatch(notes ?? "") && Pause.IsMatch(notes ?? ""));
+        => Pause.IsMatch(name ?? "") || Sentences.Split(notes ?? "").Any(sentence =>
+            Pause.IsMatch(sentence) && !NotRepPause.IsMatch(sentence) && !OptionalPause.IsMatch(sentence));
 
     public static Guid? Variant(Dictionary<string, Guid> library, string name)
     {

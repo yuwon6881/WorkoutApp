@@ -196,7 +196,7 @@ public sealed partial class ImportService
         });
         ExternalImportPath.At(path + ".warmup", () => Validation.Require(!set.Warmup || set.Type is null or "warmup", "Use the warmup type for a warm-up set; it cannot have another set type."));
         var setNote = SetSpecificNote(set.Notes, exerciseNotes);
-        var notes = technique is null || NamesTechnique(setNote, technique) ? setNote
+        var notes = technique is null || NamesTechnique(setNote, technique) || SetTechniques.Of(setNote) is not null ? setNote
             : string.IsNullOrWhiteSpace(setNote) ? technique : $"{setNote} — {technique}";
         var (targetRpe, rir, effortNote) = ExternalImportEffort.Express(set.TargetRpe, set.Rir);
         // A printed rest the file gives only as text ("1-2 MIN", "30SEC") still has to set the timer, as it does

@@ -227,6 +227,7 @@ public sealed class ExternalImportReviewFollowUpTests
     [InlineData("dropset", "Two Drop Sets (~25% per)", "Two Drop Sets (~25% per)")]
     [InlineData("myoreps", "Myo-reps", "Myo-reps")]
     [InlineData("lengthenedPartials", "Lengthened Partials (Extend Set)", "Lengthened Partials (Extend Set)")]
+    [InlineData("partials", "Long-length Partials (on all reps of the last set)", "Long-length Partials (on all reps of the last set)")]
     [InlineData("dropset", "Reduce the weight 25%", "Reduce the weight 25% — Dropset")]
     public async Task A_set_type_is_named_in_the_set_note_only_when_the_note_does_not_already_say_it(string type, string note, string expected)
     {

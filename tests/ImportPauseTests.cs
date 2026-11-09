@@ -14,6 +14,8 @@ public sealed class ImportPauseTests
     [InlineData("Bench Press", "Do not pause between sets", false)]
     [InlineData("Bench Press", "Pause for 30 seconds between sets", false)]
     [InlineData("Bench Press", "Rest-pause on the last set", false)]
+    [InlineData("Preacher Curl", "Optionally pause for 0.5-1 second in the stretched aspect of each rep", false)]
+    [InlineData("Preacher Curl", "Pause 1 second at the bottom of each rep. Do not pause between sets", true)]
     public void Identifies_pause_in_the_movement_or_coaching(string name, string? description, bool expected)
         => Assert.Equal(expected, ImportPause.Requested(name, description));
 
