@@ -138,7 +138,7 @@ export function ExerciseEditor({ exercise: saved, exercises, allDayExercises, re
     );
     if (!matched) return;
     const currentLibraryName = exercises.find(e => e.id === exercise.exerciseId)?.name ?? exercise.sourceName;
-    const remainingSubs = [currentLibraryName, ...exercise.substitutions.filter(s => s.toLowerCase() !== subName.toLowerCase())].slice(0, MAX_SUBSTITUTIONS);
+    const remainingSubs = [currentLibraryName, ...(exercise.substitutions ?? []).filter(s => s.toLowerCase() !== subName.toLowerCase())].slice(0, MAX_SUBSTITUTIONS);
     const nextExercise: DraftExercise = {
       ...exercise,
       sourceName: matched.name,
@@ -149,7 +149,7 @@ export function ExerciseEditor({ exercise: saved, exercises, allDayExercises, re
     onChange(nextExercise);
   };
 
-  const validSubstitutions = exercise.substitutions.filter(sub =>
+  const validSubstitutions = (exercise.substitutions ?? []).filter(sub =>
     exercises.some(e => e.name.toLowerCase() === sub.toLowerCase() || e.aliases.some(a => a.toLowerCase() === sub.toLowerCase()))
   );
 
@@ -285,7 +285,7 @@ export function ExerciseEditor({ exercise: saved, exercises, allDayExercises, re
                         onClick={() => {
                           onChange({
                             ...exercise,
-                            substitutions: exercise.substitutions.filter(s => s.toLowerCase() !== sub.toLowerCase())
+                            substitutions: (exercise.substitutions ?? []).filter(s => s.toLowerCase() !== sub.toLowerCase())
                           });
                         }}
                       >
@@ -451,7 +451,7 @@ export function ExerciseEditor({ exercise: saved, exercises, allDayExercises, re
           exercises={exercises}
           action={exercise.exerciseId ? 'swap' : 'map'}
           currentExerciseId={exercise.exerciseId}
-          preferredNames={exercise.substitutions}
+          preferredNames={exercise.substitutions ?? []}
           onSelect={id => select(id)}
         />
       </div>

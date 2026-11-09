@@ -69,6 +69,9 @@ internal static class CatalogMatching
         // "Barbell Bent-Over Row"; "Tricep" is "Triceps"). Still a spelling of one name.
         foreach (var variant in Variants(name))
             if (library.TryGetValue(WordSetKey(variant), out var id)) return id;
+        // A document whose text layer lost its spaces ("WIDEGRIPLATPULLDOWN") still spells one name letter for letter.
+        foreach (var variant in Variants(name))
+            if (library.TryGetValue("=" + variant.Replace(" ", "", StringComparison.Ordinal), out var id)) return id;
         return null;
     }
 
@@ -193,8 +196,16 @@ internal static class CatalogMatching
     internal static IEnumerable<string> LibraryKeys(string normalized)
     {
         var expanded = Expand(normalized);
-        return new[] { expanded, Singular(normalized), Singular(expanded), WordSetKey(normalized) }
+        return new[] { expanded, Singular(normalized), Singular(expanded), WordSetKey(normalized), SquashedKey(normalized) }
             .Where(key => key.Length > 0 && key != normalized).Distinct();
+    }
+
+    /// A name with its spaces removed, prefixed so it never collides with a literal key. Short or single-word
+    /// names are left out: with nothing to join there is no spacing to recover.
+    internal static string SquashedKey(string normalized)
+    {
+        var joined = normalized.Replace(" ", "", StringComparison.Ordinal);
+        return normalized.Contains(' ') && joined.Length >= 8 ? "=" + joined : "";
     }
 
     /// The same words written singly. A table says "Curls" where the library says "Curl".

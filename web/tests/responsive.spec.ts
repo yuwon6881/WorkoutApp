@@ -515,10 +515,10 @@ for (const theme of ['dark', 'light']) {
     const importsResponse = await page.request.get('/api/imports');
     expect(importsResponse.ok()).toBe(true);
     const savedImports: ImportView[] = await importsResponse.json();
-    const savedDraft = savedImports.some(view => view.fileName === 'external-small.json'
+    const savedDraft = savedImports.some(view => view.fileName === 'external-responsive.json'
       && view.status === 'ready' && !view.error);
     if (!savedDraft)
-      await page.getByLabel('Program JSON file').setInputFiles(resolve('tests', 'fixtures', 'external-small.json'));
+      await page.getByLabel('Program JSON file').setInputFiles(resolve('tests', 'fixtures', 'external-responsive.json'));
     await expect(page.getByRole('heading', { name: 'Review' })).toBeVisible({ timeout: 60000 });
     await screenshot('import-review');
     const dayToggle = page.locator('.draft-day-summary').first();

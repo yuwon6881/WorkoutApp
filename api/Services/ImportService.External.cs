@@ -148,7 +148,7 @@ public sealed partial class ImportService
         }
         var (matched, paused) = ImportPause.ForFile(library, exercise.SourceName, exercise.Notes, CatalogMatching.Find(library, exercise.SourceName), sets);
         return new DraftExercise(Guid.NewGuid(), exercise.SourceName, matched,
-            exercise.Notes, paused,exercise.SequenceGroup ?? "", exercise.Substitutions, RestSeconds: exercise.RestSeconds,
+            exercise.Notes, paused,exercise.SequenceGroup ?? "", exercise.Substitutions ?? [], RestSeconds: exercise.RestSeconds,
             DemoUrl: demo, DemoLinks: links) { SourceReference = exercise.SourceReference, Uncertainty = ExternalImportOptions.ForExercise(exercise.Uncertainty, library, matched) };
     }
 

@@ -443,6 +443,17 @@ public sealed class ExternalImportReviewFollowUpTests
     }
 
     [Fact]
+    public async Task An_exercise_the_file_gives_no_substitutions_has_an_empty_list_the_review_can_read()
+    {
+        var sets = await SetsOf("Plain note.", "[{\"repMin\":8,\"repMax\":10}]");
+        Assert.NotEmpty(sets);
+
+        var view = await (await Ready()).CreateExternalImport(Weeks(8, 8), "p.json", default);
+
+        Assert.All(view.Draft!.Workouts.SelectMany(day => day.Exercises), exercise => Assert.NotNull(exercise.Substitutions));
+    }
+
+    [Fact]
     public async Task A_21s_set_printed_as_segments_targets_their_total_and_keeps_the_printed_text()
     {
         const string file = """

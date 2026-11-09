@@ -197,7 +197,7 @@ function applyLibraryChange(
   if (change.viaSubstitution && change.exerciseId !== undefined) {
     const replacement = library.find(item => item.id === change.exerciseId);
     const previous = library.find(item => item.id === exercise.exerciseId)?.name ?? exercise.sourceName;
-    next.substitutions = [previous, ...exercise.substitutions.filter(name => name.toLowerCase() !== replacement?.name.toLowerCase())].slice(0, MAX_SUBSTITUTIONS);
+    next.substitutions = [previous, ...(exercise.substitutions ?? []).filter(name => name.toLowerCase() !== replacement?.name.toLowerCase())].slice(0, MAX_SUBSTITUTIONS);
   }
   return next;
 }

@@ -151,7 +151,10 @@ public sealed class CatalogCoverageTests
         { "Smith Machine Incline Press", "Incline Smith Machine Press" },
         { "BenCh press", "Bench Press" },
         { "Banded Pushup", "Banded Push Up" },
-        { "Seated Leg Curl Bottom-Half", "Plate-Loaded Seated Leg Curl" }
+        { "Seated Leg Curl Bottom-Half", "Plate-Loaded Seated Leg Curl" },
+        { "WIDEGRIPLATPULLDOWN", "Wide-Grip Lat Pulldown" },
+        { "BACKSQUAT", "Back Squat" },
+        { "MEADOWSROW", "Meadows Row" }
     };
 
     [Theory, MemberData(nameof(WrittenNames))]
