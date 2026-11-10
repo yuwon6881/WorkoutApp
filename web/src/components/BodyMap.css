@@ -61,12 +61,18 @@
   transition:fill var(--motion-control) var(--motion-ease),stroke var(--motion-control) var(--motion-ease);
 }
 .muscle-region.is-untrained{fill:var(--muscle-empty)}
+/* Pointing at a plate lifts it toward the text colour rather than toward more accent: a muscle at
+   the top of the scale is already full accent, so "more accent" showed nothing on exactly the
+   muscles trained most. Toward the text colour is lighter in Night and darker in Day, so it reads in
+   both, and the stroke repeats the cue where two plates are the same shade. */
 .muscle-region:hover,
 .muscle-region:focus-visible{
-  fill:color-mix(in oklch,var(--accent) min(100%,calc(var(--muscle-shade,35%) + 45%)),var(--muscle-empty));
+  fill:color-mix(in oklch,var(--text) 24%,color-mix(in oklch,var(--accent) var(--muscle-shade,35%),var(--muscle-empty)));
+  stroke:var(--text);
 }
 .muscle-region.is-active{
-  fill:var(--accent);
+  fill:color-mix(in oklch,var(--text) 38%,color-mix(in oklch,var(--accent) max(var(--muscle-shade,35%),70%),var(--muscle-empty)));
+  stroke:var(--text);
 }
 .muscle-region.is-untrained:hover,
 .muscle-region.is-untrained:focus-visible{

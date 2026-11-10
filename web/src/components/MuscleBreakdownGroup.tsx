@@ -71,7 +71,11 @@ export function MuscleBreakdownGroup({ title, muscles, peak, activeMuscle, onSel
     </ul>
     {untrained.length > 0 && <details className="muscle-breakdown-untrained" open={untrainedOpen}
       onToggle={event => setUntrainedOpen(event.currentTarget.open)}>
-      <summary>{untrained.length} untrained</summary>
+      <summary>
+        <span className="muscle-breakdown-untrained-label">
+          {untrainedOpen ? 'Hide' : 'Show'} {untrained.length} untrained {untrained.length === 1 ? 'muscle' : 'muscles'}
+        </span>
+      </summary>
       <ul className="muscle-breakdown-list">
         {untrained.map(row)}
       </ul>

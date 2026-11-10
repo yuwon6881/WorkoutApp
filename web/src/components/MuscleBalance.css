@@ -440,8 +440,22 @@
 }
 
 /* Untrained muscles fold under the trained ones in their group. */
-.muscle-breakdown-untrained{margin-top:4px}
-.muscle-breakdown-untrained>summary{display:flex;align-items:center;min-height:44px;padding:0 4px;color:var(--muted);font-size:var(--font-secondary);font-weight:600;cursor:pointer}
+.muscle-breakdown-untrained{margin-top:8px}
+/* A disclosure row that reads as a control: full width, outlined, with a chevron that turns. */
+.muscle-breakdown-untrained>summary{
+  display:flex;align-items:center;justify-content:space-between;gap:10px;
+  min-height:44px;padding:0 14px;
+  border:1px dashed var(--border-hover);border-radius:var(--radius-control);
+  color:var(--muted);font-size:var(--font-secondary);font-weight:600;cursor:pointer;
+  transition:color var(--motion-control) var(--motion-ease),background var(--motion-control) var(--motion-ease),border-color var(--motion-control) var(--motion-ease);
+}
+.muscle-breakdown-untrained>summary::-webkit-details-marker{display:none}
+.muscle-breakdown-untrained>summary::after{content:'';flex:none;width:7px;height:7px;border-right:2px solid currentColor;border-bottom:2px solid currentColor;transform:translateY(-2px) rotate(45deg);transition:transform var(--motion-control) var(--motion-ease)}
+.muscle-breakdown-untrained[open]>summary::after{transform:translateY(2px) rotate(-135deg)}
+.muscle-breakdown-untrained>summary:hover,.muscle-breakdown-untrained[open]>summary{color:var(--text);background:var(--surface-hover);border-color:var(--muted)}
+.muscle-breakdown-untrained>summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.muscle-breakdown-untrained[open]>.muscle-breakdown-list{margin-top:8px}
+@media(prefers-reduced-motion:reduce){.muscle-breakdown-untrained>summary,.muscle-breakdown-untrained>summary::after{transition:none}}
 .muscle-balance-stat-action{align-items:flex-start;justify-content:flex-start;text-align:left;cursor:pointer;color:inherit;font:inherit;transition:background var(--motion-control) var(--motion-ease)}
 .muscle-balance-stat-action:hover{background:var(--surface-hover)}
 .muscle-balance-stat-action:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}

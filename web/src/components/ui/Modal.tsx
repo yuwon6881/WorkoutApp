@@ -117,6 +117,24 @@ export function Modal({ title, children, onClose, wide = false, headless = false
     return () => observer.disconnect();
   }, [headless]);
 
+  // A dialog is centred (a sheet sits on the bottom edge), so when its content gets shorter, such as
+  // switching to a tab with less to show, its edges move and the control just pressed slides away
+  // from the pointer. Remember the tallest it has been and keep that as its floor: it still grows
+  // for taller content, but never shrinks under the user. The floor is capped by the stylesheet.
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    let tallest = 0;
+    const observer = new ResizeObserver(([entry]) => {
+      const height = entry?.borderBoxSize?.[0]?.blockSize ?? el.offsetHeight;
+      if (height <= tallest) return;
+      tallest = height;
+      el.style.setProperty('--modal-min-height', `${height}px`);
+    });
+    observer.observe(el, { box: 'border-box' });
+    return () => observer.disconnect();
+  }, []);
+
   // A dragged sheet has already left the screen under the finger; it must not play the exit again.
   const drag = useSheetDrag(ref, closeNow);
 

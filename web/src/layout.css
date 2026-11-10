@@ -116,6 +116,9 @@
 html.dialog-open { overflow: hidden; }
 dialog.modal:not([open]) { display: none; }
 .modal { overscroll-behavior: contain; }
+/* Modal.tsx publishes the tallest the dialog has been; it never shrinks while open, so switching to
+   a shorter tab does not move the controls. Never taller than the dialog may be. */
+.modal { min-height: min(var(--modal-min-height, 0px), 90dvh); }
 .modal:focus { outline: none; }
 
 @media (max-width: 639px) {
@@ -257,6 +260,7 @@ html { -webkit-tap-highlight-color: transparent; }
 @media (max-width: 639px) {
   .topbar { height: calc(68px + env(safe-area-inset-top, 0px)); }
   .modal, .modal.wide { max-height: calc(94dvh - env(safe-area-inset-top, 0px)); }
+  .modal { min-height: min(var(--modal-min-height, 0px), calc(94dvh - env(safe-area-inset-top, 0px))); }
 }
 
 /* While the on-screen keyboard is open (app/useKeyboardInset.ts), chrome pinned to the bottom
