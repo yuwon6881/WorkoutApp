@@ -10,9 +10,22 @@ export function displayExerciseName(name: string, library: Exercise[]): string {
   const canonical = resolveExercise(name, library)?.name ?? name;
   return canonical.replace(/^\p{L}/u, letter => letter.toLocaleUpperCase());
 }
+/** The name the builder gives a row the user adds. Keep in step with `IsAddedPlaceholder` on the server. */
+export const isPlaceholderName = (name: string): boolean => /^\s*new\s+exercise\s*$/i.test(name);
+
+/**
+ * A written movement's identity when the server has not published one. An added, unrenamed row is
+ * its own movement, so it is keyed by the row rather than by a name that says nothing about it.
+ */
+export function writtenMovementKey(exercise: Pick<DraftExercise, 'lineId' | 'sourceName' | 'movementKey'>): string {
+  if (exercise.movementKey) return exercise.movementKey;
+  if (isPlaceholderName(exercise.sourceName)) return `row\u001f${exercise.lineId}`;
+  return `name\u001f${exercise.sourceName.trim().toLowerCase().replace(/\s+/g, ' ')}`;
+}
+
 export function selectDraftExercise(exercise: DraftExercise, replacement: Exercise, library: Exercise[], keepWrittenName: boolean): DraftExercise {
   const swapping = !!exercise.exerciseId && exercise.exerciseId !== replacement.id;
-  const sourceName = swapping || !keepWrittenName ? replacement.name : exercise.sourceName;
+  const sourceName = swapping || !keepWrittenName || isPlaceholderName(exercise.sourceName) ? replacement.name : exercise.sourceName;
   const next = { ...exercise, exerciseId: replacement.id, sourceName, demoUrl: demoUrlForName(exercise.demoLinks, sourceName) };
   if (!swapping) return next;
   const previous = library.find(item => item.id === exercise.exerciseId)?.name ?? exercise.sourceName;
@@ -25,4 +38,9 @@ export function selectDraftExercise(exercise: DraftExercise, replacement: Exerci
     return true;
   }).slice(0, MAX_SUBSTITUTIONS);
   return next;
+}
+
+/** Keep written names as import provenance, but show the linked catalog name in program views. */
+export function draftExerciseName(exercise: DraftExercise, library: Exercise[]): string {
+  return library.find(item => item.id === exercise.exerciseId)?.name ?? exercise.sourceName;
 }

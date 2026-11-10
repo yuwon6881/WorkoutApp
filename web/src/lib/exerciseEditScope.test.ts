@@ -72,6 +72,16 @@ describe('findOccurrences', () => {
   });
 });
 
+describe('findOccurrences with user-added rows', () => {
+  it('never treats two added placeholder rows as the same movement', () => {
+    const squat = exercise('add-1', 'New exercise', { exerciseId: 'squat', movementKey: null });
+    const bench = exercise('add-2', 'New exercise', { exerciseId: 'bench', movementKey: null });
+    const added: ImportDraft = { programName: 'Program', workouts: [day('d1', 'A', [squat, bench])] };
+    expect(findOccurrences(added, squat, 'block')).toEqual([]);
+    expect(findOccurrences(added, squat, 'program')).toEqual([]);
+  });
+});
+
 describe('applyExerciseEdit', () => {
   it('changes only the edited occurrence for the occurrence scope', () => {
     const base = find(draft(), 'a1-bench');

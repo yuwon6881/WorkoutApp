@@ -6,6 +6,8 @@ export interface SortableWeekChipProps {
   week: number;
   selected: boolean;
   dragging: boolean;
+  /// A drop just put this week here; it is marked briefly so the move is easy to find.
+  landed?: boolean;
   dropSide: 'before' | 'after' | null;
   onSelect: () => void;
   onDragStart: () => void;
@@ -20,6 +22,7 @@ export function SortableWeekChip({
   week,
   selected,
   dragging,
+  landed = false,
   dropSide,
   onSelect,
   onDragStart,
@@ -30,6 +33,7 @@ export function SortableWeekChip({
 }: SortableWeekChipProps) {
   const pointer = useRef<{ id: number; startX: number; startY: number; armed: boolean; moved: boolean; timer?: number; scroller: HTMLElement | null; scrollStart: number; scrolling: boolean } | null>(null);
   const chipRef = useRef<HTMLButtonElement>(null);
+  const groupRef = useRef<HTMLSpanElement>(null);
   const suppressClick = useRef(false);
 
   const clearPointer = () => {
@@ -47,7 +51,9 @@ export function SortableWeekChip({
 
   return (
     <span
+      ref={groupRef}
       role="presentation"
+      data-landed={landed || undefined}
       data-import-week-chip={week}
       className={`chip-group import-week-chip-group ${selected ? 'active' : ''} ${!onDelete ? 'chip-group-lone' : ''} ${dragging ? 'dragging' : ''} ${dropClass} ptl-chip-group ptl-week-chip-group ${selected ? 'ptl-chip-active' : ''}`.trim()}
     >
@@ -71,6 +77,12 @@ export function SortableWeekChip({
             return;
           }
           event.dataTransfer.effectAllowed = 'move';
+          // Without this the ghost is the label alone, a half pill on the active week; drag the whole chip.
+          const group = groupRef.current;
+          if (group) {
+            const box = group.getBoundingClientRect();
+            event.dataTransfer.setDragImage(group, event.clientX - box.left, event.clientY - box.top);
+          }
           onDragStart();
         }}
         onDragOver={event => {

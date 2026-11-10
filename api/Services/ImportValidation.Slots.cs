@@ -14,7 +14,7 @@ internal static partial class ImportValidation
             .Where(item => item.exercise.ExerciseId == null)
             .ToList();
         return unresolved
-            .GroupBy(item => MappingKey(item.workout, item.exercise.SourceName), StringComparer.Ordinal)
+            .GroupBy(item => MappingKey(item.workout, item.exercise.SourceName, item.exercise.LineId), StringComparer.Ordinal)
             .Select(group =>
             {
                 var first = group.First();
@@ -33,17 +33,24 @@ internal static partial class ImportValidation
     /// at, however the page cased or punctuated it. Keying it on the day and position instead
     /// asked for "Seated Face Pull" once per week, and linked whatever movement shared its
     /// position in another week along with it.
-    public static string MappingKey(DraftWorkout workout, string? sourceName)
-        => IsRecurringChoice(sourceName)
-            ? MovementKey(sourceName)
-            : $"{CanonicalBlock(workout.Block).ToUpperInvariant()}\u001f{MovementKey(sourceName)}";
+    public static string MappingKey(DraftWorkout workout, string? sourceName, Guid rowId)
+        => IsRecurringChoice(sourceName) || IsAddedPlaceholder(sourceName)
+            ? MovementKey(sourceName, rowId)
+            : $"{CanonicalBlock(workout.Block).ToUpperInvariant()}\u001f{MovementKey(sourceName, rowId)}";
 
     /// The movement alone, without the block that scopes a mapping. A placeholder is already
-    /// program-wide, so its key is the same either way.
-    public static string MovementKey(string? sourceName)
-        => IsRecurringChoice(sourceName)
-            ? $"choice\u001f{ChoiceIdentity(sourceName)}"
-            : MovementIdentity(sourceName);
+    /// program-wide, so its key is the same either way. A row the user added and has not renamed
+    /// is its own movement: its name says nothing about which one, so it is keyed by the row.
+    public static string MovementKey(string? sourceName, Guid rowId)
+        => IsAddedPlaceholder(sourceName)
+            ? $"row\u001f{rowId}"
+            : IsRecurringChoice(sourceName)
+                ? $"choice\u001f{ChoiceIdentity(sourceName)}"
+                : MovementIdentity(sourceName);
+
+    /// The name the builder gives a row the user adds. Keep in step with `isPlaceholderName` in the web app.
+    private static bool IsAddedPlaceholder(string? sourceName)
+        => Regex.IsMatch(sourceName ?? "", @"^\s*new\s+exercise\s*$", RegexOptions.IgnoreCase);
 
     private static string MovementIdentity(string? sourceName)
         => CatalogMatching.Expand(CatalogService.Normalize(sourceName ?? ""));
@@ -73,7 +80,7 @@ internal static partial class ImportValidation
                     signaturesBySlot[slot] = signature;
                 }
 
-                return exercise with { SlotKey = slot, MovementKey = MovementKey(exercise.SourceName) };
+                return exercise with { SlotKey = slot, MovementKey = MovementKey(exercise.SourceName, exercise.LineId) };
             }).ToList();
             return workout with { Block = block, Exercises = exercises };
         }).ToList();

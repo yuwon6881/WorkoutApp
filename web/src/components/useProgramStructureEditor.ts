@@ -41,7 +41,16 @@ export function useProgramStructureEditor({ draft, onDraftChange, onDayChange, l
   const [renameValue, setRenameValue] = useState('');
   const [draggedWeek, setDraggedWeek] = useState<number | null>(null);
   const [dropTarget, setDropTarget] = useState<{ week: number; side: 'before' | 'after' } | null>(null);
+  // The week a drop just put in place. Weeks are numbered by position, so a move renumbers the chips
+  // and looks unchanged without a cue at the new spot.
+  const [movedWeek, setMovedWeek] = useState<number | null>(null);
   const pendingFocusWeek = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (movedWeek == null) return;
+    const timer = window.setTimeout(() => setMovedWeek(null), 1400);
+    return () => window.clearTimeout(timer);
+  }, [movedWeek]);
 
   useEffect(() => {
     if (draft.workouts.some(day => !day.blockId || !day.weekId)) void onDraftChange(normalizedDraft);
@@ -111,6 +120,7 @@ export function useProgramStructureEditor({ draft, onDraftChange, onDayChange, l
     if (fromIndex < toIndex && side === 'before' && toIndex === fromIndex + 1) targetIndex = toIndex;
     ordered.splice(targetIndex, 0, moved);
     setSelectedWeek(targetIndex + 1);
+    setMovedWeek(targetIndex === fromIndex ? null : targetIndex + 1);
     setDraggedWeek(null);
     setDropTarget(null);
     void onDraftChange(renumberDraft(normalizedDraft, ordered));
@@ -305,7 +315,7 @@ export function useProgramStructureEditor({ draft, onDraftChange, onDayChange, l
     selectedBlockWeeks, totalDayCount, canAddDay, weekModalOpen, setWeekModalOpen, deleteConfirmWeek,
     setDeleteConfirmWeek, deleteConfirmBlock, setDeleteConfirmBlock, deleteConfirmDay, setDeleteConfirmDay,
     restConfirmDay, setRestConfirmDay, renameBlock, setRenameBlock, renameValue, setRenameValue,
-    draggedWeek, setDraggedWeek, dropTarget, setDropTarget, reorderWeeks, reorderBlocks, addBlock,
+    draggedWeek, setDraggedWeek, dropTarget, setDropTarget, movedWeek, reorderWeeks, reorderBlocks, addBlock,
     commitBlockName, deleteBlock, addWeek, deleteWeek, addDay, duplicateDay, reorderDay, moveDayTo, deleteDay,
     changeDayKind, confirmRestConversion, moveDayToWeek
   };

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { AlertTriangle, ArrowLeftRight, Check, Dumbbell, Link2, Loader2, Plus, RotateCcw, Timer, Trash2, Unlink2, X } from 'lucide-react';
 import type { CustomExerciseCreated, DraftExercise, DraftSet, Exercise } from '../types';
 import { restOptions } from '../lib/training';
-import { displayExerciseName, resolveExercise, selectDraftExercise } from '../lib/draftExerciseSwap';
+import { displayExerciseName, draftExerciseName, isPlaceholderName, resolveExercise, selectDraftExercise } from '../lib/draftExerciseSwap';
 import { Button } from './ui/Button';
 import { DemoLink } from './ui/DemoLink';
 import { Select } from './ui/Select';
@@ -133,7 +133,8 @@ export function ExerciseEditor({ exercise: saved, exercises, allDayExercises, re
   const currentGroup = getSupersetGroup(exercise.sequenceGroup);
   const isPaired = isSuperset(exercise.sequenceGroup);
   const partners = allDayExercises.filter(e => e.lineId !== exercise.lineId && getSupersetGroup(e.sequenceGroup) === currentGroup);
-  const partnerNames = partners.map(p => p.sourceName).join(', ');
+  const partnerNames = partners.map(p => draftExerciseName(p, exercises)).join(', ');
+  const title = draftExerciseName(exercise, exercises);
   const groupExercises = allDayExercises.filter(e => getSupersetGroup(e.sequenceGroup) === currentGroup);
   const exercisePos = groupExercises.findIndex(e => e.lineId === exercise.lineId) + 1;
 
@@ -143,16 +144,7 @@ export function ExerciseEditor({ exercise: saved, exercises, allDayExercises, re
         {partners.length > 0
           ? <SupersetPosition group={currentGroup} position={exercisePos || 1} partnerNames={partnerNames} />
           : <span className="import-exercise-icon" aria-hidden="true"><Dumbbell size={17} /></span>}
-        <TextAreaField
-          name={`exercise-source-name-${exercise.lineId}`}
-          className="import-exercise-name-field iex-name-field"
-          label="Exercise name"
-          autoGrow rows={1}
-          autoCorrect="off"
-          spellCheck={false}
-          value={exercise.sourceName}
-          onChange={event => onChange({ ...exercise, sourceName: event.target.value })}
-        />
+        <strong className="iex-name">{title}</strong>
       </div>
       <div className="prescription-context-row iex-actions-wrap">
         <div className="import-exercise-actions iex-actions">
@@ -160,7 +152,7 @@ export function ExerciseEditor({ exercise: saved, exercises, allDayExercises, re
           <div className="field import-rest-field iex-rest-field" data-import-field="rest">
             <Select
               name={`exercise-rest-${exercise.lineId}`}
-              ariaLabel={`Rest timer for ${exercise.sourceName}`}
+              ariaLabel={`Rest timer for ${title}`}
               title="Rest timer"
               icon={<Timer size={14} className="rest-timer-icon" />}
               value={exercise.restSeconds ?? 90}
@@ -169,7 +161,7 @@ export function ExerciseEditor({ exercise: saved, exercises, allDayExercises, re
             />
           </div>
           <MenuButton
-            label={`Actions for ${exercise.sourceName}`}
+            label={`Actions for ${title}`}
             triggerClassName="iex-menu-trigger"
             icon={isRestoring ? <Loader2 size={16} className="spin" /> : undefined}
           >
@@ -212,7 +204,7 @@ export function ExerciseEditor({ exercise: saved, exercises, allDayExercises, re
             <Button variant="secondary" className="import-library-trigger iex-library-trigger" aria-haspopup="dialog" data-import-field="library"
               disabled={isRestoring || isSaving}
               aria-describedby={!exercise.exerciseId ? `${exercise.lineId}-library-status` : undefined}
-              aria-label={`Library exercise for ${exercise.sourceName}`} onClick={() => setPickerOpen(true)}>
+              aria-label={`Library exercise for ${title}`} onClick={() => setPickerOpen(true)}>
               <Dumbbell size={15} />
               <span className="import-library-name">
                 {selected?.name ?? (exercise.exerciseId ? 'Swap exercise' : 'Link')}
@@ -241,7 +233,7 @@ export function ExerciseEditor({ exercise: saved, exercises, allDayExercises, re
           )}
           {validSubstitutions.length > 0 && <div className="field import-substitutions-field iex-substitutions-field">
             <div className="substitution-chips-wrap">
-                <div className="substitution-chips-row" role="group" aria-label={`Substitutions for ${exercise.sourceName}`}>
+                <div className="substitution-chips-row" role="group" aria-label={`Substitutions for ${title}`}>
                   {validSubstitutions.map((sub, sIdx) => (
                     <span key={sIdx} className="substitution-chip">
                       <span className="substitution-label">{displayExerciseName(sub, exercises)}</span>
@@ -276,7 +268,7 @@ export function ExerciseEditor({ exercise: saved, exercises, allDayExercises, re
           <span>{timed ? 'Time targets' : 'Rep targets'}</span>
             <RepModeToggle
               range={repRange}
-              label={`${timed ? 'Time' : 'Rep'} target for ${exercise.sourceName}`}
+              label={`${timed ? 'Time' : 'Rep'} target for ${title}`}
               onChange={range => onChange({
                 ...exercise,
                 sets: toggleRepMode(exercise.sets, range, rememberedRepWidths)
@@ -295,7 +287,7 @@ export function ExerciseEditor({ exercise: saved, exercises, allDayExercises, re
           </span>
           {trackRir && <span className="set-grid-head-rir" aria-hidden="true">RIR</span>}
         </div>
-        <ol className="import-sets set-grid-list iex-set-list" aria-label={`Set prescriptions for ${exercise.sourceName}`} data-import-field="sets">
+        <ol className="import-sets set-grid-list iex-set-list" aria-label={`Set prescriptions for ${title}`} data-import-field="sets">
           {exercise.sets.map((set, index) => {
             const setDisplayNumber = exercise.sets
               .slice(0, index + 1)
@@ -309,7 +301,7 @@ export function ExerciseEditor({ exercise: saved, exercises, allDayExercises, re
                   <div className="import-set-heading">
                     <SetTypeSelect
                       name={`set-type-${exercise.lineId}-${index}`}
-                      ariaLabel={`Set ${setDisplayNumber} type for ${exercise.sourceName}`}
+                      ariaLabel={`Set ${setDisplayNumber} type for ${title}`}
                       type={getSetType(set)}
                       number={setDisplayNumber}
                       onChange={type => changeSetType(index, type)}
@@ -339,7 +331,7 @@ export function ExerciseEditor({ exercise: saved, exercises, allDayExercises, re
                       nameMax={`rep-max-${exercise.lineId}-${index}`}
                       nameSingle={`rep-${exercise.lineId}-${index}`}
                       dataImportIndex={index}
-                      labelPrefix={`${exercise.sourceName} ${set.warmup ? 'warm-up' : 'set'} ${setDisplayNumber}`}
+                      labelPrefix={`${title} ${set.warmup ? 'warm-up' : 'set'} ${setDisplayNumber}`}
                       openReps={hasOpenReps(set)}
                       seconds={timed}
                       onChange={({ repMin, repMax }) =>
@@ -350,7 +342,7 @@ export function ExerciseEditor({ exercise: saved, exercises, allDayExercises, re
                       <span>RIR</span>
                       <RpeControl
                         name={`target-rir-${exercise.lineId}-${index}`}
-                        ariaLabel={`Target RIR for ${exercise.sourceName} set ${setDisplayNumber}`}
+                        ariaLabel={`Target RIR for ${title} set ${setDisplayNumber}`}
                         value={
                           set.rir === '5+' || (set.rir && Number(set.rir) >= 5)
                             ? 5
@@ -412,7 +404,7 @@ export function ExerciseEditor({ exercise: saved, exercises, allDayExercises, re
       onCancel={() => setScopeRequest(null)}
     />}
 
-    {pickerOpen && <Modal title={`Choose exercise for ${exercise.sourceName.length > 32 ? `${exercise.sourceName.slice(0, 30)}…` : exercise.sourceName}`} wide onClose={() => setPickerOpen(false)}>
+    {pickerOpen && <Modal title={`Choose exercise for ${title.length > 32 ? `${title.slice(0, 30)}…` : title}`} wide onClose={() => setPickerOpen(false)}>
       <div className="modal-body import-library-picker">
         <p>Search the catalog by exercise, equipment, muscle, movement pattern, or alias.</p>
         <ExerciseLibrary
@@ -433,7 +425,7 @@ export function ExerciseEditor({ exercise: saved, exercises, allDayExercises, re
 
     {customOpen && (
       <CustomExerciseModal
-        initialName={/\b(?:weak\s+point|your\s+choice|pick\s+one|choose\s+one)\b|^N\/?A$/i.test(exercise.sourceName) ? '' : exercise.sourceName}
+        initialName={/\b(?:weak\s+point|your\s+choice|pick\s+one|choose\s+one)\b|^N\/?A$/i.test(exercise.sourceName) || isPlaceholderName(exercise.sourceName) ? '' : exercise.sourceName}
         onClose={() => setCustomOpen(false)}
         onExerciseCreated={async (newExercise: CustomExerciseCreated) => {
           // Reload the account-owned library before mapping so the exercise picker and mapping

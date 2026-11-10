@@ -8,6 +8,7 @@ export function ChipScroller({
   ariaLabel,
   children,
   resetKey = '',
+  activeKey,
   role = 'group',
   leftLabel = 'Scroll filters left',
   rightLabel = 'Scroll filters right'
@@ -15,6 +16,8 @@ export function ChipScroller({
   ariaLabel: string;
   children: ReactNode;
   resetKey?: string;
+  /// The selected chip's identity: when it changes, the strip scrolls just far enough to show it.
+  activeKey?: string | number;
   role?: 'group' | 'tablist';
   leftLabel?: string;
   rightLabel?: string;
@@ -51,6 +54,21 @@ export function ChipScroller({
       observer?.disconnect();
     };
   }, [checkScroll, resetKey]);
+
+  // Choosing a chip from elsewhere (a block jumps to its first week) can select one that is out of
+  // view. Scrolled by hand, not scrollIntoView, so the page never moves vertically.
+  useEffect(() => {
+    if (activeKey === undefined) return;
+    const element = chipsRef.current;
+    const selected = element?.querySelector<HTMLElement>('[aria-selected="true"]');
+    if (!element || !selected) return;
+    const view = element.getBoundingClientRect();
+    const chip = (selected.closest('.chip-group') ?? selected).getBoundingClientRect();
+    const margin = 12;
+    const delta = chip.left < view.left + margin ? chip.left - view.left - margin
+      : chip.right > view.right - margin ? chip.right - view.right + margin : 0;
+    if (delta !== 0) element.scrollBy({ left: delta, behavior: reducedMotion ? 'auto' : 'smooth' });
+  }, [activeKey, resetKey, reducedMotion]);
 
   /// One press pages by most of what is visible, landing on a chip edge: the first chip cut off
   /// at the far edge becomes the first chip shown, so nothing is skipped and nothing is repeated

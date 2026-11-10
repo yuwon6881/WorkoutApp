@@ -9,6 +9,7 @@ import { Button } from './ui/Button';
 import { ImportReviewIssues } from './ImportReviewIssues';
 import { GymSwitcher } from './GymSwitcher';
 import { useGymAvailabilityCheck } from '../lib/gymAvailability';
+import { writtenMovementKey } from '../lib/draftExerciseSwap';
 import './ImportReview.css';
 import './ImportUncertainty.css';
 
@@ -54,7 +55,7 @@ export const ImportReviewPanel = forwardRef<HTMLElement, {
   const linked = new Map<string, { dayId: string; lineId: string; name: string; exerciseId: string }>();
   for (const day of draft.workouts) {
     for (const exercise of day.exercises) {
-      const key = exercise.movementKey || `name\u001f${exercise.sourceName.trim().toLowerCase().replace(/\s+/g, ' ')}`;
+      const key = writtenMovementKey(exercise);
       if (exercise.exerciseId && !linked.has(key)) {
         linked.set(key, { dayId: day.lineId, lineId: exercise.lineId, name: exercise.sourceName, exerciseId: exercise.exerciseId });
       }
@@ -112,16 +113,14 @@ export const ImportReviewPanel = forwardRef<HTMLElement, {
             <AlertTriangle size={16} className="irev-unresolved-icon irev-gym-icon" />
             <span className="irev-unresolved-text">
               {unavailable.length} {unavailable.length === 1 ? 'movement is' : 'movements are'} unavailable at your gym, <strong>{unavailable[0].availability.gymName}</strong>.
-              Choose an exercise to replace it here, or swap it once a workout starts.
+              Open the day to choose a replacement, or swap it once a workout starts.
             </span>
           </div>
           <div className="irev-gym-list">
             {unavailable.map(item => (
               <div className="irev-gym-row" key={item.lineId}>
                 <span><strong>{item.name}</strong><br /><span className="muted">{item.availability.marked ? 'Marked unavailable' : `Missing: ${item.availability.missing.join(', ')}`}</span></span>
-                <Button variant="secondary" className="irev-action-btn" aria-label={`Replace ${item.name}`} onClick={() => onFocusIssue({ workoutLineId: item.dayId, exerciseLineId: item.lineId, targetField: 'library' })}>
-                  Replace <ChevronRight size={14} />
-                </Button>
+
               </div>
             ))}
           </div>

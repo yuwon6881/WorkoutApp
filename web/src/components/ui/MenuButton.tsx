@@ -28,7 +28,8 @@ export function MenuButton({
   disabled = false,
   text,
   variant = 'secondary',
-  portal = true
+  portal = true,
+  offset = 4
 }: {
   label: string;
   children: ReactNode;
@@ -40,6 +41,8 @@ export function MenuButton({
   text?: string;
   variant?: ButtonVariant;
   portal?: boolean;
+  /// Distance between the trigger and the menu, for a trigger sitting beside a taller control.
+  offset?: number;
 }) {
   const [open, setOpen] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -58,7 +61,7 @@ export function MenuButton({
     minWidth: 210,
     maxWidth: 280,
     maxHeight: 300,
-    offset: 4
+    offset
   });
 
   const close = useCallback((restoreFocus = false) => {

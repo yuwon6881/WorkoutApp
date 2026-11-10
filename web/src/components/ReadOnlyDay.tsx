@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import type { DraftExercise, DraftWorkout, Exercise } from '../types';
 import { exerciseCredits, getPlannedMuscleCredits } from '../lib/programMuscles';
+import { draftExerciseName } from '../lib/draftExerciseSwap';
 import { getSupersetGroup } from '../lib/supersets';
 import { summarizeSets } from '../lib/setSummary';
 import { formatRest } from '../lib/training';
@@ -60,6 +61,7 @@ export function ReadOnlyDay({ day, exercises, selectedMuscle, onMuscleSelect, la
           <ReadOnlyExercise
             key={exercise.lineId}
             exercise={exercise}
+            name={draftExerciseName(exercise, exercises)}
             trackRir={trackRir}
             dimmed={dimSet ? dimSet.has(exercise.lineId) : false}
             last={exercise.exerciseId ? lastLabels?.get(exercise.exerciseId) : undefined}
@@ -70,12 +72,12 @@ export function ReadOnlyDay({ day, exercises, selectedMuscle, onMuscleSelect, la
   </>;
 }
 
-function ReadOnlyExercise({ exercise, trackRir, dimmed, last }: { exercise: DraftExercise; trackRir: boolean; dimmed: boolean; last?: string }) {
+function ReadOnlyExercise({ exercise, name, trackRir, dimmed, last }: { exercise: DraftExercise; name: string; trackRir: boolean; dimmed: boolean; last?: string }) {
   const lines = summarizeSets(exercise.sets, trackRir);
   const rest = exercise.restSeconds ?? exercise.sets.find(set => !set.warmup)?.restSeconds ?? null;
   return <div className={`readonly-exercise ${dimmed ? 'exercise-dimmed' : ''}`}>
     <div className="readonly-exercise-head">
-      <strong className="readonly-exercise-name">{exercise.sourceName}</strong>
+      <strong className="readonly-exercise-name">{name}</strong>
       {rest != null && <span className="readonly-exercise-rest">Rest {formatRest(rest)}</span>}
     </div>
     <GymAvailabilityBadge exerciseId={exercise.exerciseId} />

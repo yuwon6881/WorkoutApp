@@ -391,3 +391,43 @@
 .ptl-chip-group.ptl-chip-active .ptl-chip-delete-btn:hover:not(:disabled) {
   background: transparent !important;
 }
+
+/* Drop position as a bar between chips: the shadow it replaces is dropped on the accent chip. */
+.ptl-week-chip-group { position: relative; }
+
+.ptl-week-chip-group.drop-indicator-before,
+.ptl-week-chip-group.drop-indicator-after {
+  box-shadow: none;
+}
+
+.ptl-week-chip-group.drop-indicator-before::before,
+.ptl-week-chip-group.drop-indicator-after::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  border-radius: 2px;
+  background: var(--accent);
+  pointer-events: none;
+}
+
+.ptl-week-chip-group.drop-indicator-before::before { left: -6px; }
+.ptl-week-chip-group.drop-indicator-after::after { right: -6px; }
+
+/* A moved week renumbers the chips, so the new position is marked for a moment. */
+.ptl-week-chip-group[data-landed] {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+  animation: ptl-week-landed 1.2s ease-out;
+}
+
+@keyframes ptl-week-landed {
+  0% { transform: scale(1.12); outline-color: var(--accent); }
+  40% { transform: scale(1); }
+  100% { outline-color: transparent; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ptl-week-chip-group[data-landed] { animation: none; }
+}

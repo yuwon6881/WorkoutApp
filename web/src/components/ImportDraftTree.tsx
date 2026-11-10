@@ -245,7 +245,7 @@ export const DraftOutline = forwardRef<DraftOutlineHandle, {
             )}
             {(onRestoreDraft || onDiscardDraft) && (
               <div className="ptl-menu-wrap">
-                <MenuButton label="Draft actions" triggerClassName="program-actions-trigger ptl-actions-trigger">
+                <MenuButton label="Draft actions" offset={12} triggerClassName="program-actions-trigger ptl-actions-trigger">
                   {canRestoreDraft && onRestoreDraft && (
                     <MenuItem disabled={busy && !canRestoreDraft} onClick={onRestoreDraft}>
                       <RotateCcw size={14} />Restore default draft

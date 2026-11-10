@@ -39,38 +39,6 @@
 .import-exercise .import-exercise-title {
   flex-wrap: nowrap;
 }
-.import-exercise .import-exercise-name-field {
-  flex: 1 1 auto;
-  max-width: 100%;
-  min-width: 0;
-  margin: 0;
-}
-.import-exercise-name-field > span:first-child {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip-path: inset(50%);
-}
-.import-exercise .import-exercise-name-field textarea {
-  min-height: 44px;
-  padding: 10px;
-  font-size: 15px;
-  font-weight: 650;
-  line-height: 1.4;
-  background: transparent;
-  border-color: transparent;
-  overflow-wrap: anywhere;
-  resize: none;
-  overflow-y: hidden;
-  max-height: none;
-}
-.import-exercise .import-exercise-name-field textarea:hover {
-  border-color: var(--control-border);
-}
-.import-exercise .import-exercise-name-field textarea:focus {
-  background: var(--control-surface);
-}
 /* Keep muscle metadata on its own row, independent of name length or substitutions. */
 .import-library-row {
   display: flex;
@@ -117,8 +85,7 @@
 }
 :root .import-exercise .button.secondary.import-library-trigger:focus-visible,
 .import-exercise .import-rest-field .custom-select-trigger:focus-visible,
-.import-exercise .import-rest-field .custom-select-trigger.active,
-.import-exercise .import-exercise-name-field textarea:focus {
+.import-exercise .import-rest-field .custom-select-trigger.active {
   border-color: var(--accent);
 }
 .import-exercise .import-exercise-heading { border-bottom-color: var(--section-border); }

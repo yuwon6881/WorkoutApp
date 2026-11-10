@@ -198,6 +198,22 @@ public sealed class ImportSlotMappingTests
         Assert.Single(placeholders.Select(exercise => exercise.MovementKey).Distinct());
     }
 
+    /// A row the user added carries the placeholder "New exercise" until it is renamed. Two of them are
+    /// two different movements, so they must neither share one mapping nor one "same movement" scope.
+    [Fact]
+    public void Added_exercises_with_the_placeholder_name_stay_separate_movements()
+    {
+        var first = Exercise("New exercise");
+        var second = Exercise("New exercise");
+        var draft = ImportValidation.NormalizeDraft(new ImportDraft("Added", [Day(1, "Day 1", first, second)]));
+
+        var keys = draft.Workouts.Single().Exercises.Select(exercise => exercise.MovementKey).ToList();
+        Assert.Equal(2, keys.Distinct().Count());
+        Assert.Equal(2, ImportValidation.Unresolved(draft).Count);
+        Assert.NotEqual(ImportValidation.MovementKey("New exercise", first.LineId), ImportValidation.MovementKey("New exercise", second.LineId));
+        Assert.Equal(ImportValidation.MovementKey("Bench Press", first.LineId), ImportValidation.MovementKey("Bench Press", second.LineId));
+    }
+
     private static DraftWorkout DayInBlock(string block, int week, string name, params DraftExercise[] exercises)
         => new(Guid.NewGuid(), week, name, null, null, [.. exercises], block);
 

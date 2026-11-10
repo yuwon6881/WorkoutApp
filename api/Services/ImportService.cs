@@ -42,13 +42,13 @@ public sealed partial class ImportService(AppDb db, CatalogService catalog, Prog
         Validation.Require(target.exercise is not null, "That exercise slot no longer exists.", 404);
         await catalog.RequireActive(replacementExerciseId, ct);
         // One mapping links every occurrence the review listed under it.
-        var targetKey = ImportValidation.MappingKey(target.workout, target.exercise!.SourceName);
+        var targetKey = ImportValidation.MappingKey(target.workout, target.exercise!.SourceName, target.exercise.LineId);
         var next = draft with
         {
             Workouts = draft.Workouts.Select(workout => workout with
             {
                 Exercises = workout.Exercises.Select(exercise =>
-                    ImportValidation.MappingKey(workout, exercise.SourceName).Equals(targetKey, StringComparison.Ordinal)
+                    ImportValidation.MappingKey(workout, exercise.SourceName, exercise.LineId).Equals(targetKey, StringComparison.Ordinal)
                         ? exercise with { ExerciseId = replacementExerciseId }
                         : exercise).ToList()
             }).ToList()

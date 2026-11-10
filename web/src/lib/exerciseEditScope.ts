@@ -1,6 +1,6 @@
 import type { DraftExercise, DraftSet, DraftWorkout, Exercise, ImportDraft } from '../types';
 import { demoUrlForName } from './demoLinks';
-import { selectDraftExercise } from './draftExerciseSwap';
+import { selectDraftExercise, writtenMovementKey } from './draftExerciseSwap';
 
 /// Which occurrences of a movement a saved exercise edit reaches. A block is the unit a
 /// program prints a movement in, so it is the sensible default; the whole program is the wide end.
@@ -121,9 +121,9 @@ export function describeChange(change: ExerciseChange): string[] {
 }
 
 /// A written movement's identity. The server publishes it on every save; a draft that has not
-/// round-tripped yet (a scratch program) falls back to the written name.
-const movementKey = (exercise: DraftExercise) =>
-  exercise.movementKey || `name\u001f${exercise.sourceName.trim().toLowerCase().replace(/\s+/g, ' ')}`;
+/// round-tripped yet (a scratch program) falls back to the written name, or to the row itself
+/// for an added exercise that has no name yet.
+const movementKey = writtenMovementKey;
 
 const blockOf = (workout: DraftWorkout) => workout.blockId ?? workout.block ?? '';
 

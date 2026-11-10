@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { DraftExercise, Exercise } from '../types';
-import { displayExerciseName, selectDraftExercise } from './draftExerciseSwap';
+import { displayExerciseName, draftExerciseName, selectDraftExercise, writtenMovementKey } from './draftExerciseSwap';
 
 const library = [
   { id: 'glute', name: 'Glute Ham Raise', aliases: [] },
@@ -20,5 +20,19 @@ describe('draft exercise selection', () => {
   it('preserves the printed name when initially mapping an import', () => {
     expect(selectDraftExercise({ ...draft, exerciseId: null }, library[0], library, true).sourceName).toBe('GLUTE HAM RAISE');
     expect(displayExerciseName('unknown movement', library)).toBe('Unknown movement');
+    expect(draftExerciseName(draft, library)).toBe('Glute Ham Raise');
+    expect(draftExerciseName({ ...draft, exerciseId: null }, library)).toBe('GLUTE HAM RAISE');
+  });
+
+  it('names a user-added placeholder row after the library exercise it is linked to', () => {
+    const added = { ...draft, sourceName: 'New exercise', exerciseId: null };
+    expect(selectDraftExercise(added, library[0], library, true).sourceName).toBe('Glute Ham Raise');
+  });
+
+  it('keys a placeholder row by its own line so two added rows never share a movement', () => {
+    const a = { ...draft, lineId: 'a', sourceName: 'New exercise', movementKey: null };
+    const b = { ...draft, lineId: 'b', sourceName: ' new  Exercise ', movementKey: null };
+    expect(writtenMovementKey(a)).not.toBe(writtenMovementKey(b));
+    expect(writtenMovementKey({ ...draft, lineId: 'a', movementKey: null })).toBe(writtenMovementKey({ ...draft, lineId: 'b', movementKey: null }));
   });
 });

@@ -79,7 +79,7 @@ describe('import set review fields', () => {
     const day: DraftWorkout = {
       lineId: 'day-line', week: 1, name: 'Week 1 Upper', focus: null, notes: null,
       exercises: [{
-        lineId: 'exercise-line', sourceName: 'Barbell bench press', exerciseId: 'bench-id', notes: null,
+        lineId: 'exercise-line', sourceName: 'BENCH PRESS', exerciseId: 'bench-id', notes: null,
         sequenceGroup: '', substitutions: ['Incline Dumbbell Press'], sets: [{
           repMin: 6, repMax: 6, targetRpe: 8, restSeconds: 120, tempo: null,
           loadText: null, notes: null, repsSource: 'extracted', rpeSource: 'extracted',
@@ -106,6 +106,8 @@ describe('import set review fields', () => {
 
     expect(markup).toContain('substitution-label">Incline Dumbbell Press</span>');
     expect(markup).not.toContain('class="substitution-swap-btn"');
+    expect(markup).toContain('class="iex-name">Barbell bench press</strong>');
+    expect(markup).not.toContain('name="exercise-source-name-exercise-line"');
     expect(markup).toContain('import-exercise-muscles');
     expect(markup).toContain('pill pill-accent">Chest</span>');
     expect(markup).toContain('pill pill-muted">Triceps</span>');

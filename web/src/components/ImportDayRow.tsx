@@ -2,6 +2,7 @@ import { useMemo, type ReactNode } from 'react';
 import { Lock, Moon } from 'lucide-react';
 import type { DraftWorkout, Exercise } from '../types';
 import { getPlannedMuscleCredits } from '../lib/programMuscles';
+import { draftExerciseName } from '../lib/draftExerciseSwap';
 import type { ExerciseEditing } from '../lib/exerciseEditScope';
 import { dayTitle, isGenericDayTitle } from '../lib/dayTitle';
 import { Button } from './ui/Button';
@@ -15,7 +16,7 @@ export function DayRow({
   day,
   index,
   onOpen,
-  exercises: _exercises,
+  exercises = [],
   handle,
   menu,
   lockLabel
@@ -30,8 +31,8 @@ export function DayRow({
   lockLabel?: string;
 }) {
   const previewNames = useMemo(
-    () => day.isRestDay ? [] : day.exercises.map(exercise => exercise.sourceName),
-    [day.exercises, day.isRestDay]
+    () => day.isRestDay ? [] : day.exercises.map(exercise => draftExerciseName(exercise, exercises)),
+    [day.exercises, day.isRestDay, exercises]
   );
 
   const rawTitle = dayTitle(day.name, index + 1);

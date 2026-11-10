@@ -16,7 +16,7 @@ export function ProgramStructureBar({ structure, readOnly = false }: { structure
   const {
     weeks, blocks, week, setSelectedWeek, selectedBlockIndex,
     totalDayCount, setWeekModalOpen, setDeleteConfirmWeek, setDeleteConfirmBlock, deleteBlock,
-    setRenameBlock, setRenameValue, draggedWeek, setDraggedWeek, dropTarget, setDropTarget,
+    setRenameBlock, setRenameValue, draggedWeek, setDraggedWeek, dropTarget, setDropTarget, movedWeek,
     reorderWeeks, reorderBlocks, addBlock, weekHasHistory, blockHasHistory, canAddWeekAfter
   } = structure;
 
@@ -79,7 +79,7 @@ export function ProgramStructureBar({ structure, readOnly = false }: { structure
     <div className="ptl-structure-row ptl-week-row">
       <span className="ptl-structure-caption" id="ptl-weeks-caption">Week</span>
       <div className="ptl-week-scroller-wrap">
-        <ChipScroller ariaLabel="Program weeks" role="tablist" resetKey={weeks.map(entry => entry.week).join('|')}
+        <ChipScroller ariaLabel="Program weeks" role="tablist" resetKey={weeks.map(entry => entry.week).join('|')} activeKey={week.week}
           leftLabel="Scroll program weeks left" rightLabel="Scroll program weeks right">
           {readOnly && weeks.map(entry => <span key={entry.week} role="presentation" data-import-week-chip={entry.week}
             className={`chip-group import-week-chip-group chip-group-lone ${entry.week === week.week ? 'active' : ''} ptl-chip-group ptl-week-chip-group ${entry.week === week.week ? 'ptl-chip-active' : ''}`.trim()}>
@@ -90,7 +90,7 @@ export function ProgramStructureBar({ structure, readOnly = false }: { structure
             </Button>
           </span>)}
           {!readOnly && weeks.map(entry => <SortableWeekChip key={entry.week} week={entry.week} selected={entry.week === week.week}
-            dragging={draggedWeek === entry.week}
+            dragging={draggedWeek === entry.week} landed={movedWeek === entry.week}
             dropSide={dropTarget?.week === entry.week && draggedWeek !== entry.week ? dropTarget.side : null}
             onSelect={() => setSelectedWeek(entry.week)}
             locked={weekHasHistory(entry)}

@@ -79,11 +79,11 @@ public sealed partial class WorkoutService
     private static IEnumerable<TemplateExercise> Targets(PlanEdit edit, List<TemplateExercise> rows,
         List<WorkoutTemplate> days, string scope, ProgramLockState locks)
     {
-        var key = ImportValidation.MovementKey(edit.Home.SourceName);
+        var key = ImportValidation.MovementKey(edit.Home.SourceName, edit.Home.Id);
         var allowed = days.Where(d => (scope == "program" || d.Block == edit.Day.Block) && (d.Id == edit.Day.Id || !locks.IsLocked(d)))
             .Select(d => d.Id).ToHashSet();
         return rows.Where(row => allowed.Contains(row.TemplateId) &&
-            (row.Id == edit.Home.Id || ImportValidation.MovementKey(row.SourceName) == key));
+            (row.Id == edit.Home.Id || ImportValidation.MovementKey(row.SourceName, row.Id) == key));
     }
 
     private async Task ApplyFinishPlan(WorkoutSession session, FinishPlanUpdateInput input, CancellationToken ct)
@@ -96,8 +96,11 @@ public sealed partial class WorkoutService
             plan.Preview.DayRevisions.All(day => input.DayRevisions.TryGetValue(day.Key, out var revision) && revision == day.Value),
             "A program day changed. Review the program update again.", 409);
         var changed = new HashSet<Guid>();
-        foreach (var edit in plan.Edits)
-        foreach (var row in Targets(edit, plan.Rows, plan.Days, input.Scope, plan.Locks))
+        // Every edit finds its rows before any is rewritten, as the preview counted them: a library
+        // edit renames the rows it reaches, which would otherwise change what a later edit matches.
+        var reached = plan.Edits.Select(edit => (edit, rows: Targets(edit, plan.Rows, plan.Days, input.Scope, plan.Locks).ToList())).ToList();
+        foreach (var (edit, rows) in reached)
+        foreach (var row in rows)
         {
             if (edit.Library)
             {
