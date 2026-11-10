@@ -135,7 +135,15 @@ class WorkoutRepository private constructor(context: Context) {
 
     suspend fun pollPairing(): PairingStatus {
         val pairing = secureStore.pendingPairing() ?: throw IllegalStateException("Start pairing again on your watch.")
-        val status = api.pairingStatus(pairing.first)
+        val status = try {
+            api.pairingStatus(pairing.first)
+        } catch (gone: ApiFailure) {
+            // Starting any pairing sweeps expired rows, so a code left on screen can be deleted
+            // server-side (404). It can never be approved, so treat it exactly like an expired one
+            // instead of polling a pairing that no longer exists.
+            if (gone.statusCode != 404) throw gone
+            PairingStatus("expired", pairing.third)
+        }
         if (status.status == "approved") {
             secureStore.markPaired()
             secureStore.clearPendingPairing()
@@ -149,7 +157,10 @@ class WorkoutRepository private constructor(context: Context) {
     }
 
     /** Logs reps for an ordinary set, or seconds (and no reps) for a timed hold. */
-    fun logSet(exerciseId: String, setId: String, reps: Int?, displayWeight: Double?, rir: String?, durationSeconds: Int? = null) {
+    fun logSet(exerciseId: String, setId: String, reps: Int?, displayWeight: Double?, rir: String?, durationSeconds: Int? = null) =
+        retryOnRace { logSetOnce(exerciseId, setId, reps, displayWeight, rir, durationSeconds) }
+
+    private fun logSetOnce(exerciseId: String, setId: String, reps: Int?, displayWeight: Double?, rir: String?, durationSeconds: Int?) {
         if (durationSeconds == null) require(reps != null && reps > 0) { "Enter the reps you completed." }
         else require(durationSeconds in 1..MAX_SET_SECONDS) { "Enter a time between 1 second and 2 hours." }
         require(displayWeight == null || displayWeight >= 0) { "Load cannot be negative." }
@@ -169,7 +180,9 @@ class WorkoutRepository private constructor(context: Context) {
     }
 
     /** Takes back the last set logged on this watch: it returns to the set page with its values kept. */
-    fun undoLastSet() {
+    fun undoLastSet() = retryOnRace { undoLastSetOnce() }
+
+    private fun undoLastSetOnce() {
         val snapshot = requireSnapshot()
         check(snapshot.session.active && snapshot.session.pausedAt == null && !snapshot.pendingFinish) { "Resume the workout before changing a set." }
         val setId = snapshot.lastLoggedSetId ?: error("There is no set from this watch to undo.")
@@ -183,7 +196,9 @@ class WorkoutRepository private constructor(context: Context) {
     fun pause() = changePauseState(true)
     fun resume() = changePauseState(false)
 
-    fun finish() {
+    fun finish() = retryOnRace { finishOnce() }
+
+    private fun finishOnce() {
         val snapshot = requireSnapshot()
         check(snapshot.session.active && !snapshot.pendingFinish) { "This workout is already finished on the watch." }
         // WorkoutApp only saves a workout with at least one completed working set; queueing one
@@ -204,7 +219,7 @@ class WorkoutRepository private constructor(context: Context) {
             pendingFinish = true,
             lastLoggedSetId = null
         )
-        store.enqueue(locallyFinished, PendingOperation(
+        store.enqueueIfCurrent(snapshot, locallyFinished, PendingOperation(
             sequence = 0,
             id = mutationId,
             type = "finish",
@@ -222,7 +237,9 @@ class WorkoutRepository private constructor(context: Context) {
     /** The server's rest as the watch holds it; an ended or idle rest leaves nothing to count. */
     private fun remoteRestState(rest: SessionRest?): Triple<Long?, String?, Long?> = RestSync.fromServer(rest, System.currentTimeMillis())
 
-    fun extendRest(seconds: Int = 30): WorkoutSnapshot? {
+    fun extendRest(seconds: Int = 30): WorkoutSnapshot? = retryOnRace { extendRestOnce(seconds) }
+
+    private fun extendRestOnce(seconds: Int): WorkoutSnapshot? {
         val snapshot = store.readSnapshot() ?: return null
         if (!snapshot.session.active || snapshot.session.pausedAt != null || snapshot.pendingFinish || seconds <= 0) return snapshot
         val now = System.currentTimeMillis()
@@ -244,7 +261,7 @@ class WorkoutRepository private constructor(context: Context) {
             alertedRestGeneration = null,
             pausedRestRemainingMs = null
         )
-        store.enqueue(next, PendingOperation(0, mutationId, "rest", snapshot.session.id, null, snapshot.session.revision,
+        store.enqueueIfCurrent(snapshot, next, PendingOperation(0, mutationId, "rest", snapshot.session.id, null, snapshot.session.revision,
             request.toString(), gson.toJson(snapshot.session), Instant.now().toString(), false))
         WorkoutOngoingService.startRest(application, next.session.name)
         scheduleSync()
@@ -252,7 +269,9 @@ class WorkoutRepository private constructor(context: Context) {
     }
 
     /** Takes time off a running rest; cutting past zero ends the rest, as the server does. */
-    fun shortenRest(seconds: Int = 15): WorkoutSnapshot? {
+    fun shortenRest(seconds: Int = 15): WorkoutSnapshot? = retryOnRace { shortenRestOnce(seconds) }
+
+    private fun shortenRestOnce(seconds: Int): WorkoutSnapshot? {
         val snapshot = store.readSnapshot() ?: return null
         val endsAt = snapshot.restEndsAtEpochMs
         if (!snapshot.session.active || snapshot.session.pausedAt != null || snapshot.pendingFinish || seconds <= 0 || endsAt == null) return snapshot
@@ -277,7 +296,7 @@ class WorkoutRepository private constructor(context: Context) {
             alertedRestGeneration = null,
             pausedRestRemainingMs = null
         )
-        store.enqueue(next, PendingOperation(0, mutationId, "rest", snapshot.session.id, null, snapshot.session.revision,
+        store.enqueueIfCurrent(snapshot, next, PendingOperation(0, mutationId, "rest", snapshot.session.id, null, snapshot.session.revision,
             request.toString(), gson.toJson(snapshot.session), Instant.now().toString(), false))
         if (shortened != null) WorkoutOngoingService.startRest(application, next.session.name)
         else WorkoutOngoingService.update(application, next.session.name)
@@ -285,7 +304,9 @@ class WorkoutRepository private constructor(context: Context) {
         return next
     }
 
-    fun skipRest(): WorkoutSnapshot? {
+    fun skipRest(): WorkoutSnapshot? = retryOnRace { skipRestOnce() }
+
+    private fun skipRestOnce(): WorkoutSnapshot? {
         val snapshot = store.readSnapshot() ?: return null
         if (!snapshot.session.active || snapshot.pendingFinish) return snapshot
         // Nothing to skip: sending one would only move the workout's revision.
@@ -302,7 +323,7 @@ class WorkoutRepository private constructor(context: Context) {
             SyncMergePolicy.addExpectedGeneration(this, snapshot.session.rest?.generation)
         }
         val next = snapshot.copy(restEndsAtEpochMs = null, restGeneration = null, pausedRestRemainingMs = null, alertedRestGeneration = null)
-        store.enqueue(next, PendingOperation(0, mutationId, "rest", snapshot.session.id, null, snapshot.session.revision,
+        store.enqueueIfCurrent(snapshot, next, PendingOperation(0, mutationId, "rest", snapshot.session.id, null, snapshot.session.revision,
             request.toString(), gson.toJson(snapshot.session), Instant.now().toString(), false))
         WorkoutOngoingService.update(application, next.session.name)
         scheduleSync()
@@ -350,7 +371,9 @@ class WorkoutRepository private constructor(context: Context) {
         WorkoutOngoingService.stop(application)
     }
 
-    private fun changePauseState(pause: Boolean) {
+    private fun changePauseState(pause: Boolean) = retryOnRace { changePauseStateOnce(pause) }
+
+    private fun changePauseStateOnce(pause: Boolean) {
         val snapshot = requireSnapshot()
         check(snapshot.session.active && !snapshot.pendingFinish) { "This workout is already finished." }
         check(if (pause) snapshot.session.pausedAt == null else snapshot.session.pausedAt != null) {
@@ -379,7 +402,7 @@ class WorkoutRepository private constructor(context: Context) {
             pausedRestRemainingMs = if (pause) pausedRest else null,
             restGeneration = if (resumedDeadline != null) UUID.randomUUID().toString() else null
         )
-        store.enqueue(next, PendingOperation(0, id, if (pause) "pause" else "resume", snapshot.session.id,
+        store.enqueueIfCurrent(snapshot, next, PendingOperation(0, id, if (pause) "pause" else "resume", snapshot.session.id,
             revision = snapshot.session.revision, requestJson = request.toString(), baselineJson = gson.toJson(snapshot.session),
             createdAt = occurredAt.toString(), attempted = false))
         if (pause) WorkoutOngoingService.update(application, snapshot.session.name)
@@ -437,11 +460,23 @@ class WorkoutRepository private constructor(context: Context) {
             alertedRestGeneration = null,
             lastLoggedSetId = if (patch.done) set.id else null
         )
-        store.enqueue(nextSnapshot, PendingOperation(0, id, "set", snapshot.session.id, set.id, snapshot.session.revision,
+        store.enqueueIfCurrent(snapshot, nextSnapshot, PendingOperation(0, id, "set", snapshot.session.id, set.id, snapshot.session.revision,
             request.toString(), gson.toJson(snapshot.session), Instant.now().toString(), false))
         if (restDeadline != null) WorkoutOngoingService.startRest(application, snapshot.session.name)
         else WorkoutOngoingService.update(application, snapshot.session.name)
         scheduleSync()
+    }
+
+    /**
+     * A local action reads the snapshot, builds its replacement and writes it; a sync acknowledgement
+     * on another thread can land in between. The store refuses that stale write and the action is
+     * rebuilt from the newer snapshot, so a logged set never restores an older server revision.
+     */
+    private fun <T> retryOnRace(action: () -> T): T {
+        repeat(MAX_RACE_RETRIES - 1) {
+            try { return action() } catch (_: SnapshotChangedException) { /* rebuild from the newer snapshot */ }
+        }
+        return action()
     }
 
     private fun requireSnapshot(): WorkoutSnapshot = store.readSnapshot() ?: error("Open an active WorkoutApp session on your watch first.")
@@ -465,6 +500,7 @@ class WorkoutRepository private constructor(context: Context) {
         /** Mirrors the API: one timed set lasts at most two hours. */
         const val MAX_SET_SECONDS = 7_200
         private const val SYNC_BACKOFF_SECONDS = 15L
+        private const val MAX_RACE_RETRIES = 5
 
         @Volatile private var shared: WorkoutRepository? = null
 

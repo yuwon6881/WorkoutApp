@@ -13,6 +13,7 @@ import org.junit.After
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -174,6 +175,34 @@ class WorkoutOngoingServiceTest {
         dispatch(controller, 1)
         assertNull(privateField(controller, "timerAlert"))
         assertTrue(ShadowPowerManager.getLatestWakeLock()?.isHeld != true)
+    }
+
+    @Test
+    fun `background refresh only runs while a rest does and checks just before it ends`() {
+        val at = 1_000_000L
+        assertNull(WorkoutOngoingService.refreshDelayMs(snapshot(null, null), at))
+        // A long rest is polled steadily.
+        assertEquals(15_000L, WorkoutOngoingService.refreshDelayMs(snapshot(at + 120_000, "g"), at))
+        // Within one interval of the end, the next check lands two seconds before the deadline.
+        assertEquals(8_000L, WorkoutOngoingService.refreshDelayMs(snapshot(at + 10_000, "g"), at))
+        // Too close to check ahead of the buzz: fall back to the steady interval, never a busy loop.
+        assertEquals(15_000L, WorkoutOngoingService.refreshDelayMs(snapshot(at + 1_500, "g"), at))
+        // A paused workout has no running rest to watch.
+        val paused = snapshot(at + 10_000, "g").let { it.copy(session = it.session.copy(pausedAt = "2026-01-01T00:00:00Z")) }
+        assertNull(WorkoutOngoingService.refreshDelayMs(paused, at))
+    }
+
+    @Test
+    fun `a second running countdown is armed once the first one has finished`() {
+        val first = SetTimerSnapshot(startedAt = now() - 1_000, targetSeconds = 1)
+        val second = SetTimerSnapshot(startedAt = now(), targetSeconds = 600)
+        store.saveSnapshot(snapshot(restEndsAt = null, generation = null).copy(setTimers = mapOf("a" to first, "b" to second)))
+        val controller = newService()
+        dispatch(controller, 1)
+
+        privateRunnable(controller, "timerAlert").run()
+
+        assertNotNull(privateField(controller, "timerAlert"))
     }
 
     private fun privateField(controller: ServiceController<WorkoutOngoingService>, name: String): Any? {

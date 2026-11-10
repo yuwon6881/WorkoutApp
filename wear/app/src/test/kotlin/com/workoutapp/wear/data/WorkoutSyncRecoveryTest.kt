@@ -176,6 +176,24 @@ class WorkoutSyncRecoveryTest {
         assertTrue(store.pendingOperations().isEmpty())
         assertNull(store.readSnapshot())
         assertTrue(store.notice.value!!.contains("2 changes"))
+        // The dropped values stay readable so the sets can be entered again on the phone.
+        assertTrue(store.notice.value!!.contains("Not saved: Bench press 60 kg × 8; Bench press 60 kg × 8"))
+    }
+
+    @Test
+    fun `several refused edits are each explained with their values`() = runBlocking {
+        val server = session(revision = 4)
+        store.enqueue(snapshot(server), setOperation("bad-1", server, "s1"))
+        store.enqueue(snapshot(server), setOperation("bad-2", server, "s2"))
+        val gateway = ScriptedGateway(server) { operation ->
+            throw ApiFailure(422, if (operation.id == "bad-1") "Reps are invalid." else "Load is invalid.")
+        }
+
+        WorkoutSyncCoordinator(context, store, gateway).syncPending()
+
+        val notice = store.notice.value!!
+        assertTrue(notice.contains("Reps are invalid. Not saved: Bench press 60 kg × 8."))
+        assertTrue(notice.contains("Load is invalid. Not saved: Bench press 60 kg × 8."))
     }
 
     @Test
@@ -193,7 +211,7 @@ class WorkoutSyncRecoveryTest {
         assertFalse(outcome.pending)
         assertTrue(store.pendingOperations().isEmpty())
         assertEquals(listOf("bad", "good"), gateway.sentIds)
-        assertEquals("Reps are invalid.", store.notice.value)
+        assertEquals("Reps are invalid. Not saved: Bench press 60 kg × 8.", store.notice.value)
     }
 
     @Test

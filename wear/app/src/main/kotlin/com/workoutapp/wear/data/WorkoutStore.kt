@@ -15,6 +15,9 @@ import kotlinx.coroutines.flow.asStateFlow
  * new state, and read-modify-write goes through [update] so a sync finishing mid-rest can never
  * overwrite a rest timer or exercise choice made while its request was in flight.
  */
+/** The stored snapshot changed between a local action reading it and writing its replacement. */
+class SnapshotChangedException : IllegalStateException("The workout changed while saving; trying again.")
+
 class WorkoutStore(context: Context) : SQLiteOpenHelper(context.applicationContext, DATABASE_NAME, null, DATABASE_VERSION) {
     private val gson = GsonBuilder().serializeNulls().create()
     private val notices = context.applicationContext.getSharedPreferences(NOTICE_PREFERENCES, Context.MODE_PRIVATE)
@@ -110,6 +113,18 @@ class WorkoutStore(context: Context) : SQLiteOpenHelper(context.applicationConte
         }
         publish()
         return next
+    }
+
+    /**
+     * [enqueue] for a snapshot built from an earlier read: the write is refused when the stored
+     * snapshot has moved since [expected] was read (a sync acknowledgement, another edit), because
+     * writing the replacement wholesale would restore the older server revision or rest state.
+     * Callers rebuild from a fresh read and try again; nothing has been written when this throws.
+     */
+    @Synchronized
+    fun enqueueIfCurrent(expected: WorkoutSnapshot, snapshot: WorkoutSnapshot, operation: PendingOperation) {
+        if (readSnapshot() != expected) throw SnapshotChangedException()
+        enqueue(snapshot, operation)
     }
 
     @Synchronized
@@ -237,10 +252,18 @@ class WorkoutStore(context: Context) : SQLiteOpenHelper(context.applicationConte
         publish()
     }
 
+    /**
+     * Notices accumulate (newest last, the latest few kept) so several refusals in one sync are each
+     * explained rather than the last one overwriting the others. Committed synchronously: the edit
+     * it describes is dropped right after, and a crash in between must not lose the explanation.
+     */
     @Synchronized
     fun postNotice(text: String) {
-        notices.edit().putString(NOTICE_KEY, text).apply()
-        mutableNotice.value = text
+        val existing = (mutableNotice.value ?: notices.getString(NOTICE_KEY, null))
+            ?.split(NOTICE_SEPARATOR)?.filter { it.isNotBlank() }.orEmpty()
+        val combined = (existing.filterNot { it == text } + text).takeLast(MAX_NOTICES).joinToString(NOTICE_SEPARATOR)
+        notices.edit().putString(NOTICE_KEY, combined).commit()
+        mutableNotice.value = combined
     }
 
     @Synchronized
@@ -314,6 +337,8 @@ class WorkoutStore(context: Context) : SQLiteOpenHelper(context.applicationConte
         private const val DATABASE_VERSION = 6
         private const val NOTICE_PREFERENCES = "workout-wear-notices"
         private const val NOTICE_KEY = "sync-notice"
+        private const val NOTICE_SEPARATOR = "\n"
+        private const val MAX_NOTICES = 3
         private val SET_TIMERS_TYPE = object : TypeToken<Map<String, SetTimerSnapshot>>() {}.type
 
         @Volatile private var shared: WorkoutStore? = null

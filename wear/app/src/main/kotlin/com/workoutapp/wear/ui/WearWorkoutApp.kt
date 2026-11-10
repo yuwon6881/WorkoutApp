@@ -18,6 +18,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.wear.compose.material3.AppScaffold
+import com.workoutapp.wear.data.SyncOutcome
 import com.workoutapp.wear.data.WorkoutRepository
 import com.workoutapp.wear.data.WorkoutSnapshot
 import com.workoutapp.wear.ui.theme.WearWorkoutTheme
@@ -283,7 +284,7 @@ private fun ActiveRoute(
         },
         onFinish = { runAction { repository.finish(); setMessage("Workout finished on the watch; waiting for WorkoutApp to confirm.") } },
         onSelectExercise = repository::selectExercise,
-        onRetrySync = { runAction { repository.syncPending(); setMessage("Sync checked.") } },
+        onRetrySync = { runAction { setMessage(syncResultMessage(repository.syncPending())) } },
         onStartPairing = onStartPairing,
         onDisconnect = { runAction { repository.disconnect(); setMessage("Watch disconnected.") } },
         onEnableNotifications = onEnableNotifications
@@ -297,6 +298,16 @@ private sealed interface Route {
     data object FinishPending : Route
     data object NoWorkout : Route
     data class Active(val snapshot: WorkoutSnapshot) : Route
+}
+
+/** Says what a manual sync actually did, so work that is still queued is never reported as checked. */
+internal fun syncResultMessage(outcome: SyncOutcome): String = when {
+    outcome.needsPairing -> outcome.message ?: "Pair this watch again to sync saved changes."
+    outcome.sessionExpired -> "Pair this watch again to sync saved changes."
+    outcome.conflict -> "WorkoutApp changed this workout. Review both versions before syncing."
+    outcome.pending -> outcome.message ?: "Changes are still waiting to sync."
+    outcome.finished -> "Workout saved in WorkoutApp."
+    else -> "All changes synced."
 }
 
 /** Each rest tap moves the countdown by this much, matching the phone. */
