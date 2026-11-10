@@ -44,23 +44,49 @@ public sealed class LoadRuleSnapshot(
         => EquipmentGroups.ExerciseAppDefault(appStepKg, equipmentName, loadModel, unit, appStepUnit);
 }
 
+public sealed record AccountLoadContext(string Unit, Guid? ActiveGymProfileId, bool TrackRir);
+
 public static class LoadRuleReader
 {
     /// Null exerciseIds reads every exercise setting, for the whole catalog. A unit reads the rules
     /// as that unit displays them; without one they follow the account unit.
     public static async Task<LoadRuleSnapshot> Read(AppDb db, IReadOnlyCollection<Guid>? exerciseIds, CancellationToken ct,
-        string? unit = null)
+        string? unit = null, AccountLoadContext? account = null)
     {
-        // Before the first gym exists no rule can have been saved, so an empty gym reads nothing.
-        var gym = await GymProfiles.ActiveId(db, ct) ?? Guid.Empty;
-        var settingsQuery = db.ExerciseLoadSettings.AsNoTracking().Where(x => x.GymProfileId == gym);
-        if (exerciseIds is not null) settingsQuery = settingsQuery.Where(x => exerciseIds.Contains(x.Id));
-        var settings = await settingsQuery.ToListAsync(ct);
+        if (unit is not null) Validation.Unit(unit);
+        if (db.CurrentUser is null)
+            return new LoadRuleSnapshot([], [], unit ?? WeightUnits.Kg);
+
+        account ??= await ReadAccountContext(db, ct);
+        var resolvedUnit = unit ?? account.Unit;
+        // Before the first gym exists no rule can have been saved, so skip load-rule table queries.
+        var gym = await GymProfiles.ResolveActiveId(db, account.ActiveGymProfileId, ct);
+        if (gym is null)
+            return new LoadRuleSnapshot([], [], resolvedUnit);
+
+        var settings = exerciseIds is { Count: 0 }
+            ? []
+            : await (exerciseIds is null
+                ? db.ExerciseLoadSettings.AsNoTracking().Where(x => x.GymProfileId == gym)
+                : db.ExerciseLoadSettings.AsNoTracking().Where(x => x.GymProfileId == gym && exerciseIds.Contains(x.Id)))
+                .ToListAsync(ct);
         var defaults = await db.EquipmentLoadDefaults.AsNoTracking().Where(x => x.GymProfileId == gym).ToListAsync(ct);
         return new LoadRuleSnapshot(
             settings.ToDictionary(x => x.Id, x => Rule(x.LoadStepKg, x.AvailableLoadsJson, x.LoadStepUnit)),
             defaults.ToDictionary(x => x.Equipment, x => Rule(x.LoadStepKg, x.AvailableLoadsJson, x.LoadStepUnit)),
-            await ReadingUnit(db, unit, ct));
+            resolvedUnit);
+    }
+
+    public static async Task<AccountLoadContext> ReadAccountContext(AppDb db, CancellationToken ct)
+    {
+        if (db.CurrentUser is not { } userId)
+            return new AccountLoadContext(WeightUnits.Kg, null, false);
+        var row = await db.Users.AsNoTracking().Where(x => x.Id == userId)
+            .Select(x => new { x.Unit, x.ActiveGymProfileId, x.TrackRir })
+            .SingleOrDefaultAsync(ct);
+        return row is null
+            ? new AccountLoadContext(WeightUnits.Kg, null, false)
+            : new AccountLoadContext(row.Unit, row.ActiveGymProfileId, row.TrackRir);
     }
 
     /// The unit a request reads or types load steps in: the one it names, else the account's.

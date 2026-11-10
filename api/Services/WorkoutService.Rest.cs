@@ -51,7 +51,7 @@ public sealed partial class WorkoutService
         if (ApplyRestTransition(session, action, input.Seconds, input.Generation, input.OriginDeviceId, at))
             session.Revision++;
 
-        await RecordWorkoutMutation(input.MutationId, sessionId, "workout.rest.mutate", requestHash, ct);
+        await RecordWorkoutMutation(input.MutationId, sessionId, "workout.rest.mutate", requestHash, ct, receiptChecked: true);
         await db.SaveChangesAsync(ct);
         await gate.Commit(ct);
         return await Get(sessionId, ct);

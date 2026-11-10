@@ -75,14 +75,17 @@ public sealed partial class WorkoutService
         WorkoutSetValidation.Tracking(exercise.ExerciseId is { } trackingId && trackingModes.ContainsKey(trackingId),
             reps, durationSeconds, rpe, rir, done);
         var warmupChanged = warmup != set.Warmup;
-        var unit = await LoadRuleReader.AccountUnit(db, ct);
-        var step = Progression.DefaultStep(unit);
-        if (exercise.ExerciseId is { } exerciseId)
+        if (loadModel == LoadModels.FullBodyweight && resistanceMode is (ResistanceModes.Added or ResistanceModes.Assistance) && weight is not null)
         {
-            var info = await progression.LoadInfo([exerciseId], ct, unit);
-            if (info.TryGetValue(exerciseId, out var found)) step = found.AvailableLoadsKg is null ? found.StepKg : 0;
+            var account = await LoadRuleReader.ReadAccountContext(db, ct);
+            var step = Progression.DefaultStep(account.Unit);
+            if (exercise.ExerciseId is { } exerciseId)
+            {
+                var info = await progression.LoadInfo([exerciseId], ct, account.Unit, account);
+                if (info.TryGetValue(exerciseId, out var found)) step = found.AvailableLoadsKg is null ? found.StepKg : 0;
+            }
+            weight = NormalizeEnteredLoad(loadModel, resistanceMode, weight, step);
         }
-        weight = NormalizeEnteredLoad(loadModel, resistanceMode, weight, step);
         var changed = weight != set.WeightKg || reps != set.Reps || durationSeconds != set.DurationSeconds || rpe != set.Rpe || rir != set.Rir || done != set.Done ||
             warmup != set.Warmup || !string.Equals(resistanceMode, set.ResistanceMode, StringComparison.Ordinal);
         if (changed)

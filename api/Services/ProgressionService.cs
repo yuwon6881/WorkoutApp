@@ -33,18 +33,31 @@ public sealed class ProgressionService(AppDb db)
 
     /// The load rule each exercise is progressed with: its own setting, then the account's rule
     /// for its equipment, then the seed-owned or custom exercise default.
-    public async Task<Dictionary<Guid, ExerciseLoadInfo>> LoadInfo(IEnumerable<Guid?> exerciseIds, CancellationToken ct, string? unit = null)
+    public async Task<Dictionary<Guid, ExerciseLoadInfo>> LoadInfo(IEnumerable<Guid?> exerciseIds, CancellationToken ct,
+        string? unit = null, AccountLoadContext? account = null)
     {
         var ids = exerciseIds.Where(id => id != null).Select(id => id!.Value).Distinct().ToList();
         if (ids.Count == 0) return [];
         var metadata = await CatalogMetadata.Read(db, ct);
-        var rows = ids.Where(metadata.ContainsKey).Select(id => metadata[id])
-            .Select(x => new { x.Id, x.LoadModel, x.LoadStepKg, LoadStepUnit = WeightUnits.Kg, x.Equipment });
-        var custom = await db.CustomExercises.AsNoTracking().Where(x => ids.Contains(x.Id))
-            .Select(x => new { x.Id, x.LoadModel, x.LoadStepKg, x.LoadStepUnit, x.Equipment }).ToListAsync(ct);
-        var rules = await LoadRuleReader.Read(db, ids, ct, unit);
+        var rows = new List<(Guid Id, string LoadModel, double LoadStepKg, string LoadStepUnit, string Equipment)>();
+        var missing = new List<Guid>();
+        foreach (var id in ids)
+        {
+            if (metadata.TryGetValue(id, out var seed))
+                rows.Add((seed.Id, seed.LoadModel, seed.LoadStepKg, WeightUnits.Kg, seed.Equipment));
+            else
+                missing.Add(id);
+        }
+        if (missing.Count > 0)
+        {
+            var custom = await db.CustomExercises.AsNoTracking().Where(x => missing.Contains(x.Id))
+                .Select(x => new { x.Id, x.LoadModel, x.LoadStepKg, x.LoadStepUnit, x.Equipment }).ToListAsync(ct);
+            foreach (var row in custom)
+                rows.Add((row.Id, row.LoadModel, row.LoadStepKg, row.LoadStepUnit, row.Equipment));
+        }
+        var rules = await LoadRuleReader.Read(db, ids, ct, unit, account);
         var output = new Dictionary<Guid, ExerciseLoadInfo>();
-        foreach (var row in rows.Concat(custom))
+        foreach (var row in rows)
         {
             var resolved = rules.Resolve(row.Id, row.LoadStepKg, row.Equipment, row.LoadModel, row.LoadStepUnit);
             output[row.Id] = new ExerciseLoadInfo(row.LoadModel, resolved.StepKg, resolved.AvailableLoadsKg);

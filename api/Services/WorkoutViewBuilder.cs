@@ -19,13 +19,45 @@ public static class WorkoutViewBuilder
         var setsByExercise = sets.GroupBy(s => s.SessionExerciseId).ToDictionary(g => g.Key, g => g.ToList());
 
         var (exercisePrs, setPrs, sessionPrCounts, bests, repBests) = await WorkoutPrReadService.Get(db, sessions, ct);
-        var trackingModes = await CatalogService.TrackingModesFor(db, exercises.Select(e => e.ExerciseId), ct);
-        var weightBases = await ExerciseWeightBasis.Read(db, exercises.Select(e => e.ExerciseId), ct);
+        var (trackingModes, weightBases) = await ReadExerciseMetadata(db, exercises, ct);
 
         return sessions.ToDictionary(session => session.Id, session => BuildView(session,
             exercisesBySession.GetValueOrDefault(session.Id) ?? [], setsByExercise, exercisePrs, setPrs,
             sessionPrCounts.GetValueOrDefault(session.Id, 0), session.Active ? bests : null,
             session.Active ? repBests.PreviousByExercise : null, trackingModes, weightBases));
+    }
+
+    private static async Task<(Dictionary<Guid, string> TrackingModes, Dictionary<Guid, string> WeightBases)> ReadExerciseMetadata(
+        AppDb db, IReadOnlyList<SessionExercise> exercises, CancellationToken ct)
+    {
+        var wanted = exercises.Where(e => e.ExerciseId != null).Select(e => e.ExerciseId!.Value).Distinct().ToList();
+        var trackingModes = new Dictionary<Guid, string>();
+        var weightBases = new Dictionary<Guid, string>();
+        if (wanted.Count == 0) return (trackingModes, weightBases);
+
+        var shared = await CatalogMetadata.Read(db, ct);
+        var missing = new List<Guid>();
+        foreach (var id in wanted)
+        {
+            if (shared.TryGetValue(id, out var seed))
+            {
+                if (seed.TrackingMode == TrackingModes.Duration) trackingModes[id] = TrackingModes.Duration;
+                weightBases[id] = seed.WeightBasis;
+            }
+            else
+                missing.Add(id);
+        }
+        if (missing.Count > 0)
+        {
+            var custom = await db.CustomExercises.AsNoTracking().Where(x => missing.Contains(x.Id))
+                .Select(x => new { x.Id, x.TrackingMode, x.WeightBasis }).ToListAsync(ct);
+            foreach (var row in custom)
+            {
+                if (row.TrackingMode == TrackingModes.Duration) trackingModes[row.Id] = TrackingModes.Duration;
+                weightBases[row.Id] = row.WeightBasis;
+            }
+        }
+        return (trackingModes, weightBases);
     }
 
     public static async Task<(Dictionary<Guid, (bool IsPr, double? PrE1rmKg, string? PrKind, int? PrReps)> ExercisePrs,

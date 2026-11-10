@@ -23,7 +23,11 @@ public sealed class CatalogService(AppDb db)
     // The short expiry also makes a catalog seed visible without requiring a
     // restart or a cross-service cache invalidation channel.
     private static readonly MemoryCache SharedCache = new(new MemoryCacheOptions { SizeLimit = 4 });
-    private const string SharedCatalogKey = "workout:catalog:active:v3";
+    private static string SharedCacheKey(AppDb db)
+    {
+        var connection = db.Database.GetDbConnection();
+        return $"workout:catalog:active:v3:{connection.DataSource}:{connection.Database}";
+    }
 
     /// Movements a document writes as one word, two words, or hyphenated interchangeably. The
     /// catalog is itself inconsistent — "Neutral-Grip Pullup" sits beside "Close-Grip Pull-Up" —
@@ -106,8 +110,9 @@ public sealed class CatalogService(AppDb db)
     {
         // Test and local SQLite databases are deliberately isolated per harness;
         // never let a process-global production cache leak rows between them.
-        if (!db.Database.IsSqlite()
-            && SharedCache.TryGetValue<List<CatalogExercise>>(SharedCatalogKey, out var cached) && cached is not null)
+        var sqlite = db.Database.IsSqlite();
+        var key = sqlite ? "" : SharedCacheKey(db);
+        if (!sqlite && SharedCache.TryGetValue<List<CatalogExercise>>(key, out var cached) && cached is not null)
             return cached;
 
         var exercises = await db.Exercises.AsNoTracking().Where(x => x.Active)
@@ -124,8 +129,8 @@ public sealed class CatalogService(AppDb db)
             ReadMuscles(x.SecondaryMusclesJson, x.Muscle), ExerciseCategories.Normalize(x.Category, x.Equipment, x.LoadModel),
             null, TrackingModes.Normalize(x.TrackingMode), WeightBasis: x.WeightBasis,
             Requires: ReadRequires(x.RequiresJson))).ToList());
-        if (!db.Database.IsSqlite())
-            SharedCache.Set(SharedCatalogKey, result, new MemoryCacheEntryOptions
+        if (!sqlite && db.Database.CurrentTransaction is null)
+            SharedCache.Set(key, result, new MemoryCacheEntryOptions
             {
                 Size = 1,
                 AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(10)
@@ -238,21 +243,34 @@ public sealed class CatalogService(AppDb db)
     public async Task RequireActive(Guid? id, CancellationToken ct)
     {
         if (id == null) return;
-        var catalog = await db.Exercises.AsNoTracking().AnyAsync(x => x.Id == id && x.Active, ct);
+        var shared = await CatalogMetadata.Read(db, ct);
+        if (shared.TryGetValue(id.Value, out var seed))
+        {
+            Validation.Require(seed.Active, "That exercise is not in the library.", 400);
+            return;
+        }
         var custom = await db.CustomExercises.AsNoTracking().AnyAsync(x => x.Id == id && !x.Archived, ct);
-        Validation.Require(catalog || custom, "That exercise is not in the library.", 400);
+        Validation.Require(custom, "That exercise is not in the library.", 400);
     }
 
-    /// The set form of RequireActive: a workout, template, or program is checked with two reads
-    /// rather than two per exercise, which matters on autosaves made under the account lock.
+    /// The set form of RequireActive: a workout, template, or program is checked against cached
+    /// seed metadata first, touching custom rows only when unknown IDs remain.
     public async Task RequireAllActive(IEnumerable<Guid?> ids, CancellationToken ct)
     {
         var wanted = ids.Where(id => id != null).Select(id => id!.Value).Distinct().ToList();
         if (wanted.Count == 0) return;
-        var found = await db.Exercises.AsNoTracking().Where(x => wanted.Contains(x.Id) && x.Active).Select(x => x.Id).ToListAsync(ct);
-        if (found.Count < wanted.Count)
-            found.AddRange(await db.CustomExercises.AsNoTracking().Where(x => wanted.Contains(x.Id) && !x.Archived).Select(x => x.Id).ToListAsync(ct));
-        Validation.Require(wanted.All(found.Contains), "That exercise is not in the library.", 400);
+        var shared = await CatalogMetadata.Read(db, ct);
+        var missing = new List<Guid>();
+        foreach (var id in wanted)
+        {
+            if (shared.TryGetValue(id, out var seed))
+                Validation.Require(seed.Active, "That exercise is not in the library.", 400);
+            else
+                missing.Add(id);
+        }
+        if (missing.Count == 0) return;
+        var found = await db.CustomExercises.AsNoTracking().Where(x => missing.Contains(x.Id) && !x.Archived).Select(x => x.Id).ToListAsync(ct);
+        Validation.Require(found.Count == missing.Count, "That exercise is not in the library.", 400);
     }
 
     public async Task<Dictionary<Guid, string>> LoadModelsFor(IEnumerable<Guid?> ids, CancellationToken ct)
@@ -260,12 +278,21 @@ public sealed class CatalogService(AppDb db)
         var wanted = ids.Where(id => id != null).Select(id => id!.Value).Distinct().ToList();
         if (wanted.Count == 0) return [];
         var shared = await CatalogMetadata.Read(db, ct);
-        var output = wanted.Where(shared.ContainsKey).Select(id => shared[id])
-            .ToDictionary(x => x.Id, x => LoadModels.All.Contains(x.LoadModel) ? x.LoadModel : LoadModels.External);
+        var output = new Dictionary<Guid, string>();
+        var missing = new List<Guid>();
+        foreach (var id in wanted)
+        {
+            if (shared.TryGetValue(id, out var seed))
+                output[id] = LoadModels.All.Contains(seed.LoadModel) ? seed.LoadModel : LoadModels.External;
+            else
+                missing.Add(id);
+        }
+        if (missing.Count == 0) return output;
         // Archived custom exercises stay readable for historical/template references. They are
         // excluded from the picker and RequireActive, but their original load model is needed
         // when an existing prescription is opened.
-        var custom = await db.CustomExercises.AsNoTracking().Where(x => wanted.Contains(x.Id)).ToListAsync(ct);
+        var custom = await db.CustomExercises.AsNoTracking().Where(x => missing.Contains(x.Id))
+            .Select(x => new { x.Id, x.LoadModel }).ToListAsync(ct);
         foreach (var row in custom) output[row.Id] = LoadModels.All.Contains(row.LoadModel) ? row.LoadModel : LoadModels.External;
         return output;
     }
@@ -277,10 +304,20 @@ public sealed class CatalogService(AppDb db)
         var wanted = ids.Where(id => id != null).Select(id => id!.Value).Distinct().ToList();
         if (wanted.Count == 0) return [];
         var shared = await CatalogMetadata.Read(db, ct);
-        var output = wanted.Where(shared.ContainsKey).Select(id => shared[id])
-            .Where(x => x.TrackingMode == TrackingModes.Duration).ToDictionary(x => x.Id, _ => TrackingModes.Duration);
+        var output = new Dictionary<Guid, string>();
+        var missing = new List<Guid>();
+        foreach (var id in wanted)
+        {
+            if (shared.TryGetValue(id, out var seed))
+            {
+                if (seed.TrackingMode == TrackingModes.Duration) output[id] = TrackingModes.Duration;
+            }
+            else
+                missing.Add(id);
+        }
+        if (missing.Count == 0) return output;
         var custom = await db.CustomExercises.AsNoTracking()
-            .Where(x => wanted.Contains(x.Id) && x.TrackingMode == TrackingModes.Duration)
+            .Where(x => missing.Contains(x.Id) && x.TrackingMode == TrackingModes.Duration)
             .Select(x => x.Id).ToListAsync(ct);
         foreach (var id in custom) output[id] = TrackingModes.Duration;
         return output;
@@ -301,8 +338,16 @@ public sealed class CatalogService(AppDb db)
         var wanted = ids.Distinct().ToList();
         if (wanted.Count == 0) return [];
         var shared = await CatalogMetadata.Read(db, ct);
-        var output = wanted.Where(shared.ContainsKey).Select(id => shared[id]).ToDictionary(x => x.Id, x => x.Muscle);
-        var custom = await db.CustomExercises.AsNoTracking().Where(x => wanted.Contains(x.Id)).ToListAsync(ct);
+        var output = new Dictionary<Guid, string>();
+        var missing = new List<Guid>();
+        foreach (var id in wanted)
+        {
+            if (shared.TryGetValue(id, out var seed)) output[id] = seed.Muscle;
+            else missing.Add(id);
+        }
+        if (missing.Count == 0) return output;
+        var custom = await db.CustomExercises.AsNoTracking().Where(x => missing.Contains(x.Id))
+            .Select(x => new { x.Id, x.Muscle }).ToListAsync(ct);
         foreach (var row in custom) output[row.Id] = row.Muscle;
         return output;
     }
@@ -314,12 +359,21 @@ public sealed class CatalogService(AppDb db)
         if (wanted.Count == 0) return [];
 
         var shared = await CatalogMetadata.Read(db, ct);
-        var output = wanted.Where(shared.ContainsKey).Select(id => shared[id]).ToDictionary(x => x.Id,
-            x => (Primary: x.Muscle, Secondary: ReadMuscles(x.SecondaryMusclesJson, x.Muscle)));
+        var output = new Dictionary<Guid, (string Primary, List<string> Secondary)>();
+        var missing = new List<Guid>();
+        foreach (var id in wanted)
+        {
+            if (shared.TryGetValue(id, out var seed))
+                output[id] = (seed.Muscle, ReadMuscles(seed.SecondaryMusclesJson, seed.Muscle));
+            else
+                missing.Add(id);
+        }
+        if (missing.Count == 0) return output;
 
         // Historical exercises remain resolvable after they are archived, so include all of the
         // current user's custom rows rather than only the active picker entries.
-        var custom = await db.CustomExercises.AsNoTracking().Where(x => wanted.Contains(x.Id)).ToListAsync(ct);
+        var custom = await db.CustomExercises.AsNoTracking().Where(x => missing.Contains(x.Id))
+            .Select(x => new { x.Id, x.Muscle, x.SecondaryMusclesJson }).ToListAsync(ct);
         foreach (var row in custom)
             output[row.Id] = (row.Muscle, ReadMuscles(row.SecondaryMusclesJson, row.Muscle));
         return output;

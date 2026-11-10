@@ -33,12 +33,24 @@ public static class WorkoutHeroReadService
                 .Select(row => row.Name).FirstOrDefaultAsync(ct);
 
         var ids = planned.Where(row => row.ExerciseId.HasValue).Select(row => row.ExerciseId!.Value).Distinct().ToList();
-        var shared = ids.Count == 0 ? null : await CatalogMetadata.Read(db, ct);
-        var catalog = ids.Where(id => shared!.ContainsKey(id)).Select(id => shared![id])
-            .Select(row => new Metadata(row.Id, row.Muscle, row.SecondaryMusclesJson));
-        var custom = await db.CustomExercises.AsNoTracking().Where(row => ids.Contains(row.Id))
-            .Select(row => new Metadata(row.Id, row.Muscle, row.SecondaryMusclesJson)).ToListAsync(ct);
-        var metadata = catalog.Concat(custom).ToDictionary(row => row.Id);
+        var metadata = new Dictionary<Guid, Metadata>();
+        if (ids.Count > 0)
+        {
+            var shared = await CatalogMetadata.Read(db, ct);
+            var missing = new List<Guid>();
+            foreach (var exerciseId in ids)
+            {
+                if (shared.TryGetValue(exerciseId, out var seed))
+                    metadata[exerciseId] = new Metadata(seed.Id, seed.Muscle, seed.SecondaryMusclesJson);
+                else missing.Add(exerciseId);
+            }
+            if (missing.Count > 0)
+            {
+                var custom = await db.CustomExercises.AsNoTracking().Where(row => missing.Contains(row.Id))
+                    .Select(row => new Metadata(row.Id, row.Muscle, row.SecondaryMusclesJson)).ToListAsync(ct);
+                foreach (var row in custom) metadata[row.Id] = row;
+            }
+        }
         var muscles = new Dictionary<string, double>(StringComparer.Ordinal);
         foreach (var row in planned)
         {

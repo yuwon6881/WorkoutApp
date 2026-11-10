@@ -134,9 +134,22 @@ public sealed partial class WorkoutService
 
     private async Task<HashSet<Guid>> GymScopedIds(List<Guid> ids, CancellationToken ct)
     {
-        var catalog = await db.Exercises.AsNoTracking().Where(x => ids.Contains(x.Id)).Select(x => new { x.Id, x.Equipment }).ToListAsync(ct);
-        var custom = await db.CustomExercises.AsNoTracking().Where(x => ids.Contains(x.Id)).Select(x => new { x.Id, x.Equipment }).ToListAsync(ct);
-        return catalog.Concat(custom).Where(x => GymScopedHistory.Applies(x.Equipment)).Select(x => x.Id).ToHashSet();
+        var shared = await CatalogMetadata.Read(db, ct);
+        var scoped = new HashSet<Guid>();
+        var missing = new List<Guid>();
+        foreach (var id in ids)
+        {
+            if (shared.TryGetValue(id, out var seed))
+            {
+                if (GymScopedHistory.Applies(seed.Equipment)) scoped.Add(id);
+            }
+            else missing.Add(id);
+        }
+        if (missing.Count == 0) return scoped;
+        var custom = await db.CustomExercises.AsNoTracking().Where(x => missing.Contains(x.Id)).Select(x => new { x.Id, x.Equipment }).ToListAsync(ct);
+        foreach (var row in custom)
+            if (GymScopedHistory.Applies(row.Equipment)) scoped.Add(row.Id);
+        return scoped;
     }
 
     private sealed class ExposureRow

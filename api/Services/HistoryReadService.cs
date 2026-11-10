@@ -20,20 +20,22 @@ public static class HistoryReadService
         var rows = await query.OrderByDescending(x => x.FinishedAt).ThenByDescending(x => x.Id).Take(size + 1).WithoutSnapshots().ToListAsync(ct);
         var selected = rows.Take(size).ToList();
         var ids = selected.Select(x => x.Id).ToList();
-        var totals = await (from set in db.Sets.AsNoTracking()
+        var totals = ids.Count == 0 ? new Dictionary<Guid, HistoryTotals>()
+            : await (from set in db.Sets.AsNoTracking()
             join exercise in db.SessionExercises.AsNoTracking() on set.SessionExerciseId equals exercise.Id
             where ids.Contains(exercise.SessionId) && set.Done
             group new { set, exercise } by exercise.SessionId into groupRows
             select new
             {
                 Id = groupRows.Key,
-                Working = groupRows.Count(x => !x.set.Warmup), Warmup = groupRows.Count(x => x.set.Warmup),
-                ExternalCount = groupRows.Count(x => !x.set.Warmup && x.exercise.LoadModel == LoadModels.External && x.set.SystemLoadKg == null && x.set.WeightKg != null && x.set.Reps != null),
-                SystemCount = groupRows.Count(x => !x.set.Warmup && x.set.SystemLoadKg != null && x.set.Reps != null),
-                Volume = groupRows.Where(x => !x.set.Warmup && x.exercise.LoadModel == LoadModels.External && x.set.SystemLoadKg == null && x.set.WeightKg != null)
-                    .Sum(x => x.set.WeightKg * x.set.Reps),
-                SystemVolume = groupRows.Where(x => !x.set.Warmup && x.set.SystemLoadKg != null).Sum(x => x.set.SystemLoadKg * x.set.Reps)
-            }).ToDictionaryAsync(x => x.Id, ct);
+                Totals = new HistoryTotals(
+                    groupRows.Count(x => !x.set.Warmup), groupRows.Count(x => x.set.Warmup),
+                    groupRows.Count(x => !x.set.Warmup && x.exercise.LoadModel == LoadModels.External && x.set.SystemLoadKg == null && x.set.WeightKg != null && x.set.Reps != null),
+                    groupRows.Count(x => !x.set.Warmup && x.set.SystemLoadKg != null && x.set.Reps != null),
+                    groupRows.Where(x => !x.set.Warmup && x.exercise.LoadModel == LoadModels.External && x.set.SystemLoadKg == null && x.set.WeightKg != null)
+                        .Sum(x => x.set.WeightKg * x.set.Reps),
+                    groupRows.Where(x => !x.set.Warmup && x.set.SystemLoadKg != null).Sum(x => x.set.SystemLoadKg * x.set.Reps))
+            }).ToDictionaryAsync(x => x.Id, x => x.Totals, ct);
         var prs = await WorkoutPrReadService.Get(db, selected, ct);
         var sessions = selected.Select(row =>
         {
@@ -46,4 +48,6 @@ public static class HistoryReadService
         var more = rows.Count > size;
         return new { total, sessions, nextBeforeAt = more ? last?.FinishedAt : null, nextBeforeId = more ? last?.Id : null, summaryOnly = true };
     }
+
+    private sealed record HistoryTotals(int Working, int Warmup, int ExternalCount, int SystemCount, double? Volume, double? SystemVolume);
 }

@@ -46,7 +46,7 @@ public static class WorkoutPrReadService
             else baseline = Json.Read<WorkoutPrBaseline>(stored.Json);
 
             var ids = sessions.Where(x => x.FinishedAt != null).Select(x => x.Id).ToList();
-            var rows = await db.TrainingReadModels.AsNoTracking().Where(x => x.Kind == "pr-session" && ids.Contains(x.SourceId)
+            var rows = ids.Count == 0 ? [] : await db.TrainingReadModels.AsNoTracking().Where(x => x.Kind == "pr-session" && ids.Contains(x.SourceId)
                 && x.Version == Version && x.Generation >= baseline.RebuiltAt).ToListAsync(ct);
             var exercisePrs = new Dictionary<Guid, (bool, double?, string?, int?)>();
             var setPrs = new Dictionary<Guid, (bool, double?, string?, int?)>();

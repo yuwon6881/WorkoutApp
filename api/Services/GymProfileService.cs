@@ -176,8 +176,11 @@ public static class GymProfiles
     {
         if (db.CurrentUser is null) return null;
         var id = await db.Users.AsNoTracking().Where(x => x.Id == db.CurrentUser).Select(x => x.ActiveGymProfileId).SingleOrDefaultAsync(ct);
-        return id is { } active && await db.GymProfiles.AnyAsync(x => x.Id == active, ct) ? active : null;
+        return await ResolveActiveId(db, id, ct);
     }
+
+    public static async Task<Guid?> ResolveActiveId(AppDb db, Guid? activeGymProfileId, CancellationToken ct)
+        => activeGymProfileId is { } active && await db.GymProfiles.AnyAsync(x => x.Id == active, ct) ? active : null;
 
     /// The caller holds the mutation lock. An account without a usable active gym gets its oldest
     /// gym back, or a first one made for it.

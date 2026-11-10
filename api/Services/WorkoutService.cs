@@ -148,13 +148,14 @@ public sealed partial class WorkoutService(
         if (template != null)
         {
             var planned = await db.TemplateExercises.AsNoTracking().Where(e => e.TemplateId == template.Id).OrderBy(e => e.Position).ToListAsync(ct);
+            var account = await LoadRuleReader.ReadAccountContext(db, ct);
+            var userUnit = account.Unit;
+            var tracksRir = account.TrackRir;
             var names = await templates.CatalogNames(planned.Select(p => p.ExerciseId), ct);
-            var info = await progression.LoadInfo(planned.Select(p => p.ExerciseId), ct);
+            var info = await progression.LoadInfo(planned.Select(p => p.ExerciseId), ct, userUnit, account);
             var models = await catalog.LoadModelsFor(planned.Select(p => p.ExerciseId), ct);
             var histories = await PreviousExposuresBatch(planned.Select(p => (p.ExerciseId, p.SourceName)), ct);
             var timed = await CatalogService.TrackingModesFor(db, planned.Select(p => p.ExerciseId), ct);
-            var userUnit = await LoadRuleReader.AccountUnit(db, ct);
-            var tracksRir = await db.Users.Where(u => u.Id == db.CurrentUser).Select(u => u.TrackRir).SingleAsync(ct);
             var typedOneRepMaxes = await OneRepMaxService.Overrides(db, planned.Select(p => p.ExerciseId), ct);
             foreach (var plan in planned)
             {
@@ -350,9 +351,10 @@ public sealed partial class WorkoutService(
         var usedExercises = new HashSet<Guid>();
         var usedSets = new HashSet<Guid>();
 
-        var userUnit = await LoadRuleReader.AccountUnit(db, ct);
+        var account = await LoadRuleReader.ReadAccountContext(db, ct);
+        var userUnit = account.Unit;
         var catalogModels = await catalog.LoadModelsFor(input.Exercises.Select(e => e.ExerciseId), ct);
-        var catalogInfo = await progression.LoadInfo(input.Exercises.Select(e => e.ExerciseId), ct);
+        var catalogInfo = await progression.LoadInfo(input.Exercises.Select(e => e.ExerciseId), ct, userUnit, account);
         var position = 0;
         foreach (var exercise in input.Exercises)
         {
@@ -406,7 +408,7 @@ public sealed partial class WorkoutService(
         }
         db.Sets.RemoveRange(oldSets.Where(set => !usedSets.Contains(set.Id)));
         db.SessionExercises.RemoveRange(existing.Where(exercise => !usedExercises.Contains(exercise.Id)));
-        await RecordWorkoutMutation(input.IdempotencyId, id, "workout.save", requestHash, ct);
+        await RecordWorkoutMutation(input.IdempotencyId, id, "workout.save", requestHash, ct, receiptChecked: true);
         await db.SaveChangesAsync(ct);
         await gate.Commit(ct);
         return await Get(id, ct);
@@ -465,7 +467,7 @@ public sealed partial class WorkoutService(
             Scope = sourceRow.SourcePhaseId is null ? "slot" : "phase", PendingRetention = sourceRow.SourcePhaseId is not null
         });
         swapSession.Revision++;
-        await RecordWorkoutMutation(input.IdempotencyId, id, "workout.exercise.substitute", requestHash, ct);
+        await RecordWorkoutMutation(input.IdempotencyId, id, "workout.exercise.substitute", requestHash, ct, receiptChecked: true);
         await db.SaveChangesAsync(ct); await gate.Commit(ct);
         return await Get(id, ct);
     }
@@ -537,7 +539,7 @@ public sealed partial class WorkoutService(
             session.PausedAt = null;
         }
         session.Active = false; session.FinishedAt = completedAt; session.LastTimingEventAt = completedAt; session.Revision++;
-        await RecordWorkoutMutation(mutationId, id, "workout.finish", requestHash, ct);
+        await RecordWorkoutMutation(mutationId, id, "workout.finish", requestHash, ct, receiptChecked: true);
         await db.SaveChangesAsync(ct);
         if (session.ProgramId is not null || session.TemplateId is not null) await programs.CompleteWorkout(session, ct);
         if (workoutSync is not null) await workoutSync.QueueWorkoutAsync(id, isDelete: false, ct);

@@ -59,7 +59,7 @@ public sealed partial class WorkoutService
 
         session.LastTimingEventAt = occurredAt;
         session.Revision++;
-        await RecordWorkoutMutation(input.MutationId, id, operation, requestHash, ct);
+        await RecordWorkoutMutation(input.MutationId, id, operation, requestHash, ct, receiptChecked: true);
         await db.SaveChangesAsync(ct);
         await gate.Commit(ct);
         return await Get(id, ct);

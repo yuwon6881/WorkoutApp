@@ -91,8 +91,16 @@ public sealed partial class TemplateService(AppDb db, CatalogService catalog)
         var wanted = ids.Where(i => i != null).Select(i => i!.Value).Distinct().ToList();
         if (wanted.Count == 0) return [];
         var shared = await CatalogMetadata.Read(db, ct);
-        var names = wanted.Where(shared.ContainsKey).Select(id => shared[id]).ToDictionary(x => x.Id, x => x.Name);
-        var custom = await db.CustomExercises.AsNoTracking().Where(x => wanted.Contains(x.Id)).ToListAsync(ct);
+        var names = new Dictionary<Guid, string>();
+        var missing = new List<Guid>();
+        foreach (var id in wanted)
+        {
+            if (shared.TryGetValue(id, out var seed)) names[id] = seed.Name;
+            else missing.Add(id);
+        }
+        if (missing.Count == 0) return names;
+        var custom = await db.CustomExercises.AsNoTracking().Where(x => missing.Contains(x.Id))
+            .Select(x => new { x.Id, x.Name, x.Archived }).ToListAsync(ct);
         // Archived custom identities remain attached to existing templates. Keep the original
         // prescription usable, while making the replacement decision visible in the picker.
         foreach (var row in custom) names[row.Id] = row.Archived ? $"{row.Name} (deleted)" : row.Name;

@@ -54,8 +54,9 @@ public sealed partial class WorkoutService
         var context = ReadOptional<NutritionTrainingContext>(session.NutritionContextJson);
         var result = new NutritionContextResult(context, NutritionContextService.Mode(context, DateTime.UtcNow), context is not null, context?.Confirmed == true, null);
         var bodyWeight = ReadOptional<BodyWeightSnapshot>(session.BodyWeightSnapshotJson);
-        var userUnit = await LoadRuleReader.AccountUnit(db, ct);
-        var info = await progression.LoadInfo([exercise.ExerciseId], ct);
+        var account = await LoadRuleReader.ReadAccountContext(db, ct);
+        var userUnit = account.Unit;
+        var info = await progression.LoadInfo([exercise.ExerciseId], ct, userUnit, account);
         var step = exercise.ExerciseId is { } id && info.TryGetValue(id, out var found) ? found.StepKg : Progression.DefaultStep(userUnit);
         var histories = await PreviousExposures(exercise.ExerciseId, exercise.NameSnapshot, ct);
         var lastTrained = ProgressionLayoff.Newest(histories.Values.SelectMany(exposures => exposures));

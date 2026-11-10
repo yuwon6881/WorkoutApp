@@ -78,7 +78,7 @@ public sealed partial class WorkoutService
             return await Get(id, ct);
         }
         session.Revision++;
-        await RecordWorkoutMutation(input.IdempotencyId, id, "workout.restore", requestHash, ct);
+        await RecordWorkoutMutation(input.IdempotencyId, id, "workout.restore", requestHash, ct, receiptChecked: true);
         await db.SaveChangesAsync(ct);
         await gate.Commit(ct);
         return await Get(id, ct);

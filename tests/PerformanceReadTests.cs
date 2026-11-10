@@ -147,4 +147,56 @@ public sealed class PerformanceReadTests(ITestOutputHelper output)
         await ProgressReadService.Get(h.Db, cache, default);
         Assert.DoesNotContain(commands.Sql, sql => sql.Contains("FROM \"Sets\""));
     }
+
+    [Fact]
+    public async Task Warm_set_patch_avoids_redundant_metadata_user_and_receipt_reads()
+    {
+        var commands = new Commands();
+        await using var h = await Harness.Create(observer: commands);
+        var user = await h.SignIn();
+        await h.Seed(new SeedExercise("bench", "Barbell Bench Press", "Chest", "Barbell", null, LoadModel: LoadModels.External));
+        await h.Seed(new SeedExercise("weighted-pull-up", "Weighted Pull-Up", "Back", "Bodyweight", null, LoadModel: LoadModels.FullBodyweight));
+        var benchId = await h.ExerciseId("bench");
+        var pullupId = await h.ExerciseId("weighted-pull-up");
+
+        var session = new WorkoutSession { UserId = user.Id, Name = "Active", Active = true };
+        var bench = new SessionExercise { UserId = user.Id, SessionId = session.Id, ExerciseId = benchId, NameSnapshot = "Barbell Bench Press", LoadModel = LoadModels.External, Position = 0 };
+        var pullup = new SessionExercise { UserId = user.Id, SessionId = session.Id, ExerciseId = pullupId, NameSnapshot = "Weighted Pull-Up", LoadModel = LoadModels.FullBodyweight, Position = 1 };
+        var benchSet = new CompletedSet { UserId = user.Id, SessionExerciseId = bench.Id, Position = 0, WeightKg = 80, Reps = 8, ResistanceMode = ResistanceModes.External };
+        var pullupSet = new CompletedSet { UserId = user.Id, SessionExerciseId = pullup.Id, Position = 0, WeightKg = 0, Reps = 8, ResistanceMode = ResistanceModes.Added };
+        h.Db.Workouts.Add(session);
+        h.Db.SessionExercises.AddRange(bench, pullup);
+        h.Db.Sets.AddRange(benchSet, pullupSet);
+        await h.Db.SaveChangesAsync();
+
+        await WorkoutPrReadService.Get(h.Db, [session], default);
+        h.Db.ChangeTracker.Clear();
+        commands.Sql.Clear();
+
+        var mutationId = Guid.NewGuid();
+        var externalPayload = JsonSerializer.SerializeToElement(new { revision = session.Revision, weightKg = 82.5, reps = 9, done = true, mutationId });
+        var afterExternal = await h.Workouts.PatchSet(session.Id, benchSet.Id, externalPayload, default);
+
+        Assert.DoesNotContain(commands.Sql, sql => sql.Contains("FROM \"CustomExercises\""));
+        Assert.DoesNotContain(commands.Sql, sql => sql.Contains("FROM \"Users\""));
+        Assert.DoesNotContain(commands.Sql, sql => sql.Contains("FROM \"GymProfiles\""));
+        Assert.Single(commands.Sql, sql => sql.Contains("FROM \"TrainingReadModels\""));
+        Assert.Equal(1, commands.Sql.Count(sql => sql.Contains("FROM \"Receipts\"")));
+
+        var replayed = await h.Workouts.PatchSet(session.Id, benchSet.Id, externalPayload, default);
+        Assert.Equal(afterExternal.Revision, replayed.Revision);
+        await Assert.ThrowsAsync<DomainException>(() => h.Workouts.PatchSet(session.Id, benchSet.Id,
+            JsonSerializer.SerializeToElement(new { revision = afterExternal.Revision, reps = 10, mutationId }), default));
+
+        h.Db.ChangeTracker.Clear();
+        commands.Sql.Clear();
+        var bwPayload = JsonSerializer.SerializeToElement(new { revision = afterExternal.Revision, weightKg = 3.1, done = true, mutationId = Guid.NewGuid() });
+        var afterBw = await h.Workouts.PatchSet(session.Id, pullupSet.Id, bwPayload, default);
+        var updatedPullupSet = afterBw.Exercises.Single(x => x.Id == pullup.Id).Sets.Single();
+        Assert.Equal(2.5, updatedPullupSet.WeightKg);
+        Assert.DoesNotContain(commands.Sql, sql => sql.Contains("FROM \"CustomExercises\""));
+        Assert.Equal(1, commands.Sql.Count(sql => sql.Contains("FROM \"Users\"")));
+        Assert.DoesNotContain(commands.Sql, sql => sql.Contains("FROM \"ExerciseLoadSettings\""));
+        Assert.DoesNotContain(commands.Sql, sql => sql.Contains("FROM \"EquipmentLoadDefaults\""));
+    }
 }
