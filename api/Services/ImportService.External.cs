@@ -53,7 +53,8 @@ public sealed partial class ImportService
                 exerciseErrors.AddRange(failures.Take(ExternalImportLimits.MaxReportedErrors - exerciseErrors.Count));
             }
             // A failed exercise is missing from the list, so superset adjacency can only be judged for a clean day.
-            if (exerciseErrors.Count == errorsBeforeDay) exercises = ExternalImportSupersets.SeparateReusedLabels(exercises);
+            if (exerciseErrors.Count == errorsBeforeDay)
+                exercises = ExternalImportSupersets.SeparateReusedLabels(ExternalImportSupersets.MergeNumberedLabels(exercises));
             if (exerciseErrors.Count == errorsBeforeDay) ExternalImportPath.At(dayPath + ".exercises", () => { foreach (var group in exercises.Select((exercise, index) => (exercise, index))
                 .Where(item => !string.IsNullOrWhiteSpace(item.exercise.SequenceGroup))
                 .GroupBy(item => item.exercise.SequenceGroup, StringComparer.OrdinalIgnoreCase))
@@ -186,15 +187,9 @@ public sealed partial class ImportService
                     double.TryParse(match.Value, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var number) && number <= ExternalImportLimits.MaxRir),
                 "Use a numeric RIR or range between 0 and 10, optionally followed by +.");
         });
-        var technique = ExternalImportPath.At(path + ".type", () => set.Type switch
-        {
-            null or "normal" or "warmup" => null,
-            "dropset" => "Dropset", "amrap" => "AMRAP", "myoreps" => "Myo-reps",
-            "partials" => "Partial reps", "lengthenedPartials" => "Lengthened partials",
-            "integratedPartials" => "Integrated partials", "pause" => "Pause set",
-            _ => throw new DomainException("Choose a supported set type: normal, warmup, dropset, amrap, myoreps, partials, lengthenedPartials, integratedPartials, or pause.")
-        });
-        ExternalImportPath.At(path + ".warmup", () => Validation.Require(!set.Warmup || set.Type is null or "warmup", "Use the warmup type for a warm-up set; it cannot have another set type."));
+        var type = ExternalImportPath.At(path + ".type", () => ExternalImportSetTypes.Canonical(set.Type));
+        var technique = ExternalImportSetTypes.Technique(type);
+        ExternalImportPath.At(path + ".warmup", () => Validation.Require(!set.Warmup || type is null or ExternalImportSetTypes.Warmup, "Use the warmup type for a warm-up set; it cannot have another set type."));
         var setNote = SetSpecificNote(set.Notes, exerciseNotes);
         var notes = technique is null || NamesTechnique(setNote, technique) || SetTechniques.Of(setNote) is not null ? setNote
             : string.IsNullOrWhiteSpace(setNote) ? technique : $"{setNote} — {technique}";
@@ -210,7 +205,7 @@ public sealed partial class ImportService
         string Source(bool supplied) => supplied ? "inferred" : "extracted";
         return new DraftSet(set.RepMin, set.RepMax, targetRpe, restSeconds, set.Tempo, set.LoadText, notes,
             Source(set.RepMin is not null || set.RepMax is not null), Source(targetRpe is not null), Source(restSeconds is not null),
-            set.RepsText, set.RestText, rir, set.Warmup || set.Type == "warmup")
+            set.RepsText, set.RestText, rir, set.Warmup || type == ExternalImportSetTypes.Warmup)
             { SourceReference = set.SourceReference, Uncertainty = ExternalImportOptions.ForSet(set.Uncertainty) };
     }
 }

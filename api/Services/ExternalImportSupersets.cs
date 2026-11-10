@@ -28,6 +28,56 @@ internal static class ExternalImportSupersets
         return result;
     }
 
+    /// A printed pair is labelled A1 and A2, and an assistant often copies those into the label as they stand, which
+    /// reads as two supersets of one exercise each. Consecutive rows that share a letter and count upward are one
+    /// superset under that letter; a pair that starts the count again, or whose letter is already another group's,
+    /// takes the next free letter. A numbered label with no partner is left for the size check to report.
+    public static List<DraftExercise> MergeNumberedLabels(List<DraftExercise> exercises)
+    {
+        var used = exercises.Select(exercise => exercise.SequenceGroup).Where(label => !string.IsNullOrWhiteSpace(label))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        List<DraftExercise>? result = null;
+        for (var start = 0; start < exercises.Count;)
+        {
+            var count = NumberedRun(exercises, start);
+            if (count >= 2)
+            {
+                var letter = Numbered(exercises[start].SequenceGroup)!.Value.Letter;
+                var label = used.Add(letter) ? letter : NextFree(used);
+                if (label is not null)
+                {
+                    used.Add(label);
+                    result ??= [.. exercises];
+                    for (var index = start; index < start + count; index++)
+                        result[index] = result[index] with { SequenceGroup = label };
+                }
+            }
+            start += Math.Max(count, 1);
+        }
+        return result ?? exercises;
+    }
+
+    /// How many rows from this one share a letter and count upward (A1, A2, A3); zero when it is not numbered.
+    private static int NumberedRun(List<DraftExercise> exercises, int start)
+    {
+        if (Numbered(exercises[start].SequenceGroup) is not { } first) return 0;
+        var count = 1;
+        var previous = first.Number;
+        while (start + count < exercises.Count && Numbered(exercises[start + count].SequenceGroup) is { } next
+            && string.Equals(next.Letter, first.Letter, StringComparison.OrdinalIgnoreCase) && next.Number > previous)
+        {
+            previous = next.Number;
+            count++;
+        }
+        return count;
+    }
+
+    private static (string Letter, int Number)? Numbered(string? label)
+    {
+        var match = System.Text.RegularExpressions.Regex.Match(label ?? "", @"^(?<letter>[A-Za-z])(?<number>\d{1,2})$");
+        return match.Success ? (match.Groups["letter"].Value, int.Parse(match.Groups["number"].Value, System.Globalization.CultureInfo.InvariantCulture)) : null;
+    }
+
     private static List<(string Label, int Start, int Count)> Runs(List<DraftExercise> exercises)
     {
         var runs = new List<(string Label, int Start, int Count)>();

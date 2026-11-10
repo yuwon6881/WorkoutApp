@@ -100,7 +100,7 @@ export const ImportReviewPanel = forwardRef<HTMLElement, {
         <div className="irev-unresolved-banner" role="status">
           <Info size={16} className="irev-unresolved-icon" />
           <span className="irev-unresolved-text">
-            {view.unresolved.length} exercise slot{view.unresolved.length === 1 ? ' is' : 's are'} not linked to the catalog. Unmapped names stay verbatim and can still be logged.
+            {view.unresolved.length} exercise slot{view.unresolved.length === 1 ? ' is' : 's are'} not linked to the catalog. Link each one to a library exercise, or create a custom one, before creating the program.
           </span>
         </div>
       )}
