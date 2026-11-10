@@ -1,10 +1,10 @@
 # Exhaustive Technical Audit Report: WorkoutApp AI Program Import Feature
 
-**Target System**: WorkoutApp (`WorkoutApp/api` & `WorkoutApp/web`)  
-**Audit Scope**: AI Prompt Instructions, Schema Specifications, Transport Envelope Parsing, Set/Rep Handling, Duration Tracking, Weight Modalities, Catalog Matching, and Domain Model Ingestion  
-**Audit Status**: Complete (Version 2.0.0 — Post-Gate Remediation)  
-**Date of Audit**: November 10, 2026  
-**Integrity Mode**: Full Technical Inspection (Zero Fabrication, 100% Empirical Verification)  
+**Target System**: WorkoutApp (`WorkoutApp/api` & `WorkoutApp/web`)
+**Audit Scope**: AI Prompt Instructions, Schema Specifications, Transport Envelope Parsing, Set/Rep Handling, Duration Tracking, Weight Modalities, Catalog Matching, and Domain Model Ingestion
+**Audit Status**: Complete (Version 2.0.0 — Post-Gate Remediation)
+**Date of Audit**: November 10, 2026
+**Integrity Mode**: Full Technical Inspection (Zero Fabrication, 100% Empirical Verification)
 
 ---
 
@@ -191,11 +191,11 @@ WorkoutApp maintains two completely distinct architectural pipelines for AI-driv
   `ExternalImportPrompt.cs` contains an irreconcilable contradiction regarding how supersets must be labeled:
   - Line 23 states: *"Use the same sequenceGroup for consecutive members of a superset; each group needs at least 2 exercises."* (This implies labeling both paired exercises with the exact same group key, e.g. `sequenceGroup: "A"`).
   - Line 43 states: *"- Superset labels such as A1, A2 or B1 are not part of an exercise name: use sequenceGroup."* (This explicitly instructs the LLM to write `sequenceGroup: "A1"` and `sequenceGroup: "A2"`).
-  
+
   When an external LLM encounters a workout with exercises labeled "A1" and "A2", it follows line 43 and outputs:
   - Exercise 1: `"sequenceGroup": "A1"`
   - Exercise 2: `"sequenceGroup": "A2"`
-  
+
   In `ImportService.External.cs`, lines 57–65 group exercises by `SequenceGroup`:
   ```csharp
   foreach (var group in exercises.Select((exercise, index) => (exercise, index))
@@ -270,7 +270,7 @@ WorkoutApp maintains two completely distinct architectural pipelines for AI-driv
   }
   ```
   Because "Dip" and "Chin-Up" do not match the `Weighted()` regex (`\bweighted\b`), the exercise resolves to `ResistanceModes.Bodyweight`.
-  
+
   During workout execution, `WorkoutService.ComputeSystemLoad` (lines 656–663) evaluates the load:
   ```csharp
   return resistanceMode switch
@@ -317,7 +317,7 @@ WorkoutApp maintains two completely distinct architectural pipelines for AI-driv
   ```
   However, in Pipeline B's system instructions (`WorkoutAiSchemas.cs:25`), the prompt instructs the model to destroy this precision:
   > *"Target effort is measured in whole Reps in Reserve (RIR)... Do not allow partial .5 values for RIR; always snap to the nearest whole integer. When a table specifies RPE (such as RPE 8 or LSRPE 9), convert RPE to integer RIR: RIR = round(10 - RPE) (for example RPE 8 becomes RIR 2, RPE 9 becomes RIR 1, RPE 10 becomes RIR 0); set rir to that whole number string and targetRpe = 10 - rir."*
-  
+
   When an authoritative strength program (such as Reactive Training Systems, Barbell Medicine, or Stronger By Science) prescribes `RPE 7.5` or `RPE 8.5`, the model computes:
   - For RPE 7.5: $10 - 7.5 = 2.5 \xrightarrow{\text{round}} 2$ or $3 \implies \text{targetRpe} = 8$ or $7$.
   - For RPE 8.5: $10 - 8.5 = 1.5 \xrightarrow{\text{round}} 1$ or $2 \implies \text{targetRpe} = 9$ or $8$.
@@ -340,11 +340,11 @@ WorkoutApp maintains two completely distinct architectural pipelines for AI-driv
 - **Description & Root Cause Mechanism**:
   `ExternalImportPrompt.cs` (line 42) explicitly tells the model:
   > *"...and a technique label in brackets ("Cluster sets", "Myo-rep") belongs to that exercise's set type or notes, not to a new exercise."*
-  
+
   This direct instruction implies that `"cluster"` is an acceptable value for `set.Type`.
   However, in line 24, the prompt enumerates the strict list of allowed set types:
   > *"The set type, when present, must be one of normal, warmup, dropset, amrap, myoreps, partials, lengthenedPartials, integratedPartials, or pause."*
-  
+
   Notice that `cluster` is completely missing from line 24. Furthermore, in `ImportService.External.cs` (lines 189–196), the backend switch throws a `DomainException` if `set.Type` is `"cluster"`.
 - **Triggering Workout Scenario**: Any athletic or strength program utilizing cluster sets (e.g. `4 x (2+2+2)` cluster).
 - **Impact**: When the model sets `"type": "cluster"`, the entire import is rejected with HTTP 400.
@@ -380,7 +380,7 @@ WorkoutApp maintains two completely distinct architectural pipelines for AI-driv
   ```
   ````
   In `web/src/lib/externalImport.ts`, no client-side sanitization is performed; the raw text is sent directly to the server.
-  
+
   In `ExternalImportEnvelope.cs`:
   ```csharp
   public static JsonDocument Parse(string input)
@@ -423,8 +423,8 @@ WorkoutApp maintains two completely distinct architectural pipelines for AI-driv
 - **Severity**: Critical (High Failure Rate)
 - **Description & Root Cause Mechanism**:
   Conversational assistants frequently prepend and append friendly commentary:
-  > *"Sure! Here is your 4-day hypertrophy program in the requested WorkoutApp JSON format:"*  
-  > `{"version": 1, ...}`  
+  > *"Sure! Here is your 4-day hypertrophy program in the requested WorkoutApp JSON format:"*
+  > `{"version": 1, ...}`
   > *"Let me know if you would like me to adjust the volume or exercise selection!"*
 
   In `ExternalImportEnvelope.cs`, lines 52–56 enforce that the text must begin with `{` and contain no trailing characters:
@@ -461,7 +461,7 @@ WorkoutApp maintains two completely distinct architectural pipelines for AI-driv
   document = JsonDocument.Parse(input, new JsonDocumentOptions { MaxDepth = 64 });
   ```
   By default in .NET `System.Text.Json`, `JsonDocumentOptions.AllowTrailingCommas` is `false`, and `CommentHandling` is `JsonCommentHandling.Disallow`.
-  
+
   LLMs frequently emit trailing commas when serializing arrays or objects (e.g. `[1, 2, 3,]` or `{"a": 1,}`), or emit inline developer comments (e.g. `// Working sets`). `System.Text.Json` throws a `JsonException`, and `ExternalImportEnvelope` returns an unhelpful syntax failure error.
 - **Triggering Workout Scenario**: LLM generation with trailing commas in set/exercise lists or explanatory comments.
 - **Impact**: HTTP 400 parsing failure.
@@ -599,7 +599,7 @@ WorkoutApp maintains two completely distinct architectural pipelines for AI-driv
   }
   ```
   `Ignored` only contains database-assigned IDs (`id`, `exerciseId`, `programId`, etc.).
-  
+
   If an LLM provides helpful and standard workout metadata such as `"equipment": "Barbell"`, `"category": "Chest"`, `"targetMuscles": ["Pectorals"]`, `"workingSets": 3`, or `"warmupSets": 2`, `ExternalImportSchema` rejects the file. Notably, `workingSets` and `warmupSets` are **required** in Pipeline B (`WorkoutAiSchemas.Content`), but **rejected** in Pipeline A (`ExternalImportSchema.cs`)!
 - **Triggering Workout Scenario**: Advanced LLMs that attempt to enrich workout programs with equipment, category, muscle group, or set count metadata.
 - **Impact**: HTTP 400 rejection.
@@ -656,7 +656,7 @@ WorkoutApp maintains two completely distinct architectural pipelines for AI-driv
   });
   ```
   The C# string switch is strictly ordinal and case-sensitive. It does **not** perform `.ToLowerInvariant()` or `.Trim()`.
-  
+
   In strength and conditioning literature, **AMRAP** is virtually always capitalized. Similarly, models frequently emit capitalized titles like `"Dropset"`, `"Normal"`, `"Warmup"`, or camelCase variations like `"dropSet"`. Every one of these values falls through to the default branch `_` and throws a `DomainException`.
 - **Triggering Workout Scenario**: Any workout where the LLM capitalizes `"AMRAP"`, `"Dropset"`, or `"Warmup"`.
 - **Impact**: Immediate HTTP 400 import rejection on completely valid training programs.
@@ -697,7 +697,7 @@ WorkoutApp maintains two completely distinct architectural pipelines for AI-driv
 - **Severity**: Medium (Expressiveness Limitation)
 - **Description & Root Cause Mechanism**:
   WorkoutApp only recognizes 7 active set techniques: `dropset`, `amrap`, `myoreps`, `partials`, `lengthenedPartials`, `integratedPartials`, `pause`.
-  
+
   Standard hypertrophy and strength methods such as:
   - `"failure"` (taking a set to absolute failure)
   - `"rest-pause"` (e.g. Doggcrapp training)
@@ -730,15 +730,15 @@ WorkoutApp maintains two completely distinct architectural pipelines for AI-driv
 - **Description & Root Cause Mechanism**:
   In Pipeline B, `WorkoutAiSchemas.Instructions` (line 34) instructs the LLM:
   > *"Separately printed warm-up rows keep their stated rep, load, and tempo prescriptions."*
-  
+
   However, the JSON schema `WorkoutAiSchemas.Content` (`properties.days.items.properties.exercises.items.properties.sets.items`) defines **no `warmup` and no `type` property**.
-  
+
   In `ImportService.DraftConversion.cs` (line 248), `ToDraftSet` converts each `AiSet`:
   ```csharp
   return new DraftSet(..., rirText, false, ImportNormalization.Page(set.SourcePage ?? exerciseSourcePage));
   ```
   The boolean `Warmup` parameter passed to `DraftSet` is **hardcoded to `false`**!
-  
+
   When a PDF table specifies individual warmup sets with weights and reps (e.g., Set 1: 60kg x 5 [Warmup], Set 2: 80kg x 3 [Warmup], Set 3: 100kg x 5 [Working]), the LLM emits three set objects. All three sets are assigned `Warmup = false`.
 - **Triggering Workout Scenario**: PDF workout programs (e.g. Starting Strength, 5/3/1, RTS) that explicitly list detailed warmup sets with ramped loads and reps.
 - **Impact**:
@@ -836,11 +836,11 @@ WorkoutApp maintains two completely distinct architectural pipelines for AI-driv
 - **Description & Root Cause Mechanism**:
   WorkoutApp's underlying execution layer explicitly supports duration tracking:
   `IntegrationContracts.TrackingModes` defines `reps` and `duration`, and `CompletedSet` has `DurationSeconds`.
-  
+
   However, **neither import schema includes duration fields**:
   - `ExternalImportSchema.cs` (line 34) allowed set fields: `["type", "repMin", "repMax", "targetRpe", "restSeconds", "tempo", "loadText", "notes", "repsText", "restText", "rir", "warmup", "sourceReference", "uncertainty"]`.
   - `WorkoutAiSchemas.Content` (lines 77–90) set properties: `repMin`, `repMax`, `repsText`, `targetRpe`, `rir`, `restSeconds`, `restText`, `tempo`, `loadText`, `notes`, `repsSource`, `rpeSource`, `restSource`, `sourcePage`.
-  
+
   There is no `duration`, `durationSeconds`, `targetSeconds`, or `trackingMode` property on `set` or `exercise`. If an external LLM attempts to output `"duration": 60` or `"durationSeconds": 60`, `ExternalImportSchema` rejects the import with `"Remove the unsupported set field: duration."`.
 - **Triggering Workout Scenario**: Any workout program containing planks, dead bugs, wall sits, L-sits, or cardio intervals.
 - **Impact**: Inability to explicitly represent duration targets in imported JSON.
@@ -871,7 +871,7 @@ WorkoutApp maintains two completely distinct architectural pipelines for AI-driv
   var (repMin, repMax, repTotal) = ImportNormalization.Reps(set.RepsText, set.RepMin, set.RepMax);
   ```
   `ImportNormalization.Reps` checks `IsDuration(repsText)`. If the text represents a duration (e.g. `"60s"` or `"60 seconds"`), it resets `repMin` and `repMax` to `null` so the set does not demand repetitions.
-  
+
   In Pipeline A (External import), `ImportService.External.cs` (line 211) **bypasses `ImportNormalization.Reps` entirely**:
   ```csharp
   return new DraftSet(set.RepMin, set.RepMax, targetRpe, restSeconds, set.Tempo, set.LoadText, notes,
@@ -881,7 +881,7 @@ WorkoutApp maintains two completely distinct architectural pipelines for AI-driv
   When an external LLM converts "Plank: 3 sets of 60 seconds" by providing:
   `"repMin": 60, "repMax": 60, "repsText": "60 seconds"`,
   `ConvertExternalSet` keeps `repMin: 60, repMax: 60`.
-  
+
   When the user opens the workout, WorkoutApp prescribes **60 repetitions of Plank**, calculating volume and estimated 1RM off 60 reps!
 - **Triggering Workout Scenario**: Any timed exercise imported through Pipeline A where the LLM populated both numeric bounds and `repsText`.
 - **Impact**: Timed holds become absurd repetition goals (e.g., doing 60 planks instead of a 60-second hold).
@@ -923,9 +923,9 @@ WorkoutApp maintains two completely distinct architectural pipelines for AI-driv
 - **Description & Root Cause Mechanism**:
   In WorkoutApp, whether an exercise is timed depends solely on its catalog entry:
   `isTimedExercise = exercise.trackingMode === 'duration'`.
-  
+
   When an imported exercise is unmapped or linked to a newly created custom exercise, the custom exercise defaults to `TrackingMode = TrackingModes.Reps`.
-  
+
   When the lifter subsequently logs the workout session, `WorkoutSetValidation.Tracking` strictly enforces:
   ```csharp
   if (isTimed)
@@ -961,10 +961,10 @@ WorkoutApp maintains two completely distinct architectural pipelines for AI-driv
   const DURATION_TEXT = /^(?:[~≈]\s*)?(?:(\d{1,2})?:(\d{2})|(\d+(?:\.\d+)?)(?:\s*(?:[-–]|to)\s*(\d+(?:\.\d+)?))?\s*[- ]?\s*(s|secs?|seconds?|mins?|minutes?)?)(?:\s+(?:hold|each(?:\s+side)?|per\s+(?:leg|side)))?$/i;
   ```
   This regex only supports single-unit durations (e.g. `"45 sec"`, `"2 min"`) or digital clock formats (e.g. `"1:30"`).
-  
+
   If a program prescribes compound natural time strings such as `"1 min 30 sec"`, `"1m 30s"`, or `"90 seconds (1.5 min)"`:
   `DURATION_TEXT.exec(text)` returns `null`.
-  
+
   In line 44:
   ```typescript
   if (!match) return null;
@@ -993,9 +993,9 @@ WorkoutApp maintains two completely distinct architectural pipelines for AI-driv
 - **Severity**: High (Prescribed Weights Disappear in UI)
 - **Description & Root Cause Mechanism**:
   Workout programs frequently prescribe absolute target weights (e.g. `"135 lbs"`, `"80 kg"`, `"60kg"`, `"50 lb dumbbells"`).
-  
+
   In WorkoutApp's domain, `SetPrescription` has only `string? LoadText`. There is no numeric `PrescribedWeightKg`.
-  
+
   When generating workout sessions, `WorkoutService.Progression.cs` evaluates `PercentageLoad.Parse(prescription.LoadText)`. In `PercentageLoad.cs`:
   ```csharp
   [GeneratedRegex(@"^\s*(?<a>\d+(?:\.\d+)?)(?:\s*[-–]\s*(?<b>\d+(?:\.\d+)?))?\s*%\s*(?:1\s*RM)?\s*$",
@@ -1003,7 +1003,7 @@ WorkoutApp maintains two completely distinct architectural pipelines for AI-driv
   private static partial Regex Printed();
   ```
   `PercentageLoad.Parse` matches **only percentage strings** (e.g. `"75% 1RM"`). For any absolute weight string like `"80 kg"`, it returns `null`.
-  
+
   Consequently:
   1. `progression.SuggestedLoadKg` is set to `null`.
   2. In `WorkoutSetRow.tsx`:
@@ -1045,9 +1045,9 @@ WorkoutApp maintains two completely distinct architectural pipelines for AI-driv
   - `"Pull-ups (+20 kg)"`
   - `"Chin-ups with 25 lb plate"`
   - `"Dips (+15kg)"`
-  
+
   In `CatalogMatching.cs`, the matcher strips bracketed expressions like `(+20 kg)` to find catalog matches, resolving the exercise slug `pull-up` (which has `LoadModel = LoadModels.FullBodyweight`).
-  
+
   Next, `ResistanceVariant.For` runs:
   ```csharp
   if (loadModel == LoadModels.FullBodyweight)
@@ -1058,7 +1058,7 @@ WorkoutApp maintains two completely distinct architectural pipelines for AI-driv
   }
   ```
   Because the matched catalog name is `"Pull-Up"`, `Weighted().IsMatch("Pull-Up")` is `false`. It resolves to `ResistanceModes.Bodyweight`.
-  
+
   In `WorkoutService.ComputeSystemLoad`:
   ```csharp
   ResistanceModes.Bodyweight => reference,
@@ -1090,7 +1090,7 @@ WorkoutApp maintains two completely distinct architectural pipelines for AI-driv
 - **Description & Root Cause Mechanism**:
   Assisted bodyweight exercises (e.g. Assisted Dip machine, band-assisted pull-ups) reduce the effective load.
   In training literature, assistance is written with a negative sign (e.g. `"-20 kg"`, `"-40 lbs"`).
-  
+
   However, in WorkoutApp's domain:
   1. `Validation.LoggedSet` (line 54) mandates:
      ```csharp
@@ -1140,7 +1140,7 @@ WorkoutApp maintains two completely distinct architectural pipelines for AI-driv
   )}
   ```
   This banner unequivocally assures the user that they do not need to link the exercise, because unmapped names *"stay verbatim and can still be logged."*
-  
+
   However, this claim is **completely false**:
   1. In `api/Services/ImportService.cs` (line 115):
      ```csharp
@@ -1171,7 +1171,7 @@ WorkoutApp maintains two completely distinct architectural pipelines for AI-driv
   - `A. Squat`
   - `B. Bench Press`
   - `C. Barbell Row`
-  
+
   When an LLM populates `sequenceGroup: "A"` on the Squat, and `sequenceGroup: "B"` on the Bench Press, `ImportService.External.cs` lines 60–63 executes:
   ```csharp
   Validation.Require(positions.Count >= ExternalImportLimits.MinSupersetExercises,
@@ -1208,7 +1208,7 @@ WorkoutApp maintains two completely distinct architectural pipelines for AI-driv
 - **Severity**: Medium (Program Rejection)
 - **Description & Root Cause Mechanism**:
   Many comprehensive athletic programs schedule "Active Recovery" or "Rest & Mobility" days that include light stretching, foam rolling, or walking drills.
-  
+
   In `ImportValidation.cs` (lines 273–274):
   ```csharp
   Validation.Require(workout.IsRestDay ? workout.Exercises is { Count: 0 } : workout.Exercises is { Count: > 0 and <= 40 },
@@ -1255,13 +1255,13 @@ WorkoutApp maintains two completely distinct architectural pipelines for AI-driv
       "Use a numeric RIR or range between 0 and 10, optionally followed by +.");
   ```
   The regex requires the string to consist strictly of digits.
-  
+
   In common coaching usage, RIR is frequently written with the acronym prefix or suffix:
   - `"RIR 2"`
   - `"2 RIR"`
   - `"1-2 RIR"`
   - `"2-3 reps in reserve"`
-  
+
   Every one of these natural fitness expressions fails the regex and aborts the import with HTTP 400.
 - **Triggering Workout Scenario**: Natural RIR transcription from LLMs.
 - **Impact**: HTTP 400 import rejection.
@@ -1565,5 +1565,5 @@ For each reported defect, verify against the following test cases:
 
 ---
 
-*Report Author: Worker Subagent (AI Program Import Audit)*  
+*Report Author: Worker Subagent (AI Program Import Audit)*
 *Verification Authority: Antigravity Teamwork Orchestration Gate*
