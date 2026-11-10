@@ -415,19 +415,10 @@
 .ptl-week-chip-group.drop-indicator-before::before { left: -6px; }
 .ptl-week-chip-group.drop-indicator-after::after { right: -6px; }
 
-/* A moved week renumbers the chips, so the new position is marked for a moment. */
-.ptl-week-chip-group[data-landed] {
-  outline: 2px solid var(--accent);
-  outline-offset: 3px;
-  animation: ptl-week-landed 1.2s ease-out;
+/* While a week is dragged, weeks that cannot take it (another block, passed days) step back. */
+.ptl-week-chip-group[data-drop-blocked] {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 
-@keyframes ptl-week-landed {
-  0% { transform: scale(1.12); outline-color: var(--accent); }
-  40% { transform: scale(1); }
-  100% { outline-color: transparent; }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .ptl-week-chip-group[data-landed] { animation: none; }
-}
+.ptl-week-chip-group[data-drop-blocked] .ptl-chip { cursor: not-allowed; }

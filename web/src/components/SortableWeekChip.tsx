@@ -6,8 +6,8 @@ export interface SortableWeekChipProps {
   week: number;
   selected: boolean;
   dragging: boolean;
-  /// A drop just put this week here; it is marked briefly so the move is easy to find.
-  landed?: boolean;
+  /// Another week is being dragged and cannot be dropped here (a different block, or a week with passed days).
+  dropBlocked?: boolean;
   dropSide: 'before' | 'after' | null;
   onSelect: () => void;
   onDragStart: () => void;
@@ -22,7 +22,7 @@ export function SortableWeekChip({
   week,
   selected,
   dragging,
-  landed = false,
+  dropBlocked = false,
   dropSide,
   onSelect,
   onDragStart,
@@ -53,7 +53,7 @@ export function SortableWeekChip({
     <span
       ref={groupRef}
       role="presentation"
-      data-landed={landed || undefined}
+      data-drop-blocked={dropBlocked || undefined}
       data-import-week-chip={week}
       className={`chip-group import-week-chip-group ${selected ? 'active' : ''} ${!onDelete ? 'chip-group-lone' : ''} ${dragging ? 'dragging' : ''} ${dropClass} ptl-chip-group ptl-week-chip-group ${selected ? 'ptl-chip-active' : ''}`.trim()}
     >
@@ -86,7 +86,8 @@ export function SortableWeekChip({
           onDragStart();
         }}
         onDragOver={event => {
-          event.preventDefault();
+          // Leaving the default alone shows the not-allowed cursor over a week that cannot take the drop.
+          if (!dropBlocked) event.preventDefault();
           const side = calcSide(event.clientX, event.currentTarget);
           onDragOver(week, side);
         }}
