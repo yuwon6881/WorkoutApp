@@ -24,7 +24,7 @@ public sealed partial class ImportService
         ExternalImportPath.At("$.program.name", () => Validation.Name(source!.Name, "Program name"));
         ExternalImportPath.At("$.program.sourceWeekDays", () => Validation.Require(source!.SourceWeekDays is null or >= 1 and <= ExternalImportLimits.MaxCycleDays, "Source cycle length must be between 1 and 14 days."));
         ExternalImportPath.At("$.program.days", () => Validation.Require(source!.Days!.Count is > 0 and <= ExternalImportLimits.MaxDays, "A program needs between 1 and 400 days."));
-        var library = await catalog.MatchIndex(ct);
+        var library = await catalog.MatchIndexForActiveGym(ct);
         var days = new List<DraftWorkout>();
         var exerciseErrors = new List<ExternalImportPath.FieldError>();
         var dayKeys = new Dictionary<string, Guid>(StringComparer.OrdinalIgnoreCase);

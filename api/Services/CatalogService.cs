@@ -236,6 +236,16 @@ public sealed class CatalogService(AppDb db)
         return built;
     }
 
+    /// The same index, with a plain machine name ("Leg Curl") settled on the build the active gym
+    /// can host. Used where a document's names become an exercise list for this lifter.
+    public async Task<Dictionary<string, Guid>> MatchIndexForActiveGym(CancellationToken ct)
+    {
+        var index = await MatchIndex(ct);
+        if (await GymProfiles.ActiveId(db, ct) is not { } activeId) return index;
+        var gym = await db.GymProfiles.AsNoTracking().SingleOrDefaultAsync(x => x.Id == activeId, ct);
+        return gym is null ? index : CatalogGymAliases.Apply(index, await Shared(ct), GymProfiles.ToView(gym, true));
+    }
+
     public async Task<Guid?> Match(string name, CancellationToken ct)
         => CatalogMatching.Find(await MatchIndex(ct), name);
 
