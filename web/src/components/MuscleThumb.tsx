@@ -1,6 +1,6 @@
 import type { CSSProperties } from 'react';
 import { focusViewBox, formatViewBox, MUSCLE_SIDE, parseViewBox, type BodySide } from '../lib/muscleFocus';
-import { BACK_PARTS, BACK_REGIONS, BODY_MAP_VIEW_BOX, FRONT_PARTS, FRONT_REGIONS } from './bodyMapPaths';
+import { BACK_PARTS, BACK_REGIONS, BODY_MAP_VIEW_BOX, FRONT_PARTS, FRONT_REGIONS, SILHOUETTE } from './bodyMapPaths';
 import './MuscleThumb.css';
 
 const FRAME = parseViewBox(BODY_MAP_VIEW_BOX);
@@ -30,6 +30,7 @@ export function MuscleThumb({ muscle, shade, aspect, className }: {
   const viewBox = focus ? formatViewBox(focusViewBox(muscle, focus, aspect, FRAME, { centered: true })) : BODY_MAP_VIEW_BOX;
   return (
     <svg className={`muscle-thumb ${className ?? ''}`.trim()} viewBox={viewBox} aria-hidden="true" focusable="false">
+      <path className="muscle-thumb-silhouette" d={SILHOUETTE} />
       <path className="muscle-thumb-part" d={parts} />
       {Object.entries(regions).map(([name, path]) => (
         <path key={name} className={`muscle-thumb-region${name === muscle ? ' is-highlighted' : ''}`}

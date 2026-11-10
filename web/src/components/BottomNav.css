@@ -1,5 +1,7 @@
 /* Phone dock (< 640px): a floating pill-shaped bar with two destinations either side of the workout
-   action. The open tab is marked by a small pill behind its icon that slides between tabs. The track ignores taps outside the bar itself. */
+   action. Each tab is an icon over a small caption, tab-bar style, so four names share a 320px
+   phone with room between them. The open tab is marked by a small pill behind its icon that slides
+   between tabs. The track ignores taps outside the bar itself. */
 
 .bottom-nav {
   position: fixed;
@@ -15,7 +17,6 @@
   pointer-events: none;
 }
 
-/* Each label needs about 66px at 14px, so phones under 400px give the bar a narrower margin. */
 @media (max-width: 399px) {
   .bottom-nav {
     padding-left: max(6px, env(safe-area-inset-left, 0px));
@@ -37,8 +38,7 @@
 .bottom-nav-track {
   pointer-events: auto;
   display: grid;
-  /* The labels get every pixel the bar can spare: no gaps between tabs, a slim inset, and a centre
-     slot exactly as wide as the round action. */
+  /* Four equal tabs around a centre slot exactly as wide as the workout action. */
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 60px minmax(0, 1fr) minmax(0, 1fr);
   align-items: center;
   gap: 0;
@@ -134,21 +134,22 @@
   transition: color var(--motion-control) ease;
 }
 
+/* The dock's captions are the one text below the app's 14px minimum: four names at 14px touch each
+   other on a phone, and each caption only repeats its icon and the button's accessible name. Open
+   tracking keeps the smaller size legible. */
 .bottom-nav-label {
-  font-size: var(--font-secondary);
-  font-weight: 600;
-  line-height: 1.15;
-  letter-spacing: -0.02em;
+  font-size: 11px;
+  font-weight: 560;
+  line-height: 1.2;
+  letter-spacing: 0.01em;
   color: inherit;
   white-space: nowrap;
 }
 
 .bottom-nav-track > .bottom-nav-item.selected .bottom-nav-label { font-weight: 650; }
-/* Five 14px labels cannot share the narrowest phones; the icons stay, each button keeps its name. */
+
 @media (max-width: 359px) {
-  .bottom-nav-label { display: none; }
-  /* With no label the icon sits in the middle of the tab, and its pill follows. */
-  .bottom-nav .selection-indicator-marker::before { top: 50%; margin-top: -15px; }
+  .bottom-nav-label { font-size: 10px; }
 }
 
 /* The centre action: a solid accent tile on the app's control radius. Its name comes from aria-label; the icon is decorative. */

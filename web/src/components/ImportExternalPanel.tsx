@@ -123,14 +123,10 @@ export function ImportExternalPanel({ busy, failure, progress, onChooseFile, onD
   return (
     <section className={`panel iep-panel${dropping ? ' iep-dropping' : ''}`} aria-labelledby="iep-title" {...drop}>
       <div className="iep-head">
-        <div className="iep-icon-tile" aria-hidden="true"><FileJson size={22} /></div>
-        <div className="iep-head-text">
-          <h2 id="iep-title" className="iep-title">Import with an AI assistant</h2>
-          <p className="muted small-copy">
-            Works with a PDF, an Excel file or other program documents. An AI assistant reads your
-            document and gives you a JSON file to upload here.
-          </p>
-        </div>
+        <h2 id="iep-title" className="iep-title">Import with an AI assistant</h2>
+        <p className="muted small-copy">
+          An AI assistant reads your PDF, Excel file or other program document and returns a JSON file to add here.
+        </p>
       </div>
 
       <ol className="iep-steps">
@@ -138,13 +134,11 @@ export function ImportExternalPanel({ busy, failure, progress, onChooseFile, onD
           <span className="iep-step-badge" aria-hidden="true">1</span>
           <div className="iep-step-body">
             <span className="iep-step-text">Copy the prompt</span>
-            <span className="muted small-copy">It tells your AI assistant how to read the whole document and which format to produce.</span>
             <div className="iep-actions">
               <Button variant="secondary" onClick={() => void copyPrompt()}>
                 <ClipboardCopy size={15} aria-hidden="true" />
                 {promptState === 'copied' ? 'Prompt copied' : 'Copy prompt'}
               </Button>
-              {prompt && <span className="muted small-copy">Version {prompt.version}</span>}
             </div>
             <span className="iep-status" role="status">
               {promptState === 'copied' ? 'The prompt is on your clipboard.' : ''}
@@ -163,8 +157,7 @@ export function ImportExternalPanel({ busy, failure, progress, onChooseFile, onD
           <div className="iep-step-body">
             <span className="iep-step-text">Give your AI assistant the prompt and your document</span>
             <span className="muted small-copy">
-              Attach your PDF or Excel file in the assistant&apos;s chat, paste the prompt, answer any questions, and
-              download the JSON file it produces. Long programs can take several steps.
+              Attach the document in its chat, paste the prompt, answer its questions, and download the JSON it produces.
             </span>
           </div>
         </li>
@@ -173,8 +166,8 @@ export function ImportExternalPanel({ busy, failure, progress, onChooseFile, onD
           <div className="iep-step-body">
             <span className="iep-step-text">Add the JSON</span>
             <span className="muted small-copy">
-              You review every day and exercise before a program is created. WorkoutApp checks the JSON&apos;s
-              structure but has not compared it with your original document, so check it against the source.
+              WorkoutApp checks the JSON&apos;s structure, not your original document. You review every day and
+              exercise before the program is created.
             </span>
             <SegmentedControl<Mode> label="How to add the JSON" value={mode} options={MODES} onChange={setMode}
               className="iep-mode" disabled={busy} />
@@ -183,7 +176,6 @@ export function ImportExternalPanel({ busy, failure, progress, onChooseFile, onD
               <div className={`iep-dropzone${dropping ? ' is-active' : ''}`} role="group" aria-label="Drop a JSON file here">
                 <UploadCloud size={28} aria-hidden="true" className="iep-dropzone-icon" />
                 <span className="iep-dropzone-title">{dropping ? 'Release to upload' : 'Drop your JSON file here'}</span>
-                <span className="muted small-copy">or</span>
                 <Button variant="primary" disabled={busy} onClick={onChooseFile}>
                   <FileJson size={16} aria-hidden="true" />
                   Choose a JSON file
@@ -192,15 +184,14 @@ export function ImportExternalPanel({ busy, failure, progress, onChooseFile, onD
               </div>
             ) : (
               <div className="iep-paste">
-                <label className="iep-paste-field">
-                  <span className="small-copy">Paste the whole JSON, from the opening {'{'} to the closing {'}'}, with nothing before or after it.</span>
+                <div className="iep-paste-field">
                   <textarea className="iep-paste-input" value={pasted} rows={10} spellCheck={false} autoComplete="off"
-                    aria-label="JSON to import" placeholder='{"version":1,"program":{ ... }}'
+                    aria-label="JSON to import" placeholder="Paste the whole JSON here, from the opening { to the closing }"
                     onChange={event => { setPasted(event.target.value); setPasteHint(''); }} />
-                </label>
+                </div>
                 <div className="iep-paste-bar">
                   <span className="muted small-copy iep-paste-size" aria-live="polite">
-                    {pasted.trim() === '' ? 'Nothing pasted yet' : formatSize(pasted)}
+                    {pasted.trim() === '' ? '' : formatSize(pasted)}
                   </span>
                   <div className="iep-paste-actions">
                     <Button variant="tertiary" disabled={busy} onClick={() => void pasteFromClipboard()}>

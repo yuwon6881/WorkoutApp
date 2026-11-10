@@ -15,6 +15,16 @@
   white-space: nowrap;
 }
 
+/* The week arrows are the two ends of one bar: their hover fill takes the bar's own corners rather
+   than a circle inside it, and the chevron stays put (the shared "arrow leans the way it points"
+   nudge moved Next but not Previous). */
+.calendar-month-nav .calendar-nav-btn {
+  border-radius: var(--radius-control);
+}
+.calendar-month-nav .calendar-nav-btn.button:hover:not(:disabled) > svg {
+  transform: none;
+}
+
 /* Expanded layouts: the week bar spans the card like the days under it, and the return-to-this-week
    control appears in the title row instead of holding a gap beside the bar. */
 @media (min-width: 1024px) {

@@ -1,8 +1,10 @@
 :root{
   /* A plate at rest: clearly body against the card, in either theme. */
   --muscle-empty:color-mix(in srgb,var(--muted) 42%,var(--surface));
-  /* The gap between two plates is the card showing through. */
-  --muscle-gap:var(--surface);
+  /* The body under the plates: a quieter tone of the same neutral, so the figure reads as one
+     body and the thin gap between two plates is skin rather than the card showing through. */
+  --muscle-skin:color-mix(in srgb,var(--muscle-empty) 40%,var(--surface));
+  --muscle-gap:var(--muscle-skin);
 }
 .body-map-pair{
   display:grid;
@@ -36,9 +38,10 @@
   overflow:visible;
 }
 
-/* The figure is only plates. Each plate's stroke is drawn in the card colour, so the thin gaps
-   that separate muscles need no shared outline and cannot open into holes. Head, elbows, hands,
-   knees and feet are neutral plates that never fill. */
+/* Plates on a body silhouette. Each plate's stroke is drawn in the silhouette's colour, so the
+   thin gaps that separate muscles need no shared outline and cannot open into holes. Head, elbows,
+   hands, knees and feet are neutral plates that never fill. */
+.body-map-silhouette{fill:var(--muscle-skin)}
 .body-map-part{
   fill:var(--muscle-empty);
   stroke:var(--muscle-gap);

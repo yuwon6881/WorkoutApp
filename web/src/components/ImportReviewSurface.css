@@ -4,10 +4,17 @@
   box-shadow: none !important;
 }
 
-.import-page :where(input, textarea, button, [role='button']):focus-visible,
-.import-day-modal :where(input, textarea, button, [role='button']):focus-visible {
+.import-page :where(button, [role='button']):focus-visible,
+.import-day-modal :where(button, [role='button']):focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
+}
+
+.import-page :where(input, textarea, select):focus,
+.import-page :where(input, textarea, select):focus-visible,
+.import-day-modal :where(input, textarea, select):focus,
+.import-day-modal :where(input, textarea, select):focus-visible {
+  outline: none;
 }
 
 .import-day-modal .import-exercise {

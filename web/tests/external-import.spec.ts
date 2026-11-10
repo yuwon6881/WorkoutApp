@@ -71,15 +71,14 @@ for (const theme of ['light', 'dark']) {
     await expect(page.getByRole('heading', { name: 'Review', exact: true })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Source JSON' })).toBeVisible();
     await expect(page.getByText('Check the movement')).toBeVisible();
-    await expect(page.getByText('WorkoutApp has not checked this JSON against the original document.')).toBeVisible();
-    await page.getByText(/^Source references/).click();
-    await expect(page.getByText('Option A day: Plan: A1:B2')).toBeVisible();
-    await expect(page.getByText(/PDF page 3/)).toBeVisible();
-    await expect(page.getByText(/Table row 4/)).toBeVisible();
+    // Source references and the unchecked-file notice stay in the draft, not on the review screen.
+    await expect(page.getByText(/has not checked this JSON/)).toHaveCount(0);
+    await expect(page.getByText(/^Source references/)).toHaveCount(0);
+    await expect(page.getByText(/PDF page 3/)).toHaveCount(0);
+    await expect(page.getByText(/Table row 4/)).toHaveCount(0);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     if (info.project.name !== '1440px') {
       expect((await page.locator('.irev-uncertainty-confirm').boundingBox())!.height).toBeGreaterThanOrEqual(44);
-      expect((await page.locator('.irev-source-references summary').boundingBox())!.height).toBeGreaterThanOrEqual(44);
     }
     const accept = page.getByRole('button', { name: 'Accept and create program' });
     if (info.project.name !== '1440px') expect((await accept.boundingBox())!.height).toBeGreaterThanOrEqual(44);

@@ -78,8 +78,11 @@
 }
 
 :root .day-detail-modal .ids-day-editor .ids-day-fields .field input:focus,
+:root .day-detail-modal .ids-day-editor .ids-day-fields .field input:focus-visible,
 :root .day-detail-modal .ids-day-fields .field input:focus,
-:root .ids-day-fields .field input:focus {
+:root .day-detail-modal .ids-day-fields .field input:focus-visible,
+:root .ids-day-fields .field input:focus,
+:root .ids-day-fields .field input:focus-visible {
   border-color: var(--accent);
   background: var(--surface);
   box-shadow: 0 0 0 3px var(--accent-soft-glow);

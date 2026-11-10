@@ -86,8 +86,11 @@ async function checkLayout(page: Page, label: string) {
         ? el.labels[0] : el;
       const box = target.getBoundingClientRect();
       const isDropdownItem = Boolean(target.matches?.('.ui-menu-item, [role=menuitem]') || target.closest?.('.ui-menu-dropdown, [role=menu]'));
+      // A calendar day keeps its full height but narrows with a phone-width card, so the whole week
+      // shows without scrolling; the overview check holds it to its own floor.
+      const isCalendarDay = Boolean(target.matches?.('.calendar-day-cell'));
       const minHeight = isDropdownItem ? 32 : minimum;
-      const minWidth = isDropdownItem ? 32 : minimum;
+      const minWidth = isDropdownItem || isCalendarDay ? 32 : minimum;
       return box.width > 0 && box.height > 0 && (box.width < minWidth - 1 || box.height < minHeight - 1);
     }).map(el => el.getAttribute('aria-label') || el.textContent?.slice(0, 70));
   });
@@ -114,7 +117,9 @@ async function checkLayout(page: Page, label: string) {
     const style = getComputedStyle(el);
     return box.width > 0 && box.height > 0 && style.display !== 'none' && style.visibility !== 'hidden'
       && el.textContent?.trim() && !['SCRIPT', 'STYLE', 'SVG', 'PATH'].includes(el.tagName)
-      && Number.parseFloat(style.fontSize) < 14;
+      && Number.parseFloat(style.fontSize) < 14
+      // The phone dock's captions repeat their icons and sit below the minimum by design.
+      && !el.classList.contains('bottom-nav-label');
   }).map(el => {
     const visibleText = el.textContent?.trim() || '';
     return { tag: el.tagName, className: String(el.className).slice(0, 40), text: visibleText.slice(0, 40), size: getComputedStyle(el).fontSize };
@@ -414,12 +419,18 @@ for (const theme of ['dark', 'light']) {
     const currentWeek = calendar.getByRole('group', { name: 'Days of the week', exact: true });
     const days = currentWeek.locator('.calendar-day-cell');
     await expect(days).toHaveCount(7);
-    const dayFit = await days.evaluateAll(elements => elements.every(element => {
-      const box = element.getBoundingClientRect();
-      return box.width >= 44 && box.height >= 44;
-    }));
-    expect(dayFit, 'calendar days retain touch targets within a horizontal rail').toBe(true);
     const rail = calendar.locator('.calendar-week-rail');
+    // The whole week shows at every width: no day is scrolled out of the strip. A phone-width card
+    // lets the tiles narrow (never under 32px, at their full height) rather than hide Sunday.
+    const dayFit = await days.evaluateAll((elements, compact) => {
+      const strip = elements[0].closest('.calendar-week-rail')!.getBoundingClientRect();
+      return elements.every(element => {
+        const box = element.getBoundingClientRect();
+        return box.width >= (compact ? 32 : 44) && box.height >= 44
+          && box.left >= strip.left - 0.5 && box.right <= strip.right + 0.5;
+      });
+    }, page.viewportSize()!.width < 640);
+    expect(dayFit, 'all seven calendar days are visible touch targets').toBe(true);
     // Return to this week appears only once the rail has left the current week.
     const reset = calendar.getByRole('button', { name: 'Return to this week' });
     await expect(reset).toHaveCount(0);

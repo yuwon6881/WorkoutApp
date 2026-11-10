@@ -53,10 +53,9 @@ export function ProgramWeekCompletion({ program, standalone = false }: { program
       {completion && ring}
       <div className="calendar-title-wrap">
         <h3>{title}</h3>
-        <span className="calendar-ring-caption">
-          {progress}
-          {program && ` · ${program.name}`}
-        </span>
+        {/* The program is named on the next-workout card; repeating it here wrapped the caption
+            into a narrow column beside the week range. */}
+        <span className="calendar-ring-caption">{progress}</span>
       </div>
     </div>
   );

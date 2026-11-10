@@ -200,14 +200,25 @@
   .calendar-nav-controls {
   width: 100%;
 }
+  /* A phone-width card: the week always shows whole. The seven tiles share the strip edge to edge,
+     keeping their full 72px height while their width follows the card, and the date disc steps
+     down so the weekday and two digits still sit clear of the tile edge. */
   .calendar-days-grid {
-  gap: 4px;
-  min-width: 332px;
-  padding: 2px;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 2px;
+  padding: 2px 0;
 }
-  .day-weekday {
-  letter-spacing: -0.01em;
-  text-transform: none;
+  .calendar-days-grid .calendar-day-cell {
+  min-width: 0;
+  padding-inline: 0;
+}
+  .calendar-day-cell .day-weekday {
+  letter-spacing: -0.02em;
+}
+  .calendar-day-cell .day-number {
+  width: 30px;
+  height: 30px;
+  font-size: 15px;
 }
 }
 
@@ -419,21 +430,9 @@
     scroll-snap-type: none;
     -webkit-overflow-scrolling: touch;
   }
-  .calendar-days-grid {
-    grid-template-columns: repeat(7, minmax(44px, 1fr));
-    gap: 4px;
-    min-width: 332px;
-    padding: 2px 0;
-  }
-  .calendar-day-cell {
+  .calendar-days-grid .calendar-day-cell {
     min-height: 72px;
-    padding: 8px 2px 6px;
     gap: 3px;
-  }
-  .day-number {
-    width: 32px;
-    height: 32px;
-    font-size: 15px;
   }
   .calendar-card-footer {
     flex-direction: column;

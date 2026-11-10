@@ -18,27 +18,10 @@
   .panel.iep-panel { max-width: 1100px; padding: 28px 36px; }
 }
 
-.iep-head {
-  display: flex;
-  gap: 14px;
-  align-items: flex-start;
-  min-width: 0;
-}
-
-.iep-icon-tile {
-  display: grid;
-  place-items: center;
-  flex: none;
-  width: 44px;
-  height: 44px;
-  border-radius: var(--radius-control);
-  background: var(--surface-2, var(--surface));
-  color: var(--accent);
-}
-
-.iep-head-text { min-width: 0; }
+/* The heading starts on the panel's edge, in line with the step numbers under it. */
+.iep-head { min-width: 0; }
 .iep-title { margin: 0 0 4px; font-size: 1.05rem; }
-.iep-head-text p { margin: 0; }
+.iep-head p { margin: 0; }
 
 .iep-steps {
   display: flex;
@@ -208,10 +191,10 @@
 /* The shared focus treatment is an accent border plus a glow ring; on a large dark code box the ring reads as a
    second outline. The accent border alone still marks focus clearly. */
 .iep-paste-input:focus,
-.iep-paste-input:focus-visible { box-shadow: none; }
-
-/* The global small-copy is 10px with a top margin, too small for the one instruction above the box. */
-.iep-paste-field .small-copy { display: block; margin: 0; font-size: 0.875rem; color: var(--muted); line-height: 1.4; }
+.iep-paste-input:focus-visible {
+  outline: none;
+  box-shadow: none;
+}
 
 .iep-paste-bar {
   display: flex;

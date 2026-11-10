@@ -1,5 +1,7 @@
-/* A body-map crop onto one muscle. Plate strokes take the surface behind the thumbnail, set by the
-   container through --muscle-thumb-gap, so the gaps between plates read as background. */
-.muscle-thumb{display:block;overflow:hidden;pointer-events:none}
-.muscle-thumb-part,.muscle-thumb-region{fill:color-mix(in srgb,var(--muted) 42%,var(--surface));stroke:var(--muscle-thumb-gap,var(--surface-raised));stroke-width:1.6;stroke-linejoin:round}
+/* A body-map crop onto one muscle. The silhouette under the plates is tinted from the surface behind
+   the thumbnail, set by the container through --muscle-thumb-gap, and plate strokes take that tint,
+   so the gaps between plates read as skin. */
+.muscle-thumb{--muscle-thumb-skin:color-mix(in srgb,color-mix(in srgb,var(--muted) 42%,var(--surface)) 40%,var(--muscle-thumb-gap,var(--surface-raised)));display:block;overflow:hidden;pointer-events:none}
+.muscle-thumb-silhouette{fill:var(--muscle-thumb-skin)}
+.muscle-thumb-part,.muscle-thumb-region{fill:color-mix(in srgb,var(--muted) 42%,var(--surface));stroke:var(--muscle-thumb-skin);stroke-width:1.6;stroke-linejoin:round}
 .muscle-thumb-region.is-highlighted{fill:color-mix(in oklch,var(--accent) var(--muscle-shade,35%),color-mix(in srgb,var(--muted) 42%,var(--surface)))}

@@ -122,7 +122,8 @@
   border-color: var(--border-hover) !important;
 }
 
-:root .import-exercise.iex-card .iex-name-field textarea:focus {
+:root .import-exercise.iex-card .iex-name-field textarea:focus,
+:root .import-exercise.iex-card .iex-name-field textarea:focus-visible {
   background: var(--control-surface) !important;
   border-color: var(--accent) !important;
   box-shadow: none !important;
@@ -465,10 +466,12 @@
   border-color: var(--border-hover) !important;
 }
 
-:root .import-exercise.iex-card .iex-notes textarea:focus {
+:root .import-exercise.iex-card .iex-notes textarea:focus,
+:root .import-exercise.iex-card .iex-notes textarea:focus-visible {
   background: var(--surface) !important;
   border-color: var(--accent) !important;
   box-shadow: none !important;
+  outline: none !important;
 }
 
 :root .import-exercise.iex-card .iex-meta-group > .iex-substitutions,

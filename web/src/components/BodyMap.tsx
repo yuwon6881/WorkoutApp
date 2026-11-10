@@ -2,7 +2,7 @@ import type { CSSProperties } from 'react';
 import type { MuscleBalanceRow } from '../types';
 import { formatSets, shadeFor } from '../lib/muscleBalance';
 import './BodyMap.css';
-import { BACK_PARTS, BACK_REGIONS, BODY_MAP_VIEW_BOX, FRONT_PARTS, FRONT_REGIONS } from './bodyMapPaths';
+import { BACK_PARTS, BACK_REGIONS, BODY_MAP_VIEW_BOX, FRONT_PARTS, FRONT_REGIONS, SILHOUETTE } from './bodyMapPaths';
 
 type BodyMapProps = {
   muscles: MuscleBalanceRow[];
@@ -56,6 +56,7 @@ function BodyFigure({ view, regions, parts, muscles, peak, activeMuscle, onHover
         aria-label={makeAccessibleLabel(view, regions, muscles)}
         focusable="false"
       >
+        <path className="body-map-silhouette" d={SILHOUETTE} aria-hidden="true" />
         <path className="body-map-part" d={parts} aria-hidden="true" />
         {Object.entries(regions).map(([muscle, path]) => {
           const sets = values.get(muscle) ?? 0;
