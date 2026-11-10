@@ -104,7 +104,7 @@ describe('import set review fields', () => {
       day, exercises, onChange: async () => {}, editing, getRepRangeMemory: () => new Map()
     }));
 
-    expect(markup).toContain('substitution-label">Incline Dumbbell Press</span>');
+    expect(markup).not.toContain('substitution-label');
     expect(markup).not.toContain('class="substitution-swap-btn"');
     expect(markup).toContain('class="iex-name">Barbell bench press</strong>');
     expect(markup).not.toContain('name="exercise-source-name-exercise-line"');

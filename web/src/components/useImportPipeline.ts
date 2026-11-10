@@ -16,7 +16,6 @@ export type ExternalImportFailure = { message: string; errors: ExternalImportFie
 export type ImportPipeline = {
   progress: ImportProgress | null;
   failure: ImportFailure | null;
-  notice: string;
   externalFailure: ExternalImportFailure | null;
   busy: boolean;
   clearFailure: () => void;
@@ -38,7 +37,6 @@ type Options = {
 export function useImportPipeline({ setSelected, setDraft, onChanged, onComplete }: Options): ImportPipeline {
   const [progress, setProgress] = useState<ImportProgress | null>(null);
   const [failure, setFailure] = useState<ImportFailure | null>(null);
-  const [notice, setNotice] = useState('');
   const [externalFailure, setExternalFailure] = useState<ExternalImportFailure | null>(null);
   const running = useRef(false);
 
@@ -51,7 +49,6 @@ export function useImportPipeline({ setSelected, setDraft, onChanged, onComplete
     await onChanged();
     if (view.status === 'ready') {
       const count = view.draft?.workouts.length ?? 0;
-      setNotice(`Read ${count} days. Review them before accepting.`);
       onComplete?.(count);
     }
   }, [onChanged, onComplete, setDraft, setSelected]);
@@ -59,7 +56,7 @@ export function useImportPipeline({ setSelected, setDraft, onChanged, onComplete
   const drive = useCallback(async (action: () => Promise<void>) => {
     if (running.current) return;
     running.current = true;
-    setFailure(null); setNotice('');
+    setFailure(null);
     try { await action(); }
     finally { running.current = false; setProgress(null); }
   }, []);
@@ -68,7 +65,7 @@ export function useImportPipeline({ setSelected, setDraft, onChanged, onComplete
   /// fields to fix. Nothing is created unless the whole file is valid.
   const uploadExternal = useCallback(async (source: File | string) => {
     if (running.current) return;
-    setFailure(null); setNotice(''); setExternalFailure(null);
+    setFailure(null); setExternalFailure(null);
     const pasted = typeof source === 'string';
     const problem = pasted ? checkExternalImportText(source) : checkExternalImportFile(source);
     if (problem) { setExternalFailure({ message: problem, errors: [] }); return; }
@@ -110,7 +107,7 @@ export function useImportPipeline({ setSelected, setDraft, onChanged, onComplete
   }, [drive, onChanged, report]);
 
   return {
-    progress, failure, notice, externalFailure, busy: progress !== null,
+    progress, failure, externalFailure, busy: progress !== null,
     clearFailure: useCallback(() => { setFailure(null); setExternalFailure(null); }, []),
     uploadExternal, chooseAlternative, run
   };

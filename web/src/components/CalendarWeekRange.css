@@ -31,7 +31,7 @@
   .calendar-card-header {
     position: relative;
   }
-  .calendar-nav-controls {
+  .training-calendar-card .calendar-nav-controls {
     grid-template-columns: minmax(0, 1fr);
   }
   .calendar-reset-slot {

@@ -136,7 +136,6 @@ export function ImportReview({ exercises, imports, onBack, onChanged, notify }: 
 
     {hasDraft && pipeline.progress && <p className="muted" role="status">{pipeline.progress.label}…</p>}
     {saver.pending && <p className="muted" role="status">Saving your changes…</p>}
-    {pipeline.notice && <p className="muted" role="status">{pipeline.notice}</p>}
     {pipeline.failure && <ImportFailureBanner failure={pipeline.failure} onDismiss={pipeline.clearFailure} />}
     {saveError && <CardFeedback message={saveError} action={{ label: 'Retry save', disabled: busy,
       onClick: () => void saver.retry().catch(failure => setSaveError(failure instanceof Error ? failure.message : 'Could not save changes.')) }} />}

@@ -25,7 +25,7 @@ const draft: ImportDraft = ensureStructureIds({ programName: 'Powerbuilding revi
   block: null, phase: null, phaseWeek: week + 1, isRestDay: false,
   exercises: names.map((sourceName, index) => ({ lineId: `exercise-${week}-${index}`, sourceName,
     exerciseId: index === 0 ? 'squat' : index === 4 ? 'pinch' : null, notes: index === 0 ? 'Maintain pressure through the full range.' : null,
-    sequenceGroup: '', substitutions: [], restSeconds: 210,
+    sequenceGroup: '', substitutions: index === 0 ? ['Plate Pinch'] : [], restSeconds: 210,
     sets: index === 0 ? (['warmup', 'normal', 'dropset', 'myoreps', 'partials', 'lengthenedPartials', 'integratedPartials'] as SetType[]).map(type => set(type))
       : [set('normal', index === 4 ? 45 : 8)] }))
 })) });
@@ -122,21 +122,32 @@ for (const theme of ['dark', 'light']) {
     await page.screenshot({ path: info.outputPath(`timeline-${theme}.png`), fullPage: true });
     await expect(page.getByText('Lalaport', { exact: true })).toBeVisible();
     await expect(page.getByText('Missing: Rack')).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Replace BACK SQUAT' })).toHaveCount(0);
-    await page.getByRole('button', { name: 'Full Body 1', exact: true }).first().click();
+    await page.getByRole('button', { name: 'Replace BACK SQUAT' }).click();
     const dialog = page.getByRole('dialog').filter({ has: page.locator('.day-detail-modal-body') });
     await expect(dialog).toBeVisible();
     const first = dialog.locator('.import-exercise').first();
     await expect(first.locator('.iex-name')).toHaveText('Back Squat');
+    await expect(first.getByRole('group', { name: 'Substitutions for Back Squat' })).toHaveCount(0);
     await expect(first.getByRole('textbox', { name: 'Exercise name' })).toHaveCount(0);
     const badges = first.locator('.iex-muscle-badges');
     const library = first.locator('.iex-library-field');
     await library.getByRole('button').click();
     const picker = page.getByRole('dialog', { name: 'Choose exercise for Back Squat' });
     await expect(picker).toBeVisible();
+    await expect(picker.getByText('Recommended in your program')).toBeVisible();
+    const candidate = picker.locator('.picker-card').filter({ hasText: 'Plate Pinch' });
+    const beforeHover = await candidate.evaluate(el => ({ transform: getComputedStyle(el).transform, background: getComputedStyle(el).backgroundColor, border: getComputedStyle(el).borderColor, shadow: getComputedStyle(el).boxShadow }));
+    if (info.project.name === 'desktop') {
+      await candidate.hover();
+      const afterHover = await candidate.evaluate(el => ({ transform: getComputedStyle(el).transform, background: getComputedStyle(el).backgroundColor, border: getComputedStyle(el).borderColor, shadow: getComputedStyle(el).boxShadow }));
+      expect(afterHover).toEqual(beforeHover);
+    }
     await picker.getByRole('textbox', { name: 'Search exercises' }).fill('Plate Pinch');
     await expect(picker.getByRole('button', { name: 'Swap Plate Pinch' })).toBeVisible();
-    await picker.getByRole('button', { name: 'Done', exact: true }).click();
+    await picker.getByRole('button', { name: 'Swap Plate Pinch' }).click();
+    await expect(first.locator('.iex-name')).toHaveText('Plate Pinch');
+    await first.locator('.iex-save-bar').getByRole('button', { name: 'Cancel', exact: true }).click();
+    await expect(first.locator('.iex-name')).toHaveText('Back Squat');
     const badgeBounds = (await badges.boundingBox())!;
     const libraryBounds = (await library.boundingBox())!;
     expect(Math.abs(badgeBounds.x - libraryBounds.x)).toBeLessThan(1);

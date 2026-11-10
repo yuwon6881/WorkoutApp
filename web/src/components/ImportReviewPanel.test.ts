@@ -60,8 +60,8 @@ describe('import gym review', () => {
       onNameCommit: () => {}, onFocusIssue: () => {} })));
     expect(html).toContain('2 movements are unavailable');
     expect(html).toContain('<strong>Lalaport</strong>');
-    expect(html).not.toContain('Replace Squat');
-    expect(html).not.toContain('Replace Paused squat');
+    expect(html).toContain('Replace Squat');
+    expect(html).toContain('Replace Paused squat');
     expect(html).toContain('Squat');
     expect(html).toContain('Paused squat');
     expect(html).toContain('Missing: Rack');

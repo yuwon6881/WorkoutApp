@@ -113,14 +113,16 @@ export const ImportReviewPanel = forwardRef<HTMLElement, {
             <AlertTriangle size={16} className="irev-unresolved-icon irev-gym-icon" />
             <span className="irev-unresolved-text">
               {unavailable.length} {unavailable.length === 1 ? 'movement is' : 'movements are'} unavailable at your gym, <strong>{unavailable[0].availability.gymName}</strong>.
-              Open the day to choose a replacement, or swap it once a workout starts.
+              Choose an exercise to replace it here, or swap it once a workout starts.
             </span>
           </div>
           <div className="irev-gym-list">
             {unavailable.map(item => (
               <div className="irev-gym-row" key={item.lineId}>
                 <span><strong>{item.name}</strong><br /><span className="muted">{item.availability.marked ? 'Marked unavailable' : `Missing: ${item.availability.missing.join(', ')}`}</span></span>
-
+                <Button variant="secondary" className="irev-action-btn" aria-label={`Replace ${item.name}`} onClick={() => onFocusIssue({ workoutLineId: item.dayId, exerciseLineId: item.lineId, targetField: 'library' })}>
+                  Replace <ChevronRight size={14} />
+                </Button>
               </div>
             ))}
           </div>

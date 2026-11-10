@@ -324,63 +324,6 @@
   color: var(--muted) !important;
 }
 
-:root .import-exercise.iex-card .iex-substitutions-field {
-  display: inline-flex !important;
-  align-items: center !important;
-  margin: 0 !important;
-  min-width: 0 !important;
-}
-
-:root .import-exercise.iex-card .substitution-chips-row {
-  display: inline-flex !important;
-  flex-wrap: wrap !important;
-  align-items: center !important;
-  gap: 6px !important;
-}
-
-:root .import-exercise.iex-card .substitution-chip {
-  display: inline-flex !important;
-  align-items: center !important;
-  gap: 2px !important;
-  min-height: 32px !important;
-  padding: 0 4px 0 10px !important;
-  border-radius: var(--radius-pill) !important;
-  background: var(--control-surface) !important;
-  border: 1px solid var(--control-border) !important;
-  transition: background-color var(--motion-control) ease,
-              border-color var(--motion-control) ease !important;
-}
-
-:root .import-exercise.iex-card .substitution-chip:hover {
-  background: var(--surface-hover) !important;
-  border-color: var(--border-hover) !important;
-}
-
-:root .import-exercise.iex-card .substitution-swap-btn {
-  display: inline-flex !important;
-  align-items: center !important;
-  gap: 6px !important;
-  font-size: var(--font-secondary) !important;
-  font-weight: 600 !important;
-  color: var(--text) !important;
-}
-
-:root .import-exercise.iex-card .chip-remove-btn {
-  display: inline-grid !important;
-  place-items: center !important;
-  width: 24px !important;
-  height: 24px !important;
-  min-width: 24px !important;
-  min-height: 24px !important;
-  border-radius: var(--radius-pill) !important;
-  color: var(--muted) !important;
-}
-
-:root .import-exercise.iex-card .chip-remove-btn:hover {
-  color: var(--text) !important;
-  background: var(--surface-hover) !important;
-}
-
 @media (max-width: 639px) {
   :root .import-exercise.iex-card .iex-library-trigger {
     min-height: 44px !important;
@@ -436,20 +379,7 @@
   outline: none !important;
 }
 
-:root .import-exercise.iex-card .iex-meta-group > .iex-substitutions,
 :root .import-exercise.iex-card .iex-meta-group > .iex-muscle-badges {
   align-items: flex-start !important;
   justify-content: flex-start !important;
 }
-
-/* The substitution chips sit under the library link, start-aligned like the other meta items. */
-:root .import-exercise.iex-card .iex-substitutions-field,
-:root .import-exercise.iex-card .iex-substitutions-field .substitution-chips-wrap,
-:root .import-exercise.iex-card .iex-substitutions-field .substitution-chips-row {
-  align-items: flex-start !important;
-  justify-content: flex-start !important;
-  align-self: flex-start !important;
-  text-align: start !important;
-}
-
-.substitution-label { padding: 8px 4px 8px 12px; font-weight: 600; }

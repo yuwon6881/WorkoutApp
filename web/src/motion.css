@@ -96,13 +96,11 @@
 
 /* Cards that open something lift toward the pointer; the shadow deepens with the rise. */
 @media (hover: hover) and (pointer: fine) {
-  .exercise-card,
-  .picker-card {
+  .exercise-card {
     transition: transform var(--motion-panel) var(--motion-ease), box-shadow var(--motion-panel) var(--motion-ease), border-color var(--motion-control) ease, background-color var(--motion-control) ease;
   }
 
-  .exercise-card:hover,
-  .picker-card:hover {
+  .exercise-card:hover {
     transform: translateY(-2px);
     box-shadow: var(--shadow-raised);
   }

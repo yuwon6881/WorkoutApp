@@ -139,6 +139,11 @@ test('weekly totals follow calendar navigation while its controls stay fixed', a
   await expect(stats.locator('.stat-card-value')).toHaveText(['1', '12', '40 min']);
   const nav = page.locator('.calendar-month-nav');
   const before = (await nav.boundingBox())!;
+  if (info.project.name === 'desktop') {
+    const calendar = (await page.locator('.calendar-week-row').boundingBox())!;
+    expect(Math.abs(before.x - calendar.x)).toBeLessThan(1);
+    expect(Math.abs(before.width - calendar.width)).toBeLessThan(1);
+  }
   await page.locator('.calendar-week-rail').focus();
   await page.keyboard.press('ArrowLeft');
   await expect(stats.locator('.stat-card-value')).toHaveText(['1', '6', '20 min']);

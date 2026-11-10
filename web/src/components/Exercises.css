@@ -32,10 +32,6 @@
   border-color: var(--accent-border);
   background: var(--accent-soft);
 }
-.picker-card-current:hover {
-  border-color: var(--accent-border);
-  background: var(--accent-soft);
-}
 .picker-current-btn {
   cursor: default;
   opacity: .85;
@@ -290,10 +286,6 @@
   border-radius: var(--radius);
   box-shadow: var(--shadow);
   transition: border-color var(--motion-control) ease, background-color var(--motion-control) ease;
-}
-.picker-card:hover {
-  border-color: var(--border-hover);
-  background-color: var(--surface-hover);
 }
 .search-box input {
   min-height: 44px;

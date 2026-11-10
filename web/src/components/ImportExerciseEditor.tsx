@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { AlertTriangle, ArrowLeftRight, Check, Dumbbell, Link2, Loader2, Plus, RotateCcw, Timer, Trash2, Unlink2, X } from 'lucide-react';
+import { AlertTriangle, ArrowLeftRight, Check, Dumbbell, Link2, Loader2, Plus, RotateCcw, Timer, Trash2, Unlink2 } from 'lucide-react';
 import type { CustomExerciseCreated, DraftExercise, DraftSet, Exercise } from '../types';
 import { restOptions } from '../lib/training';
-import { displayExerciseName, draftExerciseName, isPlaceholderName, resolveExercise, selectDraftExercise } from '../lib/draftExerciseSwap';
+import { draftExerciseName, isPlaceholderName, selectDraftExercise } from '../lib/draftExerciseSwap';
 import { Button } from './ui/Button';
 import { DemoLink } from './ui/DemoLink';
 import { Select } from './ui/Select';
@@ -126,10 +126,6 @@ export function ExerciseEditor({ exercise: saved, exercises, allDayExercises, re
     }
   };
 
-  const validSubstitutions = (exercise.substitutions ?? []).filter(sub =>
-    resolveExercise(sub, exercises) && resolveExercise(sub, exercises)?.id !== exercise.exerciseId
-  );
-
   const currentGroup = getSupersetGroup(exercise.sequenceGroup);
   const isPaired = isSuperset(exercise.sequenceGroup);
   const partners = allDayExercises.filter(e => e.lineId !== exercise.lineId && getSupersetGroup(e.sequenceGroup) === currentGroup);
@@ -231,31 +227,7 @@ export function ExerciseEditor({ exercise: saved, exercises, allDayExercises, re
               )}
             </div>
           )}
-          {validSubstitutions.length > 0 && <div className="field import-substitutions-field iex-substitutions-field">
-            <div className="substitution-chips-wrap">
-                <div className="substitution-chips-row" role="group" aria-label={`Substitutions for ${title}`}>
-                  {validSubstitutions.map((sub, sIdx) => (
-                    <span key={sIdx} className="substitution-chip">
-                      <span className="substitution-label">{displayExerciseName(sub, exercises)}</span>
-                      <Button
-                        presentation="plain"
-                        className="chip-remove-btn"
-                        aria-label={`Remove substitution ${sub}`}
-                        disabled={isRestoring}
-                        onClick={() => {
-                          onChange({
-                            ...exercise,
-                            substitutions: (exercise.substitutions ?? []).filter(s => s.toLowerCase() !== sub.toLowerCase())
-                          });
-                        }}
-                      >
-                        <X size={12} />
-                      </Button>
-                    </span>
-                  ))}
-                </div>
-            </div>
-          </div>}
+
         </div>
         <TextAreaField name={`exercise-notes-${exercise.lineId}`} className="import-exercise-notes iex-notes" label="Description"
           value={exercise.notes ?? ''} placeholder="Cues, tempo or coaching notes"
