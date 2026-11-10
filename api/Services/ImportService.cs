@@ -100,8 +100,8 @@ public sealed partial class ImportService(AppDb db, CatalogService catalog, Prog
         Validation.Require(import!.Status == ImportStatus.Ready, "This import is no longer editable.", 409);
         TemplateService.RequireFresh(revision, import.Revision);
         if (string.IsNullOrEmpty(import.DraftBaselineJson)) import.DraftBaselineJson = import.DraftJson;
-        var (normalizedWorkouts, _) = ImportValidation.NormalizePhaseWeeks(draft.Workouts);
-        var normalizedDraft = ImportValidation.NormalizeDraft(draft with { Workouts = normalizedWorkouts });
+        // Numbered per program version, the way validation judges it: versions of one program share week numbers.
+        var normalizedDraft = ImportValidation.NormalizeDraft(ImportValidation.NumberPhaseWeeks(draft));
         await ValidateDraft(normalizedDraft, ct);
         import.DraftJson = Json.Write(normalizedDraft); import.Revision++; UpdateCounters(import, normalizedDraft);
         await db.SaveChangesAsync(ct);

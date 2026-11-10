@@ -39,8 +39,12 @@ internal static class ProgramEditPlan
             Validation.Require(planned.Any(day => day.Input.Week == locks.CurrentWeek),
                 $"Week {locks.CurrentWeek} is in progress and needs at least one day.", 422);
 
-        ProgramService.ValidateStructure(planned.Select(Merged).ToList());
-        return planned;
+        // Numbered as the server splits phases, so a stale or label-based numbering never fails a save.
+        var numbered = ProgramPhaseNumbering.Number(planned.Select(Merged).ToList());
+        ProgramService.ValidateStructure(numbered);
+        return [.. planned.Select((day, index) => day.Locked || numbered[index].PhaseWeek == day.Input.PhaseWeek
+            ? day
+            : day with { Input = day.Input with { PhaseWeek = numbered[index].PhaseWeek } })];
     }
 
     private static PlannedDay Plan(ProgramEditDayInput day, WorkoutTemplate? match,

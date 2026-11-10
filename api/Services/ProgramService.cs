@@ -138,6 +138,7 @@ public sealed partial class ProgramService(AppDb db, TemplateService templates, 
 
     public async Task<ProgramView> Create(ProgramInput input, bool activate, Guid? sourceImportId, CancellationToken ct)
     {
+        input = input with { Workouts = ProgramPhaseNumbering.Number(input.Workouts) };
         await Validate(input, ct, sourceImportId != null);
         await using var gate = await MutationLock.Acquire(db, db.CurrentUser, ct);
         var program = await Materialize(input, activate, sourceImportId, ct);
@@ -210,7 +211,7 @@ public sealed partial class ProgramService(AppDb db, TemplateService templates, 
         return result;
     }
 
-    private static List<List<ProgramWorkoutInput>> GroupPhases(IEnumerable<ProgramWorkoutInput> workouts)
+    internal static List<List<ProgramWorkoutInput>> GroupPhases(IEnumerable<ProgramWorkoutInput> workouts)
     {
         var ordered = workouts.Select((workout, index) => (workout, index))
             .OrderBy(item => item.workout.Week).ThenBy(item => item.index).Select(item => item.workout).ToList();
