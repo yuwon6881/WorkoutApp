@@ -104,6 +104,8 @@ describe('import set review fields', () => {
       day, exercises, onChange: async () => {}, editing, getRepRangeMemory: () => new Map()
     }));
 
+    expect(markup).toContain('substitution-label">Incline Dumbbell Press</span>');
+    expect(markup).not.toContain('class="substitution-swap-btn"');
     expect(markup).toContain('import-exercise-muscles');
     expect(markup).toContain('pill pill-accent">Chest</span>');
     expect(markup).toContain('pill pill-muted">Triceps</span>');

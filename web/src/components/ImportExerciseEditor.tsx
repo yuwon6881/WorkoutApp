@@ -2,8 +2,7 @@ import { useState } from 'react';
 import { AlertTriangle, ArrowLeftRight, Check, Dumbbell, Link2, Loader2, Plus, RotateCcw, Timer, Trash2, Unlink2, X } from 'lucide-react';
 import type { CustomExerciseCreated, DraftExercise, DraftSet, Exercise } from '../types';
 import { restOptions } from '../lib/training';
-import { demoUrlForName } from '../lib/demoLinks';
-import { MAX_SUBSTITUTIONS } from '../lib/validation';
+import { displayExerciseName, resolveExercise, selectDraftExercise } from '../lib/draftExerciseSwap';
 import { Button } from './ui/Button';
 import { DemoLink } from './ui/DemoLink';
 import { Select } from './ui/Select';
@@ -101,12 +100,7 @@ export function ExerciseEditor({ exercise: saved, exercises, allDayExercises, re
   const timed = selected?.trackingMode === 'duration';
   const select = (exerciseId: string | null) => {
     const selectedExercise = exerciseId ? exercises.find(item => item.id === exerciseId) : undefined;
-    if (editing.keepWrittenName) {
-      onChange({ ...exercise, exerciseId });
-    } else {
-      const sourceName = selectedExercise?.name ?? exercise.sourceName;
-      onChange({ ...exercise, exerciseId, sourceName, demoUrl: demoUrlForName(exercise.demoLinks, sourceName) });
-    }
+    if (selectedExercise) onChange(selectDraftExercise(exercise, selectedExercise, exercises, editing.keepWrittenName));
     setPickerOpen(false);
   };
 
@@ -132,25 +126,8 @@ export function ExerciseEditor({ exercise: saved, exercises, allDayExercises, re
     }
   };
 
-  const applySubstitution = (subName: string) => {
-    const matched = exercises.find(
-      e => e.name.toLowerCase() === subName.toLowerCase() || e.aliases.some(a => a.toLowerCase() === subName.toLowerCase())
-    );
-    if (!matched) return;
-    const currentLibraryName = exercises.find(e => e.id === exercise.exerciseId)?.name ?? exercise.sourceName;
-    const remainingSubs = [currentLibraryName, ...(exercise.substitutions ?? []).filter(s => s.toLowerCase() !== subName.toLowerCase())].slice(0, MAX_SUBSTITUTIONS);
-    const nextExercise: DraftExercise = {
-      ...exercise,
-      sourceName: matched.name,
-      exerciseId: matched.id,
-      substitutions: remainingSubs,
-      demoUrl: demoUrlForName(exercise.demoLinks, matched.name)
-    };
-    onChange(nextExercise);
-  };
-
   const validSubstitutions = (exercise.substitutions ?? []).filter(sub =>
-    exercises.some(e => e.name.toLowerCase() === sub.toLowerCase() || e.aliases.some(a => a.toLowerCase() === sub.toLowerCase()))
+    resolveExercise(sub, exercises) && resolveExercise(sub, exercises)?.id !== exercise.exerciseId
   );
 
   const currentGroup = getSupersetGroup(exercise.sequenceGroup);
@@ -267,16 +244,7 @@ export function ExerciseEditor({ exercise: saved, exercises, allDayExercises, re
                 <div className="substitution-chips-row" role="group" aria-label={`Substitutions for ${exercise.sourceName}`}>
                   {validSubstitutions.map((sub, sIdx) => (
                     <span key={sIdx} className="substitution-chip">
-                      <Button
-                        presentation="plain"
-                        className="substitution-swap-btn"
-                        aria-label={`Swap ${exercise.sourceName} for ${sub} across this block`}
-                        disabled={isRestoring}
-                        onClick={() => applySubstitution(sub)}
-                      >
-                        <ArrowLeftRight size={13} className="swap-icon" />
-                        <span>{sub}</span>
-                      </Button>
+                      <span className="substitution-label">{displayExerciseName(sub, exercises)}</span>
                       <Button
                         presentation="plain"
                         className="chip-remove-btn"

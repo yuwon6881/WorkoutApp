@@ -52,11 +52,6 @@ export function ProgramMusclePreview({ summary, selectedMuscle, onMuscleSelect }
                     <span className="program-muscle-copy">
                       <span className="program-muscle-title-row">
                         <strong title={muscle}>{muscle}</strong>
-                        {isSelected && (
-                          <span className="program-muscle-selected-badge" aria-hidden="true">
-                            Selected
-                          </span>
-                        )}
                       </span>
                       <span className="program-muscle-credit-text">
                         {formattedSets} {setWord}

@@ -16,10 +16,10 @@
     min-height: 36px;
   }
 }
-.picker-add-btn:hover:not(:disabled) {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: var(--on-accent);
+.button.secondary.picker-add-btn:hover:not(:disabled) {
+  background: var(--surface-hover);
+  border-color: var(--border-hover);
+  color: var(--text);
 }
 
 .picker-current-section {

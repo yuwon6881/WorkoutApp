@@ -286,3 +286,5 @@
   .import-exercise .import-exercise-title .inline-input { min-height: 44px; height: 44px; }
   .import-exercise-title .inline-input-wrap { min-width: 44px; min-height: 44px; }
 }
+
+.import-exercise .import-library-trigger.issue-focus { outline: none; border-color: var(--accent) !important; background: var(--accent-soft) !important; box-shadow: none; animation: none; }
