@@ -132,7 +132,7 @@ for (const theme of ['dark', 'light']) {
     const badges = first.locator('.iex-muscle-badges');
     const library = first.locator('.iex-library-field');
     await library.getByRole('button').click();
-    const picker = page.getByRole('dialog', { name: 'Choose exercise for BACK SQUAT' });
+    const picker = page.getByRole('dialog', { name: 'Choose exercise for Back Squat' });
     await expect(picker).toBeVisible();
     await picker.getByRole('textbox', { name: 'Search exercises' }).fill('Plate Pinch');
     await expect(picker.getByRole('button', { name: 'Swap Plate Pinch' })).toBeVisible();
@@ -153,9 +153,9 @@ for (const theme of ['dark', 'light']) {
     expect(Math.min(...widths)).toBeGreaterThanOrEqual(44);
     const types = await first.locator('.set-type-select .custom-select-trigger').filter({ visible: true }).evaluateAll(elements => elements.map(element => element.getBoundingClientRect().width));
     expect(Math.max(...types) - Math.min(...types)).toBeLessThan(1);
-    const mode = first.getByRole('group', { name: 'Rep target for BACK SQUAT', exact: true });
+    const mode = first.getByRole('group', { name: 'Rep target for Back Squat', exact: true });
     await mode.getByRole('button', { name: 'Range', exact: true }).click();
-    const max = first.getByRole('spinbutton', { name: 'BACK SQUAT set 1 max reps', exact: true });
+    const max = first.getByRole('spinbutton', { name: 'Back Squat set 1 max reps', exact: true });
     const remembered = await max.inputValue();
     await mode.getByRole('button', { name: 'Exact', exact: true }).click();
     await mode.getByRole('button', { name: 'Range', exact: true }).click();
