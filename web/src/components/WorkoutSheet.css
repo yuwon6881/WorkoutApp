@@ -132,7 +132,7 @@
 .workout-top-rail .workout-elapsed-clock {
   color: var(--text);
   font-size: 22px;
-  font-weight: 760;
+  font-weight: 700;
   letter-spacing: -0.025em;
   font-variant-numeric: tabular-nums;
 }
@@ -182,7 +182,7 @@
   text-align: center;
   color: var(--text);
   font-size: 22px;
-  font-weight: 760;
+  font-weight: 700;
   letter-spacing: -0.025em;
   line-height: 1;
   font-variant-numeric: tabular-nums;
@@ -333,14 +333,14 @@
   letter-spacing: -0.01em;
 }
 .workout-top-status-bar:has(.workout-rest-bar) .rest-clock { min-height: 44px; }
-.workout-top-status-bar:has(.workout-rest-bar) .rest-clock-value { font-size: 22px; font-weight: 760; }
+.workout-top-status-bar:has(.workout-rest-bar) .rest-clock-value { font-size: 22px; font-weight: 700; }
 
 /* Phones: the next set is already the highlighted row below, so the row keeps to the two clocks and
    the rest's three adjustments. The workout clock and set count stack to leave the rest its width. */
 @media (max-width: 639px) {
   .modal .workout-top-status-bar { gap: 0; padding: 6px 10px 6px 16px; }
   .workout-top-rail { min-height: 48px; gap: 6px; }
-  .workout-top-rail .workout-elapsed-clock { font-size: 20px; font-weight: 760; }
+  .workout-top-rail .workout-elapsed-clock { font-size: 20px; font-weight: 700; }
   .workout-top-status-bar:has(.workout-rest-bar) .workout-top-meta { flex-direction: column; align-items: flex-start; justify-content: center; gap: 0; min-height: 44px; }
   .workout-top-status-bar:has(.workout-rest-bar) .workout-top-meta > * { line-height: 1.25; }
   .workout-top-status-bar:has(.workout-rest-bar) .workout-top-rail .workout-elapsed-clock { font-size: 14px; font-weight: 700; }
@@ -358,7 +358,7 @@
 }
 /* The narrowest phones keep an hour-long clock and a rest on one row. */
 @media (max-width: 359px) {
-  .workout-top-status-bar:has(.workout-rest-bar) .rest-clock-value { font-size: 20px; font-weight: 760; }
+  .workout-top-status-bar:has(.workout-rest-bar) .rest-clock-value { font-size: 20px; font-weight: 700; }
   .rest-clock svg { display: none; }
   .rest-bar-actions { gap: 0; }
 }
@@ -425,7 +425,7 @@
   min-width: 3.6ch;
   color: var(--text);
   font-size: 24px;
-  font-weight: 760;
+  font-weight: 700;
   letter-spacing: -0.025em;
   font-variant-numeric: tabular-nums;
 }

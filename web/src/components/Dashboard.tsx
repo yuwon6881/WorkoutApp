@@ -16,6 +16,7 @@ const RECENT_WORKOUTS = 3;
 
 interface DashboardProps {
   data: Bootstrap;
+  unconfirmed?: boolean;
   onProgram: () => void;
   onImport: () => void;
   onResume: () => void;
@@ -27,6 +28,7 @@ interface DashboardProps {
 
 export function Dashboard({
   data,
+  unconfirmed = false,
   onProgram,
   onResume,
   onSession,
@@ -36,12 +38,15 @@ export function Dashboard({
 }: DashboardProps) {
   const readKey = `${data.account.id}:progress`;
   const readVersion = data.resourceVersions?.history ?? data.history;
-  const [progress, setProgress] = useState<ProgressSummary | null>(data.progress ?? viewReadCache.get(readKey, readVersion) ?? null);
+  const [progress, setProgress] = useState<ProgressSummary | null>(
+    unconfirmed ? null : (data.progress ?? viewReadCache.get(readKey, readVersion) ?? null)
+  );
   const [progressError, setProgressError] = useState('');
   const [progressRetry, setProgressRetry] = useState(0);
   const [allHistory, setAllHistory] = useState(false);
 
   useEffect(() => {
+    if (unconfirmed) { setProgress(null); setProgressError(''); return; }
     if (data.progress && progressRetry === 0) { setProgress(data.progress); return; }
     const cached = viewReadCache.get<ProgressSummary>(readKey, readVersion);
     setProgress(cached ?? null);
@@ -63,7 +68,7 @@ export function Dashboard({
       cancelled = true;
       controller.abort();
     };
-  }, [progressRetry, data.progress, data.account.id, data.resourceVersions?.history ?? data.history]);
+  }, [unconfirmed, progressRetry, data.progress, data.account.id, data.resourceVersions?.history ?? data.history]);
 
   const program = data.activeProgram;
   const unit = data.preferences.unit;
@@ -83,6 +88,7 @@ export function Dashboard({
         <div className="overview-main-column">
           <NextWorkoutHero
             data={data}
+            unconfirmed={unconfirmed}
             onStart={onStart ?? (() => onProgram())}
             onResume={onResume}
             onProgram={onProgram}
@@ -105,6 +111,7 @@ export function Dashboard({
               refreshKey={data.resourceVersions?.history ?? data.history}
               activeWorkoutId={data.activeWorkout?.id ?? null}
               accountId={data.account.id}
+              unconfirmed={unconfirmed}
             />
           </Suspense>
         </div>
@@ -115,6 +122,7 @@ export function Dashboard({
           initial={data.historyDeferred ? undefined : data.history}
           accountId={data.account.id}
           refreshKey={readVersion}
+          unconfirmed={unconfirmed}
           unit={unit}
           onSession={onSession}
           onStart={onProgram}
@@ -136,6 +144,7 @@ export function Dashboard({
                 initial={data.historyDeferred ? undefined : data.history}
                 accountId={data.account.id}
                 refreshKey={readVersion}
+                unconfirmed={unconfirmed}
                 unit={unit}
                 onSession={onSession}
                 onStart={onProgram}

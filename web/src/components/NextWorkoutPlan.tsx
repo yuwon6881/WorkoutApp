@@ -11,18 +11,23 @@ import './NextWorkoutPlan.css';
 /// The next workout's length and opening exercises, so the hero answers "what am I doing today?"
 /// without opening the preview. Both optional reads reuse the account-scoped memory cache so
 /// switching tabs does not fetch them again.
-export function NextWorkoutPlan({ data, templateId }: { data: Bootstrap; templateId: string }) {
+export function NextWorkoutPlan({ data, templateId, unconfirmed = false }: {
+  data: Bootstrap;
+  templateId: string;
+  unconfirmed?: boolean;
+}) {
+  const confirmed = !unconfirmed;
   const loaded = data.templates?.find(template => template.id === templateId && template.exercises.length > 0);
   const templateRead = useCachedViewRead<Template>(
     `template:${templateId}`,
     1,
     signal => api.getTemplate(templateId, signal),
-    !loaded
+    confirmed && !loaded
   );
-  const last = useLastPerformedRead(true);
+  const last = useLastPerformedRead(confirmed);
   const template = loaded ?? templateRead.value;
-  const templateUnavailable = !template && !templateRead.loading;
-  const waiting = !templateUnavailable && ((!template && templateRead.loading) || !last.settled);
+  const templateUnavailable = confirmed && !template && !templateRead.loading;
+  const waiting = !templateUnavailable && (!confirmed || (!template && templateRead.loading) || !last.settled);
 
   const plan = useMemo(() => template && last.settled
     ? nextWorkoutPlan(template, last.map, data.exercises, data.preferences.unit, data.preferences.restSeconds ?? 90)

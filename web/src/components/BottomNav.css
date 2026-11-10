@@ -1,5 +1,5 @@
-/* Phone dock (< 640px): a floating glass bar with two destinations either side of a raised round
-   workout action, matching NutritionApp. The track ignores taps outside the bar itself. */
+/* Phone dock (< 640px): a floating pill-shaped bar with two destinations either side of the workout
+   action. The open tab is marked by a small pill behind its icon that slides between tabs. The track ignores taps outside the bar itself. */
 
 .bottom-nav {
   position: fixed;
@@ -45,8 +45,8 @@
   width: 100%;
   max-width: 480px;
   position: relative;
-  padding: 4px;
-  border-radius: 22px;
+  padding: 5px 6px;
+  border-radius: 30px;
   border: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
   background: color-mix(in srgb, var(--surface) 82%, transparent);
   backdrop-filter: blur(20px) saturate(1.4);
@@ -74,10 +74,22 @@
   left: 0;
   z-index: 0;
   border: 0;
-  border-radius: 14px;
-  background: var(--accent-soft);
+  /* The marker spans the whole tab so it can follow it; only the pill behind the icon is drawn. */
+  background: transparent;
   pointer-events: none;
   transition: transform var(--motion-panel) var(--motion-ease), width var(--motion-panel) var(--motion-ease), height var(--motion-panel) var(--motion-ease);
+}
+
+.bottom-nav .selection-indicator-marker::before {
+  content: '';
+  position: absolute;
+  top: 7px;
+  left: 50%;
+  width: 56px;
+  height: 30px;
+  margin-left: -28px;
+  border-radius: var(--radius-pill);
+  background: var(--accent-soft);
 }
 
 [data-motion-reduced] .bottom-nav .selection-indicator-marker { transition: none; }
@@ -90,10 +102,10 @@
   align-items: center;
   justify-content: center;
   gap: 3px;
-  min-height: 56px;
+  min-height: 60px;
   min-width: 44px;
-  padding: 6px 0 5px;
-  border-radius: 14px;
+  padding: 7px 0 5px;
+  border-radius: 24px;
   background: transparent;
   border: 0;
   box-shadow: none;
@@ -101,19 +113,25 @@
   transition: color var(--motion-control) ease, transform var(--motion-control) ease;
 }
 
+/* The chosen tab's icon settles a little larger, so the selection reads in the glyph as well as the pill. */
+.bottom-nav-icon-slot svg { transition: transform var(--motion-panel) var(--motion-spring); }
+.bottom-nav-track > .bottom-nav-item.selected .bottom-nav-icon-slot svg { transform: scale(1.1); }
+
 @media (hover: hover) and (pointer: fine) {
   .bottom-nav-track > .bottom-nav-item.button:hover:not(:disabled) { color: var(--text); background: transparent; }
 }
 
 .bottom-nav-track > .bottom-nav-item.button:active:not(:disabled) { transform: scale(0.96); }
-.bottom-nav-track > .bottom-nav-item.selected { color: var(--accent); }
+.bottom-nav-track > .bottom-nav-item.selected { color: var(--text); }
+.bottom-nav-track > .bottom-nav-item.selected .bottom-nav-icon-slot { color: var(--accent); }
 
 .bottom-nav-icon-slot {
   display: grid;
   place-items: center;
-  width: 22px;
-  height: 22px;
+  width: 56px;
+  height: 30px;
   color: inherit;
+  transition: color var(--motion-control) ease;
 }
 
 .bottom-nav-label {
@@ -127,21 +145,25 @@
 
 .bottom-nav-track > .bottom-nav-item.selected .bottom-nav-label { font-weight: 650; }
 /* Five 14px labels cannot share the narrowest phones; the icons stay, each button keeps its name. */
-@media (max-width: 359px) { .bottom-nav-label { display: none; } }
+@media (max-width: 359px) {
+  .bottom-nav-label { display: none; }
+  /* With no label the icon sits in the middle of the tab, and its pill follows. */
+  .bottom-nav .selection-indicator-marker::before { top: 50%; margin-top: -15px; }
+}
 
-/* The centre action: a raised accent disc. Its name comes from aria-label; the icon is decorative. */
+/* The centre action: a solid accent tile on the app's control radius. Its name comes from aria-label; the icon is decorative. */
 .bottom-nav-track > .bottom-nav-action.button {
   position: relative;
   z-index: 1;
   justify-self: center;
-  width: 56px;
-  height: 56px;
-  min-width: 56px;
-  min-height: 56px;
+  width: 52px;
+  height: 52px;
+  min-width: 52px;
+  min-height: 52px;
   padding: 0;
   gap: 0;
-  border-radius: 50%;
-  box-shadow: var(--shadow-raised);
+  border-radius: 18px;
+  box-shadow: none;
 }
 
 .bottom-nav-track > .bottom-nav-action.button:active:not(:disabled) { transform: scale(0.94); }

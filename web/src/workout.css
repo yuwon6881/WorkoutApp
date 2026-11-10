@@ -12,7 +12,7 @@
 
 .timer-modal-body { display: flex; flex-direction: column; gap: 16px; text-align: center; padding: 20px; }
 .timer-modal-clock { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 18px 12px; background: var(--surface-raised); border: 1px solid var(--border); border-radius: var(--radius); }
-.timer-modal-clock strong, .timer-modal-clock-input { font-size: 38px; font-weight: 750; letter-spacing: -0.03em; color: var(--text); font-variant-numeric: tabular-nums; }
+.timer-modal-clock strong, .timer-modal-clock-input { font-size: 38px; font-weight: 680; letter-spacing: -0.03em; color: var(--text); font-variant-numeric: tabular-nums; }
 .timer-modal-clock.timing { border-color: var(--accent-border-strong); background: var(--accent-soft); }
 .timer-modal-clock.timing strong { color: var(--accent); }
 .timer-modal-clock.editable { cursor: text; transition: border-color var(--motion-control) var(--motion-ease), box-shadow var(--motion-control) var(--motion-ease); }

@@ -653,13 +653,17 @@ test('build a workout, log a set against the server, and see it in history', asy
     await expect(logger).toBeVisible();
 
     const logButton = page.getByRole('button', { name: 'Log Barbell bench press set 1', exact: true });
+    await expect(logButton).toBeVisible();
+    // Wait for the sheet's slide/lift entrance to settle before measuring 44px layout bounds, since an
+    // active float32 CSS translateY during the 440ms rise yields subpixel fround(y + 44) - fround(y) < 44.
+    await logger.evaluate(el => Promise.all(el.getAnimations().map(a => a.finished.catch(() => undefined))));
     await logButton.evaluate(el => el.scrollIntoView({ block: 'center', inline: 'nearest' }));
     const logHit = await logButton.evaluate(el => {
       const box = el.getBoundingClientRect();
       const hit = document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2);
       return { ok: box.width >= 44 && box.height >= 44 && (hit === el || el.contains(hit)), viewport: { innerWidth, innerHeight, visualWidth: visualViewport?.width, visualHeight: visualViewport?.height, scrollY }, box: { x: box.x, y: box.y, width: box.width, height: box.height }, hit: hit && { tag: hit.tagName, cls: String(hit.className), text: hit.textContent?.slice(0, 80) }, parents: [...el.parentElement?.parentElement?.children ?? []].map(node => { const b = (node as HTMLElement).getBoundingClientRect(); return { tag: node.tagName, cls: String(node.className), x: b.x, y: b.y, width: b.width, height: b.height }; }) };
     });
-    expect(logHit.ok).toBe(true);
+    expect(logHit.ok, JSON.stringify(logHit)).toBe(true);
 
     // Suggested reps are available immediately; load and actual RPE may remain blank until recorded.
     await logButton.click();
@@ -715,6 +719,8 @@ test('build a workout, log a set against the server, and see it in history', asy
     await secondWeight.fill('55');
     if ((page.viewportSize()?.width ?? 1440) < 640) {
       // Phones keep each set on one line and hide Delete until the row is swiped sideways.
+      // Wait for the recovered sheet's rise entrance before measuring so coordinates do not drift into the row gap.
+      await activeLogger.evaluate(el => Promise.all(el.getAnimations().map(a => a.finished.catch(() => undefined))));
       const surface = activeLogger.locator('.workout-set-swipe .swipeable-row-surface').nth(1);
       const box = (await surface.boundingBox())!;
       expect(box.height).toBeLessThan(64);

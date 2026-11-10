@@ -26,7 +26,7 @@
 
 .app-shell > .sidebar .brand {
   color: var(--text);
-  font-weight: 780;
+  font-weight: 700;
   letter-spacing: -0.045em;
   text-decoration: none;
   box-sizing: border-box;
@@ -76,6 +76,19 @@
   box-shadow: none;
 }
 
+/* The open destination is marked by a short accent bar on the marker's leading edge; it travels
+   with the marker, so the eye follows one object between items. */
+.app-shell > .sidebar .selection-indicator-marker::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 28%;
+  bottom: 28%;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: var(--accent);
+}
+
 /* Nav items inside track */
 .app-shell > .sidebar .sidebar-nav-track .nav-item {
   position: relative;
@@ -105,10 +118,11 @@
 .app-shell > .sidebar .nav-item .nav-icon {
   flex-shrink: 0;
   color: var(--muted);
-  transition: color var(--motion-control) ease;
+  transition: color var(--motion-control) ease, transform var(--motion-panel) var(--motion-spring);
 }
 
 @media (hover: hover) and (pointer: fine) {
+  .app-shell > .sidebar .nav-item:hover:not(.selected):not(:disabled) .nav-icon { transform: translateX(1px) scale(1.06); }
   .app-shell > .sidebar .nav-item:hover:not(.selected):not(:disabled) {
     background: var(--surface-hover);
     color: var(--text);

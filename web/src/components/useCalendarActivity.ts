@@ -26,22 +26,27 @@ function cachedRead(scope: string, key: string, from: string, to: string, versio
   return items ? { scope, version, from, to, items } : null;
 }
 
-export function useCalendarActivity({ offset, accountId, activeWorkoutId, refreshKey, weekFrom, weekTo }: {
+export function useCalendarActivity({ offset, accountId, activeWorkoutId, refreshKey, weekFrom, weekTo, enabled = true }: {
   offset: number;
   accountId: string;
   activeWorkoutId: string | null;
   refreshKey: unknown;
   weekFrom: string;
   weekTo: string;
+  enabled?: boolean;
 }) {
   const { from, to } = useMemo(() => activityWindow(offset), [offset]);
   const scope = `${accountId}:${activeWorkoutId ?? ''}`;
   const key = `${accountId}:activity:${from}:${to}:${activeWorkoutId ?? ''}`;
-  const [read, setRead] = useState<ActivityRead | null>(() => cachedRead(scope, key, from, to, refreshKey));
+  const [read, setRead] = useState<ActivityRead | null>(() => enabled ? cachedRead(scope, key, from, to, refreshKey) : null);
   const [error, setError] = useState('');
   const previousOffset = useRef(offset);
 
   useEffect(() => {
+    if (!enabled) {
+      setError('');
+      return;
+    }
     const moved = previousOffset.current !== offset;
     previousOffset.current = offset;
     const cached = cachedRead(scope, key, from, to, refreshKey);
@@ -64,12 +69,12 @@ export function useCalendarActivity({ offset, accountId, activeWorkoutId, refres
       clearTimeout(timer);
       controller.abort();
     };
-  }, [scope, key, from, to, offset, refreshKey]);
+  }, [enabled, scope, key, from, to, offset, refreshKey]);
 
   // A week inside the window already read shows at once while the next window waits for the
   // calendar to settle; only a week the read does not cover is unknown.
-  const covered = read !== null && read.scope === scope && read.version === refreshKey
+  const covered = enabled && read !== null && read.scope === scope && read.version === refreshKey
     && read.from <= weekFrom && read.to >= weekTo;
-  const items = useMemo(() => (read && read.scope === scope ? read.items : []), [read, scope]);
+  const items = useMemo(() => (enabled && read && read.scope === scope ? read.items : []), [enabled, read, scope]);
   return { items, loading: !covered, error };
 }

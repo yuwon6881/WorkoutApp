@@ -13,6 +13,7 @@ import './NextWorkoutHero.css';
 
 interface NextWorkoutHeroProps {
   data: Bootstrap;
+  unconfirmed?: boolean;
   onStart: (templateId: string) => void;
   onResume: () => void;
   onProgram: () => void;
@@ -151,7 +152,7 @@ function HeroMuscles({ muscles }: { muscles: { muscle: string; sets: number }[] 
   );
 }
 
-export function NextWorkoutHero({ data, onStart, onResume, onProgram, onChanged }: NextWorkoutHeroProps) {
+export function NextWorkoutHero({ data, unconfirmed = false, onStart, onResume, onProgram, onChanged }: NextWorkoutHeroProps) {
   const activeWorkout = data.activeWorkout?.active ? data.activeWorkout : null;
   const program = data.activeProgram;
   const passRest = (preferredId?: string) => {
@@ -297,7 +298,7 @@ export function NextWorkoutHero({ data, onStart, onResume, onProgram, onChanged 
           <HeroMuscles muscles={topMuscles} />
         </div>
 
-        <NextWorkoutPlan data={data} templateId={next.id} />
+        <NextWorkoutPlan data={data} templateId={next.id} unconfirmed={unconfirmed} />
 
         <div className="hero-footer">
           <Button variant="primary" className="hero-action-btn" onClick={() => onStart(next.id)}>

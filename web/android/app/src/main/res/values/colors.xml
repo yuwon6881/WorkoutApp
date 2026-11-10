@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- The app's dark theme, for the few screens drawn natively (the offline workout recovery screen). -->
 <resources>
-    <color name="brand_bg">#08080A</color>
-    <color name="brand_text">#ECECF1</color>
-    <color name="brand_muted">#A2A2AD</color>
-    <color name="brand_accent">#B5F04A</color>
+    <color name="brand_bg">#09090C</color>
+    <color name="brand_text">#EEEEF2</color>
+    <color name="brand_muted">#A3A3B0</color>
+    <color name="brand_accent">#A999FF</color>
     <!-- The launcher icon's field. Notifications tint their app badge with it, so the badge reads as
-         the launcher icon (white W on black) rather than a lime disc. -->
+         the launcher icon (white W on black) rather than an accent disc. -->
     <color name="brand_icon">@color/ic_launcher_background</color>
 </resources>

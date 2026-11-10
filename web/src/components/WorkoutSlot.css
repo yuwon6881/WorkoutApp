@@ -175,7 +175,7 @@
 .slot-card-title h3 {
   margin: 0;
   font-size: 16px;
-  font-weight: 740;
+  font-weight: 680;
   letter-spacing: -0.025em;
   /* Two lines before clamping: a phone header shares its row with two 44px controls, so one
      line cut ordinary program names short. */

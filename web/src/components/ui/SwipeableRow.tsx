@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
 import { useWindowTier } from '../../lib/breakpoints';
 import { haptic } from '../../lib/platform';
 import { classifyGesture, settleOpen } from '../../lib/rowSwipe';
@@ -19,6 +19,10 @@ function clampOffset(value: number, actionsWidth: number) {
   return Math.max(-actionsWidth, Math.min(0, value));
 }
 
+function eventTime(timeStamp: number) {
+  return typeof timeStamp === 'number' && Number.isFinite(timeStamp) ? timeStamp : Date.now();
+}
+
 /// A small, dependency-free row drawer. The content remains opaque while it moves so the action
 /// tray never leaks through, and only horizontal movement takes ownership of a touch gesture.
 export function SwipeableRow({
@@ -31,8 +35,8 @@ export function SwipeableRow({
   adaptive = false
 }: SwipeableRowProps) {
   const [open, setOpen] = useState(false);
-  const [offset, setOffset] = useState(0);
   const [dragging, setDragging] = useState(false);
+  const draggingRef = useRef(false);
   const surface = useRef<HTMLDivElement>(null);
   const dragOffset = useRef(0);
   const frame = useRef(0);
@@ -48,25 +52,39 @@ export function SwipeableRow({
   } | null>(null);
   const suppressClick = useRef(false);
 
+  const tier = useWindowTier();
+  const showDesktop = !adaptive || tier !== 'compact';
+  const showMobile = !adaptive || tier === 'compact';
+
+  // Settled positions sync imperatively so JSX never carries a stale transform that parent renders
+  // or the initial dragging toggle could write back over an active swipe.
+  useLayoutEffect(() => {
+    if (dragging || draggingRef.current || !surface.current) return;
+    surface.current.style.transition = '';
+    surface.current.style.transform = `translate3d(${open ? -actionsWidth : 0}px, 0, 0)`;
+  }, [open, dragging, actionsWidth, showMobile]);
+
   const close = useCallback(() => {
     cancelAnimationFrame(frame.current); frame.current = 0;
+    pointer.current = null;
+    draggingRef.current = false;
     dragOffset.current = 0;
     if (surface.current) {
       surface.current.style.transition = '';
-      surface.current.style.transform = 'translate3d(0, 0, 0)';
+      surface.current.style.transform = 'translate3d(0px, 0, 0)';
     }
+    setDragging(false);
     setOpen(false);
-    setOffset(0);
   }, []);
 
   const handlePointerDown = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
-    if (event.pointerType === 'mouse' && event.button !== 0) return;
+    if ((event.pointerType === 'mouse' && event.button !== 0) || pointer.current?.tracking) return;
     pointer.current = {
       id: event.pointerId,
       startX: event.clientX,
       startY: event.clientY,
       lastX: event.clientX,
-      lastTime: event.timeStamp || Date.now(),
+      lastTime: eventTime(event.timeStamp),
       velocity: 0,
       tracking: false
     };
@@ -85,15 +103,17 @@ export function SwipeableRow({
         return;
       }
       current.tracking = true;
+      draggingRef.current = true;
+      if (surface.current) surface.current.style.transition = 'none';
       try {
-        event.currentTarget.setPointerCapture(event.pointerId);
+        event.currentTarget.setPointerCapture?.(event.pointerId);
       } catch {
         // Pointer capture can be unavailable for synthetic or interrupted gestures; the row can
         // still finish from the movement itself.
       }
       setDragging(true);
     }
-    const now = event.timeStamp || Date.now();
+    const now = eventTime(event.timeStamp);
     const dt = Math.max(1, now - current.lastTime);
     current.velocity = (event.clientX - current.lastX) / dt;
     current.lastX = event.clientX;
@@ -103,26 +123,28 @@ export function SwipeableRow({
     dragOffset.current = clampOffset(origin + dx, actionsWidth);
     if (!frame.current) frame.current = requestAnimationFrame(() => {
       frame.current = 0;
-      if (surface.current) surface.current.style.transform = `translate3d(${dragOffset.current}px, 0, 0)`;
+      if (surface.current && draggingRef.current) surface.current.style.transform = `translate3d(${dragOffset.current}px, 0, 0)`;
     });
   }, [actionsWidth, open]);
 
   const finishPointer = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
     const current = pointer.current;
+    if (!current || current.id !== event.pointerId) return;
     pointer.current = null;
     cancelAnimationFrame(frame.current); frame.current = 0;
-    if (!current || current.id !== event.pointerId || !current.tracking) return;
-    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+    if (!current.tracking) return;
+    if (event.currentTarget.hasPointerCapture?.(event.pointerId)) {
       try {
-        event.currentTarget.releasePointerCapture(event.pointerId);
+        event.currentTarget.releasePointerCapture?.(event.pointerId);
       } catch {
         // Already released by the browser; the row still settles below.
       }
     }
+    draggingRef.current = false;
     setDragging(false);
     suppressClick.current = true;
-    window.requestAnimationFrame(() => { suppressClick.current = false; });
-    const now = event.timeStamp || Date.now();
+    requestAnimationFrame(() => { suppressClick.current = false; });
+    const now = eventTime(event.timeStamp);
     const velocity = (now - current.lastTime > 80) ? 0 : current.velocity;
     const shouldOpen = settleOpen({
       wasOpen: open,
@@ -132,21 +154,23 @@ export function SwipeableRow({
     });
     // The tray clicking into place tells the thumb the Delete is now one tap away.
     if (shouldOpen && !open) haptic('detent');
-    setOpen(shouldOpen);
-    dragOffset.current = shouldOpen ? -actionsWidth : 0;
+    const settled = shouldOpen ? -actionsWidth : 0;
+    dragOffset.current = settled;
     if (surface.current) {
       surface.current.style.transition = '';
-      surface.current.style.transform = `translate3d(${dragOffset.current}px, 0, 0)`;
+      surface.current.style.transform = `translate3d(${settled}px, 0, 0)`;
     }
-    setOffset(shouldOpen ? -actionsWidth : 0);
+    setOpen(shouldOpen);
   }, [actionsWidth, open]);
 
-  const handlePointerCancel = useCallback(() => {
+  const handlePointerCancel = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
     const current = pointer.current;
+    if (!current || current.id !== event.pointerId) return;
     pointer.current = null;
     cancelAnimationFrame(frame.current); frame.current = 0;
+    draggingRef.current = false;
     setDragging(false);
-    if (!current || !current.tracking) {
+    if (!current.tracking) {
       close();
       return;
     }
@@ -156,18 +180,14 @@ export function SwipeableRow({
       velocityPxPerMs: 0,
       actionsWidth
     });
-    setOpen(shouldOpen);
-    dragOffset.current = shouldOpen ? -actionsWidth : 0;
+    const settled = shouldOpen ? -actionsWidth : 0;
+    dragOffset.current = settled;
     if (surface.current) {
       surface.current.style.transition = '';
-      surface.current.style.transform = `translate3d(${dragOffset.current}px, 0, 0)`;
+      surface.current.style.transform = `translate3d(${settled}px, 0, 0)`;
     }
-    setOffset(shouldOpen ? -actionsWidth : 0);
+    setOpen(shouldOpen);
   }, [actionsWidth, close, open]);
-
-  const tier = useWindowTier();
-  const showDesktop = !adaptive || tier !== 'compact';
-  const showMobile = !adaptive || tier === 'compact';
 
   return <>
     {showDesktop && <div className={`swipeable-row-desktop ${className}`.trim()}>
@@ -180,8 +200,8 @@ export function SwipeableRow({
         role="group"
         aria-label={actionsLabel}
         aria-hidden={!open}
-        inert={!(open || offset !== 0 || dragging)}
-        style={{ visibility: (open || offset !== 0 || dragging) ? undefined : 'hidden' }}
+        inert={!(open || dragging)}
+        style={{ visibility: (open || dragging) ? undefined : 'hidden' }}
       >
         {actions}
       </div>
@@ -191,13 +211,12 @@ export function SwipeableRow({
         className="swipeable-row-surface"
         data-swipe-ignore=""
         data-swipe-open={open ? 'true' : 'false'}
-        style={{ transform: `translate3d(${offset}px, 0, 0)`, transition: dragging ? 'none' : undefined }}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={finishPointer}
         onPointerCancel={handlePointerCancel}
         onClick={() => { if (!suppressClick.current && open) close(); }}
-        onKeyDown={event => { if (event.key === 'Escape' && open) { event.preventDefault(); close(); } }}
+        onKeyDown={event => { if (event.key === 'Escape' && (open || dragging)) { event.preventDefault(); close(); } }}
       >
         {children}
       </div>

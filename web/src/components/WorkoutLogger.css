@@ -14,7 +14,7 @@
   margin: 0;
   color: var(--text);
   font-size: 26px !important;
-  font-weight: 760;
+  font-weight: 700;
   letter-spacing: -0.03em;
   line-height: 1.15;
 }
@@ -36,7 +36,7 @@
   color: var(--accent);
   font-variant-numeric: tabular-nums;
 }
-.workout-progression-badge .badge-weight { display: inline-flex; align-items: center; gap: 5px; font-size: 16px; font-weight: 750; }
+.workout-progression-badge .badge-weight { display: inline-flex; align-items: center; gap: 5px; font-size: 16px; font-weight: 680; }
 .workout-progression-badge .badge-sub { color: var(--muted); font-size: var(--font-secondary); }
 /* The change itself carries the colour: progress in the accent, a repeat quiet, easing off in amber. */
 .workout-progression-badge.progression-up { color: var(--accent); background: var(--accent-soft); border-color: var(--accent-border); }

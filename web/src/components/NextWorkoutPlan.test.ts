@@ -1,6 +1,7 @@
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { api } from '../lib/api';
 import { viewReadCache } from '../lib/viewReadCache';
 import { ViewReadScopeContext } from '../lib/viewReadScope';
 import type { ExerciseLastPerformed } from '../lib/lastPerformed';
@@ -9,6 +10,7 @@ import { mockBootstrap, mockTemplate } from './nextWorkoutHeroTestFixtures';
 
 afterEach(() => {
   viewReadCache.reset();
+  vi.restoreAllMocks();
 });
 
 describe('NextWorkoutPlan view cache sharing', () => {
@@ -30,6 +32,27 @@ describe('NextWorkoutPlan view cache sharing', () => {
     expect(html).toContain('Bench Press');
     expect(html).toContain('100 kg');
     expect(html).not.toContain('hero-plan-skeleton');
+  });
+
+  it('keeps the plan skeleton reserved while launch confirmation is pending', () => {
+    const templateSpy = vi.spyOn(api, 'getTemplate');
+    const lastSpy = vi.spyOn(api, 'lastPerformed');
+    const scope = JSON.stringify(['acc-1', { templates: 1, history: 1 }]);
+    viewReadCache.set(`${scope}:template:tpl-1`, 1, mockTemplate({ id: 'tpl-1' }));
+    viewReadCache.set(`${scope}:last-performed`, 1, [{
+      exerciseId: 'bench', weightKg: 100, reps: 8, durationSeconds: null, finishedAt: '2026-10-27T12:00:00Z'
+    }]);
+
+    const html = renderToStaticMarkup(createElement(
+      ViewReadScopeContext,
+      { value: scope },
+      createElement(NextWorkoutPlan, { data: mockBootstrap({ templates: [] }), templateId: 'tpl-1', unconfirmed: true })
+    ));
+
+    expect(html).toContain('hero-plan-skeleton');
+    expect(html).not.toContain('Bench Press');
+    expect(templateSpy).not.toHaveBeenCalled();
+    expect(lastSpy).not.toHaveBeenCalled();
   });
 
   it('invalidates cached plan reads when the account or resource version scope changes', () => {

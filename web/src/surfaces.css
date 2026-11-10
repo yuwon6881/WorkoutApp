@@ -1,41 +1,41 @@
-/* Surface layer for the Midnight Lime (dark) and Lavender (light) themes, shared with NutritionApp.
+/* Surface layer for the Obsidian (dark) and Porcelain (light) themes.
    Loaded after every other sheet, so it stays limited to shared primitives — shell, cards, dialogs,
-   buttons, fields, and labels. Feature sheets own their own layouts. It consumes
-   only the semantic tokens in index.css and never introduces colours of its own. */
+   buttons, fields, and labels. Feature sheets own their own layouts. It consumes only the semantic
+   tokens in index.css and never introduces colours of its own.
 
-/* Canvas: a soft wash of the accent behind the top of every page. */
-body{background:radial-gradient(1100px 520px at 50% -260px,color-mix(in srgb,var(--accent) 16%,transparent),transparent 72%) no-repeat,var(--bg)}
-:root:not([data-theme=light]) body{background:radial-gradient(900px 420px at 50% -260px,color-mix(in srgb,var(--accent) 7%,transparent),transparent 70%) no-repeat,var(--bg)}
+   Surfaces are flat: solid fills, hairlines, and neutral shadows only where something really floats
+   (dialogs, the dock, toasts, a hovered card). No gradients, lit edges or coloured glows. */
 
 /* Type: display-weight headings with tight tracking; labels stay in sentence case. */
-h1,h2,h3{font-weight:700;letter-spacing:-.03em}
-h1{font-weight:760;letter-spacing:-.035em;line-height:1.12}
-h2{font-weight:680;letter-spacing:-.022em}
-.brand{font-weight:780;letter-spacing:-.045em}
-.eyebrow,.tiny-label,.stat-label{text-transform:none;letter-spacing:-.005em;font-weight:620;color:var(--muted)}
+h1,h2,h3{font-weight:650;letter-spacing:-.024em}
+h1{font-weight:680;letter-spacing:-.038em;line-height:1.1}
+h2{font-weight:640;letter-spacing:-.022em}
+.brand{font-weight:720;letter-spacing:-.045em}
+.eyebrow,.tiny-label,.stat-label{text-transform:none;letter-spacing:-.005em;font-weight:560;color:var(--muted)}
 .page-heading .eyebrow,.hero-top .eyebrow{letter-spacing:-.005em}
 
-/* Cards: borderless white floats on lavender; dark cards keep a hairline on near-black. */
+/* Cards: dark cards keep a hairline on the canvas; light cards float on a soft neutral shadow. */
 .panel{border-color:var(--card-border);border-radius:var(--radius);box-shadow:var(--shadow)}
 .pill{border-radius:var(--radius-pill);padding-inline:10px;gap:6px}
 
-/* Dialogs and sheets: the largest radius, lifted by a deep shadow. */
-.modal{border-color:var(--card-border);border-radius:var(--radius-modal);box-shadow:0 30px 80px -20px var(--overlay)}
-.modal::backdrop{backdrop-filter:blur(6px)}
+/* Dialogs and sheets: the largest radius, lifted by the deepest shadow over a blurred backdrop. */
+.modal{border-color:var(--card-border);border-radius:var(--radius-modal);box-shadow:var(--shadow-float)}
+.modal::backdrop{backdrop-filter:blur(8px)}
 /* Full-screen backdrop blurs are costly to raster in the Android WebView (the page is kept across
    backgrounding by offscreen pre-raster in MainActivity). The overlay colour alone still dims what is
    behind a dialog. */
 :root[data-shell=android] .modal::backdrop{backdrop-filter:none}
 @media(max-width:639px){.modal,.modal.wide{border-radius:var(--radius-modal) var(--radius-modal) 0 0}}
 
-/* Buttons: the control radius, matching fields. Primary carries the accent glow on hover only. */
-.button{border-radius:var(--radius-control);font-weight:620;transition:background-color var(--motion-control) ease,border-color var(--motion-control) ease,color var(--motion-control) ease,box-shadow var(--motion-control) ease,transform var(--motion-control) var(--motion-ease)}
-.button.primary{font-weight:680;letter-spacing:-.005em;border-color:var(--accent)}
-@media (hover:hover) and (pointer:fine){.button.primary:hover:not(:disabled){box-shadow:var(--shadow-raised);transform:translateY(-1px)}}
-.button.primary:active:not(:disabled){transform:scale(.98);box-shadow:none}
+/* Buttons: solid fills on the control radius. Primary is the plain accent; it brightens and rises a
+   pixel on hover and dims when pressed. */
+.button{border-radius:var(--radius-control);font-weight:580;letter-spacing:-.008em;transition:background-color var(--motion-control) ease,border-color var(--motion-control) ease,color var(--motion-control) ease,box-shadow var(--motion-control) ease,transform var(--motion-control) var(--motion-ease),filter var(--motion-control) ease}
+.button.primary{font-weight:640;letter-spacing:-.01em;border-color:var(--accent)}
+@media (hover:hover) and (pointer:fine){.button.primary:hover:not(:disabled){transform:translateY(-1px)}}
+.button.primary:active:not(:disabled){transform:scale(.98);filter:brightness(.94)}
 .button.secondary{background:var(--surface);border-color:var(--border)}
 :root:not([data-theme=light]) .button.secondary{background:var(--surface-raised);border-color:transparent}
-@media (hover:hover) and (pointer:fine){.button.secondary:hover:not(:disabled){border-color:var(--accent-border)}}
+@media (hover:hover) and (pointer:fine){.button.secondary:hover:not(:disabled){border-color:var(--border-hover)}}
 .button.destructive{border-color:var(--red-border)}
 .button.tertiary{border-color:transparent}
 /* A press answers at once on touch, where :hover never fires. Colour only: a button that shrinks
@@ -49,7 +49,6 @@ input:not([type=checkbox]):not([type=radio]):not([type=range]):focus,select:focu
 .search-box:focus-within{background:var(--surface);border-color:var(--accent)}
 
 /* Segmented choices (the sunken pill track) are styled in components/ui/SegmentedControl.css. */
-
 
 /* The top bar floats on the canvas; it no longer draws a rule under itself. */
 .topbar{border-bottom-color:transparent}

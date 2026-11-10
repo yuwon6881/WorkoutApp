@@ -68,7 +68,7 @@
 .progress-stat-card strong,
 .stat-card-value > strong {
   font-size: clamp(24px, 2.4vw, 28px);
-  font-weight: 760;
+  font-weight: 700;
   margin: 0;
   font-variant-numeric: tabular-nums;
   line-height: 1.12;
@@ -138,12 +138,12 @@
   }
 }
 
-/* On Overview the week's totals sit inside the calendar card, under the days they count, as three
-   quiet tiles that follow the calendar's swipe: the value, then a one-line label, the same shape in
-   every tile. */
+/* On Overview the week's totals sit inside the calendar card, under the days they count, as one
+   row of three figures split by hairlines (the day strip above is the card's only filled block):
+   the value, then a one-line label, the same shape in every column. */
 .training-calendar-card .stats-grid.progress-stats {
-  gap: 8px;
-  padding: 0;
+  gap: 0;
+  padding: 2px 4px 0;
   background: transparent;
   border: none;
   border-radius: 0;
@@ -154,11 +154,19 @@
 .training-calendar-card .progress-stat-card:first-child,
 .training-calendar-card .progress-stat-card:last-of-type {
   justify-content: flex-start;
-  gap: 4px;
-  padding: 10px 12px 11px;
+  gap: 2px;
+  padding: 2px 14px;
   border: none;
-  border-radius: var(--radius-control);
-  background: var(--surface-raised);
+  border-radius: 0;
+  background: transparent;
+}
+
+.training-calendar-card .progress-stat-card + .progress-stat-card {
+  border-left: 1px solid var(--border);
+}
+
+.training-calendar-card .progress-stat-card:first-child {
+  padding-left: 4px;
 }
 
 .training-calendar-card .stat-card-value {
@@ -167,19 +175,20 @@
 
 .training-calendar-card .stat-label-text {
   font-size: var(--font-secondary);
-  font-weight: 600;
+  font-weight: 500;
   white-space: nowrap;
 }
 
 .training-calendar-card .progress-stat-card strong,
 .training-calendar-card .stat-card-value > strong {
-  font-size: 22px;
+  font-size: 26px;
+  font-weight: 650;
 }
 
 @media (max-width: 359px) {
   .training-calendar-card .progress-stat-card,
   .training-calendar-card .progress-stat-card:first-child,
   .training-calendar-card .progress-stat-card:last-of-type {
-    padding: 9px 8px 10px;
+    padding: 2px 8px;
   }
 }

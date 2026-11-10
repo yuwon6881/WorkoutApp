@@ -3,7 +3,7 @@ import type { Plugin } from 'vite';
 // The browser discovers the Latin font only after the stylesheet has downloaded and the text has
 // been laid out, so first paint uses the fallback font and then swaps. A preload starts the download
 // with the stylesheet instead. Other subsets still load on demand through their unicode-range rules.
-const latinFont = /(?:^|\/)plus-jakarta-sans-latin-wght-normal-[\w-]+\.woff2$/;
+const latinFont = /(?:^|\/)geist-latin-wght-normal-[\w-]+\.woff2$/;
 
 export function preloadLatinFont(): Plugin {
   return {

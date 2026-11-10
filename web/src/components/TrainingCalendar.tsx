@@ -19,9 +19,10 @@ interface TrainingCalendarProps {
   refreshKey: string | HistoryPage;
   activeWorkoutId: string | null;
   accountId: string;
+  unconfirmed?: boolean;
 }
 
-export function TrainingCalendar({ onSession, program, refreshKey, activeWorkoutId, accountId }: TrainingCalendarProps) {
+export function TrainingCalendar({ onSession, program, refreshKey, activeWorkoutId, accountId, unconfirmed = false }: TrainingCalendarProps) {
   const [offset, setOffset] = useState(0);
   const days = weekDays(offset);
   const rail = useRef<HTMLDivElement>(null);
@@ -33,7 +34,7 @@ export function TrainingCalendar({ onSession, program, refreshKey, activeWorkout
   const weekTo = localDate(days[6]);
   const today = localDate(new Date());
   const { items: calendar, loading: initialLoading, error: readError } = useCalendarActivity({
-    offset, accountId, activeWorkoutId, refreshKey, weekFrom, weekTo
+    offset, accountId, activeWorkoutId, refreshKey, weekFrom, weekTo, enabled: !unconfirmed
   });
   const [openError, setOpenError] = useState('');
   const calendarError = readError || openError;

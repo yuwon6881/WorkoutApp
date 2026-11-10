@@ -2,7 +2,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
 import { ErrorBoundary } from './components/ui/ErrorBoundary';
-import '@fontsource-variable/plus-jakarta-sans/index.css';
+import '@fontsource-variable/geist/wght.css';
 import {applyTheme, initialTheme} from './lib/theme';
 import {trackInputModality} from './lib/inputModality';
 import './index.css';

@@ -367,7 +367,7 @@
 
 /* When selected, chip highlights distinctly with high contrast and outline ring */
 .rir-chip.selected {
-  font-weight: 800;
+  font-weight: 700;
   box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px currentColor;
 }
 .rir-chip.selected.rir-tier-0 {

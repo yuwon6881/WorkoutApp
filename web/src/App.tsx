@@ -65,9 +65,10 @@ export default function App() {
   const neededResources: AppResource[] = tab === 'program' ? ['catalog', 'programs', 'templates']
     : tab === 'exercises' || tab === 'import' ? ['catalog'] : [];
   const resourcesReady = neededResources.every(resource => (data?.resources?.[resource] || data?.loadedResources?.[resource]));
+  const viewLabel = NAV.find(item => item.id === tab)?.label ?? (tab === 'import' ? 'Import' : 'Settings');
   useEffect(() => {
-    if (data && neededResources.some(resource => !data.resources?.[resource])) void app.ensureResources(neededResources);
-  }, [tab, data?.account.id, data?.resources, resourcesReady, training]);
+    if (data && !app.unconfirmed && neededResources.some(resource => !data.resources?.[resource])) void app.ensureResources(neededResources);
+  }, [tab, data?.account.id, data?.resources, resourcesReady, training, app.unconfirmed]);
 
   // A browser tab already has its own pull-to-refresh; the installed and Android apps do not.
   const pullToRefresh = usePullToRefresh(app.reload, useWindowTier() === 'compact' && isStandalone() && !training && online);
@@ -154,7 +155,7 @@ export default function App() {
 
   if (loading && !data && !recovery) return <>{restTimerDriver}<AppLoading /></>;
 
-  if (!data && recovery) return <>{restTimerDriver}<div className="app-shell recovery-shell">
+  if ((!data || app.unconfirmed) && recovery) return <>{restTimerDriver}<div className="app-shell recovery-shell">
     <main className="recovery-main">
       <div className="error-banner" role="status"><WifiOff size={17} />{loading ? 'Checking your connection. Your saved workout is available; changes stay on this device until your account is confirmed.' : 'Offline recovery. This is the active workout previously saved on this device. Changes stay here until you reconnect and the server can confirm them.'}</div>
       {training && workoutSession ? <Suspense fallback={<div className="panel recovery-card" role="status">Opening your saved workout…</div>}><Workout session={workoutSession} accountId={recovery.accountId} preferences={recovery.preferences}
@@ -384,24 +385,27 @@ export default function App() {
         {app.resourceError && <CardFeedback tone="warning" title="Could not load this view" message={app.resourceError}
           action={{label:'Retry',onClick:()=>void app.ensureResources(neededResources),disabled:loading}}/>}
         <MotionScene sceneKey={tab}>
-        <Suspense fallback={<ViewSkeleton view={tab} label={NAV.find(item => item.id === tab)?.label ?? (tab === 'import' ? 'Import' : 'Settings')} />}>
-        {tab === 'overview' && <Dashboard data={data} onProgram={() => setTab('program')}
-            onImport={openImport} onSession={setDetail} onResume={() => setTraining(true)} onChanged={app.reload}
-            onExercise={id => { void openExercise(id); }} onStart={previewWorkout} />}
-        {!resourcesReady && <ViewSkeleton view={tab} label={NAV.find(item => item.id === tab)?.label ?? 'Loading'} />}
-        {resourcesReady && tab === 'program' && <Programs data={data} exercises={data.exercises} onStart={start} onPreview={previewWorkout} onImport={openImport} onChanged={app.reload} onSession={setDetail}
-          ensureResources={app.ensureResources}
-          onTemplateSaved={saved => app.setData(current => acknowledgeTemplate(current, saved.id, saved))}
-          onTemplateDeleted={id => app.setData(current => acknowledgeTemplate(current, id, null))} />}
-        {resourcesReady && tab === 'import' && <ImportReview exercises={data.exercises} imports={data.imports}
-          onBack={() => setTab('program')} onChanged={app.reload} notify={setToast} />}
-        {tab === 'body' && <MuscleBalanceView timeZone={Intl.DateTimeFormat().resolvedOptions().timeZone} refreshKey={data.resourceVersions?.history} onExercise={id => { void openExercise(id); }} />}
-        {resourcesReady && tab === 'exercises' && <ExerciseLibrary exercises={data.exercises} unit={data.preferences.unit} onOpen={setExerciseDetail} onChanged={app.reload} />}
-        {tab === 'settings' && <SettingsView account={data.account} preferences={data.preferences} devicePreferences={app.devicePreferences} onCatalogChanged={async () => { await app.reload(); }}
-          version={__APP_VERSION__}
-          onDevicePreferences={app.setDevicePreferences} onPreferences={app.savePreferences} notify={setToast} onSignOut={async () => { await app.signOut(); }}
-          preferencePending={app.preferencePending} onRetryPreferences={app.retryPreferences} onRevertPreferences={app.revertPreferences} />}
-        </Suspense>
+        {!resourcesReady ? (
+          <ViewSkeleton view={tab} label={viewLabel} />
+        ) : (
+          <Suspense fallback={<ViewSkeleton view={tab} label={viewLabel} />}>
+            {tab === 'overview' && <Dashboard data={data} unconfirmed={app.unconfirmed} onProgram={() => setTab('program')}
+                onImport={openImport} onSession={setDetail} onResume={() => setTraining(true)} onChanged={app.reload}
+                onExercise={id => { void openExercise(id); }} onStart={previewWorkout} />}
+            {tab === 'program' && <Programs data={data} exercises={data.exercises} onStart={start} onPreview={previewWorkout} onImport={openImport} onChanged={app.reload} onSession={setDetail}
+              ensureResources={app.ensureResources}
+              onTemplateSaved={saved => app.setData(current => acknowledgeTemplate(current, saved.id, saved))}
+              onTemplateDeleted={id => app.setData(current => acknowledgeTemplate(current, id, null))} />}
+            {tab === 'import' && <ImportReview exercises={data.exercises} imports={data.imports}
+              onBack={() => setTab('program')} onChanged={app.reload} notify={setToast} />}
+            {tab === 'body' && <MuscleBalanceView unconfirmed={app.unconfirmed} timeZone={Intl.DateTimeFormat().resolvedOptions().timeZone} refreshKey={data.resourceVersions?.history} onExercise={id => { void openExercise(id); }} />}
+            {tab === 'exercises' && <ExerciseLibrary exercises={data.exercises} unit={data.preferences.unit} onOpen={setExerciseDetail} onChanged={app.reload} />}
+            {tab === 'settings' && <SettingsView account={data.account} preferences={data.preferences} devicePreferences={app.devicePreferences} onCatalogChanged={async () => { await app.reload(); }}
+              version={__APP_VERSION__}
+              onDevicePreferences={app.setDevicePreferences} onPreferences={app.savePreferences} notify={setToast} onSignOut={async () => { await app.signOut(); }}
+              preferencePending={app.preferencePending} onRetryPreferences={app.retryPreferences} onRevertPreferences={app.revertPreferences} />}
+          </Suspense>
+        )}
         </MotionScene>
       </main>
 

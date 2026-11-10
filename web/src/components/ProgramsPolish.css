@@ -1,6 +1,6 @@
 /* ProgramsPolish.css - Task T10 Workouts page polished entry points
-   Consumes only semantic tokens from index.css. Works identically in Midnight Lime (dark)
-   and Lavender (light) themes without raw color literals or hard-coded hex codes. */
+   Consumes only semantic tokens from index.css. Works identically in Obsidian (dark)
+   and Porcelain (light) themes without raw color literals or hard-coded hex codes. */
 
 /* Page-level layout capping max width on expanded displays to keep reading measure elegant. */
 .pp-workouts-page {
@@ -87,7 +87,7 @@
 .pp-import-filename {
   margin: 0;
   font-size: 16px;
-  font-weight: 740;
+  font-weight: 680;
   letter-spacing: -0.025em;
   color: var(--text);
   overflow: hidden;

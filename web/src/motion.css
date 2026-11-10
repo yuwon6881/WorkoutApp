@@ -2,15 +2,28 @@
    to. Every animation here is decorative and short, and the global reduced-motion rule turns
    all of them off. */
 @keyframes dialog-lift {
-  from { opacity: 0; transform: translateY(10px) scale(.985); }
+  from { opacity: 0; transform: translateY(14px) scale(.965); }
+  60% { opacity: 1; }
 }
 
 @keyframes sheet-rise {
-  from { opacity: .4; transform: translateY(32px); }
+  from { opacity: .4; transform: translateY(48px); }
+}
+
+@keyframes backdrop-settle {
+  from { opacity: 0; backdrop-filter: blur(0); }
 }
 
 .modal[open] {
   animation: dialog-lift var(--motion-panel) var(--motion-ease);
+}
+
+.modal[open]::backdrop {
+  animation: backdrop-settle var(--motion-panel) ease;
+}
+
+:root[data-shell=android] .modal[open]::backdrop {
+  animation-name: backdrop-fade;
 }
 
 @media (max-width: 639px) {
@@ -57,4 +70,57 @@
 
 .just-logged .set-log-checkbox.checked svg path {
   animation: set-check-draw 220ms var(--motion-ease) 70ms backwards;
+}
+
+/* A page's cards settle into place one after another when the page opens. Each card stays readable
+   throughout (it never starts invisible), and the cascade ends within a third of a second, so ready
+   content is never held back. Loading placeholders do not take part: a card that replaces its
+   placeholder rises once, as content arriving. */
+@keyframes card-settle {
+  from { opacity: .35; transform: translateY(14px) scale(.992); }
+}
+
+.motion-scene .panel:not(.skeleton) {
+  animation: card-settle 420ms var(--motion-ease) backwards;
+}
+
+.motion-scene .panel:not(.skeleton):nth-of-type(2) { animation-delay: 45ms; }
+.motion-scene .panel:not(.skeleton):nth-of-type(3) { animation-delay: 90ms; }
+.motion-scene .panel:not(.skeleton):nth-of-type(n+4) { animation-delay: 135ms; }
+
+/* A card inside a card (and anything in a dialog) belongs to its parent's movement. */
+.motion-scene .panel .panel,
+.modal .panel {
+  animation: none;
+}
+
+/* Cards that open something lift toward the pointer; the shadow deepens with the rise. */
+@media (hover: hover) and (pointer: fine) {
+  .exercise-card,
+  .picker-card {
+    transition: transform var(--motion-panel) var(--motion-ease), box-shadow var(--motion-panel) var(--motion-ease), border-color var(--motion-control) ease, background-color var(--motion-control) ease;
+  }
+
+  .exercise-card:hover,
+  .picker-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-raised);
+  }
+}
+
+/* A trailing arrow leans the way it points when its button is hovered. */
+@media (hover: hover) and (pointer: fine) {
+  .button:hover:not(:disabled) > .lucide-arrow-right,
+  .button:hover:not(:disabled) > .lucide-chevron-right {
+    transform: translateX(3px);
+  }
+}
+
+/* A toast rises into place with a slight overshoot instead of appearing. */
+@keyframes toast-rise {
+  from { opacity: 0; translate: 0 16px; scale: .96; }
+}
+
+.toast {
+  animation: toast-rise var(--motion-panel) var(--motion-spring);
 }

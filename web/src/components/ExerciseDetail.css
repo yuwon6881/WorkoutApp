@@ -31,7 +31,7 @@
 }
 .exercise-chart-readout strong {
   font-size: 28px;
-  font-weight: 760;
+  font-weight: 700;
   /* Tight tracking closes the space in "8 reps" up to "8reps"; keep the unit visibly apart. */
   letter-spacing: -0.015em;
   word-spacing: 0.12em;
@@ -95,7 +95,7 @@
 }
 .detail-record-grid .stat-card > strong {
   font-size: 18px !important;
-  font-weight: 760;
+  font-weight: 700;
   letter-spacing: -0.02em;
   line-height: 1.25;
   color: var(--text);

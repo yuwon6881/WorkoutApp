@@ -45,7 +45,7 @@ export function applyTheme(theme: Theme, animate = true): Promise<void> {
     root.dataset.theme = theme;
     const metas = [...document.querySelectorAll('meta[name="theme-color"]')];
     const background = getComputedStyle(root).getPropertyValue('--bg').trim();
-    const color = background || (theme === 'light' ? '#F4F2FA' : '#08080A');
+    const color = background || (theme === 'light' ? '#F4F4F1' : '#09090C');
     if (metas[0]) {
       metas[0].removeAttribute('media');
       metas[0].setAttribute('content', color);

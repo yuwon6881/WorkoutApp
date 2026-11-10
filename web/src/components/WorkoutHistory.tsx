@@ -18,6 +18,7 @@ interface WorkoutHistoryProps {
   initial?: HistoryPage;
   accountId?: string;
   refreshKey?: object | string;
+  unconfirmed?: boolean;
   unit: Unit;
   onSession: (s: Session) => void;
   onStart: () => void;
@@ -33,6 +34,7 @@ export function WorkoutHistory({
   initial,
   accountId,
   refreshKey,
+  unconfirmed = false,
   unit,
   onSession,
   onStart,
@@ -41,10 +43,10 @@ export function WorkoutHistory({
   embedded = false
 }: WorkoutHistoryProps) {
   const readKey = `${accountId ?? ''}:history`;
-  const cached = viewReadCache.get<HistorySummaryPage>(readKey, refreshKey);
+  const cached = unconfirmed ? undefined : viewReadCache.get<HistorySummaryPage>(readKey, refreshKey);
   const [page, setPage] = useState<HistoryPage>(initial ?? { total: cached?.total ?? 0, page: 0, size: 20, sessions: cached?.sessions ?? [] });
   const [cursor, setCursor] = useState<{ at: string | null; id: string | null }>({ at: cached?.nextBeforeAt ?? null, id: cached?.nextBeforeId ?? null });
-  const [loading, setLoading] = useState(!initial && !cached);
+  const [loading, setLoading] = useState(!initial && (unconfirmed || !cached));
   const [error, setError] = useState('');
   const [deleteSession, setDeleteSession] = useState<Session | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -59,7 +61,11 @@ export function WorkoutHistory({
     const active = new AbortController(); controller.current = active;
     busy.current = false;
     setError('');
-    if (initial) {
+    if (unconfirmed) {
+      setPage(initial ?? { total: 0, page: 0, size: 20, sessions: [] });
+      setCursor({ at: null, id: null });
+      setLoading(!initial);
+    } else if (initial) {
       setPage(initial); setLoading(false);
       const last = initial.sessions.at(-1);
       setCursor({ at: last?.finishedAt ?? null, id: last?.id ?? null });
@@ -79,7 +85,7 @@ export function WorkoutHistory({
       }).finally(() => { if (generation === epoch.current) setLoading(false); });
     }
     return () => { active.abort(); };
-  }, [initial, accountId, refreshKey]);
+  }, [initial, accountId, refreshKey, unconfirmed]);
 
   const hasMore = !recent && Boolean(cursor.at && cursor.id);
   const loadMoreRef = useLoadMoreOnScroll(!loading && hasMore && !error, () => void more());

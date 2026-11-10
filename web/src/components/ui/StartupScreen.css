@@ -17,7 +17,7 @@
   gap: 12px;
   margin-bottom: 28px;
   font-size: 28px;
-  font-weight: 780;
+  font-weight: 700;
   letter-spacing: -0.045em;
   color: var(--text);
 }
@@ -43,7 +43,7 @@
 
 .startup-card.panel h1 {
   font-size: clamp(28px, 4vw, 36px);
-  font-weight: 780;
+  font-weight: 700;
   letter-spacing: -0.04em;
   line-height: 1.15;
   color: var(--text);

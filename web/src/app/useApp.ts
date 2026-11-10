@@ -353,11 +353,13 @@ export function useApp(): AppState {
 
   const setActiveWorkout = useCallback((session: Session | null) => {
     workoutVersion.current++;
+    if (session?.active) clearLaunchSnapshot();
     patch(current => ({ ...current, activeWorkout: session?.active ? session : null }));
   }, [patch]);
 
   const updateRecovery = useCallback((record: WorkoutRecoveryRecord | null) => {
     workoutVersion.current++;
+    if (record) clearLaunchSnapshot();
     setRecovery(record);
   }, []);
 

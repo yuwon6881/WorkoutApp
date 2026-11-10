@@ -1,5 +1,5 @@
 /* Segmented choice: a sunken pill track with a raised pill marker that slides to the selected option
-   (Week · Month · Year), as in NutritionApp. Light raises a white pill; dark a lighter grey one. */
+   (Week · Month · Year). Light raises a white pill; dark a lighter grey one. */
 .segmented {
   display: inline-grid;
   gap: 4px;

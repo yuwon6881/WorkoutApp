@@ -32,7 +32,7 @@ function sortMuscles(rows: MuscleBalanceRow[]) {
   return [...rows].sort((a, b) => b.sets - a.sets || a.muscle.localeCompare(b.muscle));
 }
 
-export function MuscleBalanceView({ timeZone, onExercise, refreshKey }: { timeZone: string; onExercise: (id: string) => void; refreshKey?: string }) {
+export function MuscleBalanceView({ timeZone, onExercise, refreshKey, unconfirmed = false }: { timeZone: string; onExercise: (id: string) => void; refreshKey?: string; unconfirmed?: boolean }) {
   const [range, setRange] = useState<BalanceRange>('1w');
   const [retry, setRetry] = useState(0);
   const scope = `${timeZone}:${refreshKey ?? ''}`;
@@ -59,6 +59,11 @@ export function MuscleBalanceView({ timeZone, onExercise, refreshKey }: { timeZo
   ]), [upperMuscles, lowerMuscles]);
 
   useEffect(() => {
+    if (unconfirmed) {
+      setLoading(true);
+      setError('');
+      return;
+    }
     const controller = new AbortController();
     const id = ++requestId.current;
     setLoading(true);
@@ -78,7 +83,7 @@ export function MuscleBalanceView({ timeZone, onExercise, refreshKey }: { timeZo
       });
 
     return () => controller.abort();
-  }, [range, retry, timeZone, refreshKey]);
+  }, [range, retry, timeZone, refreshKey, unconfirmed]);
 
   /// Tapping a muscle pins it, which is how a touch device reads the same stats a pointer gets by
   /// hovering. A pinned muscle stays until it is tapped again.

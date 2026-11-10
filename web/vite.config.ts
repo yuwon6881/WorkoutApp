@@ -68,7 +68,7 @@ export default defineConfig({
     manifest: {
       id: '/', name: 'Workout', short_name: 'Workout',
       description: 'Plan, train, and track your lifting. Your training is saved to your account.',
-      theme_color: '#08080A', background_color: '#08080A', display: 'standalone', start_url: '/', scope: '/',
+      theme_color: '#09090C', background_color: '#09090C', display: 'standalone', start_url: '/', scope: '/',
       orientation: 'portrait', categories: ['health', 'fitness', 'sports'],
       // A maskable icon is cropped to a circle or squircle, so it carries its own padded artwork
       // instead of sharing the "any" icon, whose glyph would be clipped.
@@ -92,9 +92,9 @@ export default defineConfig({
       navigateFallbackDenylist: [/^\/assets\//, /^\/api\//, /^\/health$/, /^\/open(?:\/|$)/, /^\/\.well-known\//],
       globPatterns: ['**/*.{js,css,html,png,svg,woff2}'],
       globIgnores: ['**/assets/firebase-push-*.js',
-        // Plus Jakarta Sans's Cyrillic and Vietnamese subsets load only for text that needs them, so they
+        // Geist's Cyrillic and Vietnamese subsets load only for text that needs them, so they
         // are fetched on demand rather than installed with the shell.
-        '**/assets/plus-jakarta-sans-cyrillic*', '**/assets/plus-jakarta-sans-vietnamese*', '**/assets/*-wght-italic*',
+        '**/assets/geist-cyrillic*', '**/assets/geist-vietnamese*', '**/assets/*-wght-italic*',
         '**/assets/Settings-*', '**/assets/Programs-*',
         '**/assets/MuscleBalanceView-*', '**/assets/bodyMap*'],
       // The rest-timer notification needs a click handler in the worker itself. It is imported

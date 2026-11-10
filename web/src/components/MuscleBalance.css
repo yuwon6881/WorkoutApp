@@ -40,7 +40,7 @@
 .muscle-balance-stat-value{
   color:var(--text);
   font-size:22px;
-  font-weight:760;
+  font-weight:700;
   letter-spacing:-0.03em;
   font-variant-numeric:tabular-nums;
   overflow:hidden;

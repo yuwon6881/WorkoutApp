@@ -9,10 +9,20 @@ const DISMISS_VELOCITY = 0.6; // px per ms, a deliberate flick
 const SETTLE_MS = 180;
 const INTERACTIVE = 'button,input,select,textarea,a,[role=button],[role=option],[role=slider],[contenteditable=true]';
 
-type Drag = { pointerId: number; startY: number; velocity: GestureVelocity; moved: boolean };
+type Drag = {
+  pointerId: number;
+  startY: number;
+  lastPreDrag: { y: number; at: number };
+  velocity: GestureVelocity;
+  moved: boolean;
+};
 
 function reducedMotion() {
   return typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+}
+
+function eventTime(timeStamp: number) {
+  return typeof timeStamp === 'number' && Number.isFinite(timeStamp) ? timeStamp : Date.now();
 }
 
 // On compact layouts a dialog is a bottom sheet with a grab handle. Dragging its header (or any
@@ -32,28 +42,38 @@ export function useSheetDrag(ref: RefObject<HTMLDialogElement | null>, onDismiss
 
   const onPointerDown = useCallback((event: ReactPointerEvent<HTMLDialogElement>) => {
     const element = ref.current;
-    const target = event.target as HTMLElement;
-    if (!element || windowTier() !== 'compact' || event.button !== 0) return;
+    const target = event.target as HTMLElement | null;
+    if (!element || !target || windowTier() !== 'compact' || event.button !== 0 || drag.current?.moved) return;
     const rect = element.getBoundingClientRect();
     const onGrabStrip = event.clientY >= rect.top && event.clientY - rect.top < 24;
     const onHandle = Boolean(target.closest('dialog > header, [data-sheet-handle]'));
     if ((!onGrabStrip && !onHandle) || target.closest(INTERACTIVE)) return;
+    const at = eventTime(event.timeStamp);
     const velocity = new GestureVelocity();
-    velocity.add(event.clientY, event.timeStamp);
-    drag.current = { pointerId: event.pointerId, startY: event.clientY, velocity, moved: false };
+    velocity.add(event.clientY, at);
+    drag.current = { pointerId: event.pointerId, startY: event.clientY, lastPreDrag: { y: event.clientY, at }, velocity, moved: false };
   }, [ref]);
 
   const onPointerMove = useCallback((event: ReactPointerEvent<HTMLDialogElement>) => {
     const element = ref.current;
     const current = drag.current;
     if (!element || !current || current.pointerId !== event.pointerId) return;
+    const at = eventTime(event.timeStamp);
     const offset = Math.max(0, event.clientY - current.startY);
-    if (!current.moved && offset < 6) return;
+    if (!current.moved && offset < 6) {
+      current.lastPreDrag = { y: event.clientY, at };
+      return;
+    }
     if (!current.moved) {
       current.moved = true;
       element.setPointerCapture?.(event.pointerId);
+      // Pre-slop movement within the velocity window belongs to the flick itself when the gesture
+      // started after resting a finger on the handle past 60 ms.
+      if (at > current.lastPreDrag.at && at - current.lastPreDrag.at <= 60) {
+        current.velocity.add(current.lastPreDrag.y, current.lastPreDrag.at);
+      }
     }
-    current.velocity.add(event.clientY, event.timeStamp);
+    current.velocity.add(event.clientY, at);
     dragOffset.current = offset;
     if (!frame.current) frame.current = requestAnimationFrame(() => {
       frame.current = 0;
@@ -65,11 +85,13 @@ export function useSheetDrag(ref: RefObject<HTMLDialogElement | null>, onDismiss
   const finish = useCallback((event: ReactPointerEvent<HTMLDialogElement>) => {
     const element = ref.current;
     const current = drag.current;
+    if (!current || current.pointerId !== event.pointerId) return;
     drag.current = null;
     cancelAnimationFrame(frame.current); frame.current = 0;
-    if (!element || !current || current.pointerId !== event.pointerId || !current.moved) return;
+    if (!element || !current.moved) return;
+    const at = eventTime(event.timeStamp);
     const offset = Math.max(0, event.clientY - current.startY);
-    const dismiss = event.type === 'pointerup' && (offset > Math.min(DISMISS_DISTANCE, element.offsetHeight * 0.3) || current.velocity.at(event.timeStamp) > DISMISS_VELOCITY);
+    const dismiss = event.type === 'pointerup' && (offset > Math.min(DISMISS_DISTANCE, element.offsetHeight * 0.3) || current.velocity.at(at) > DISMISS_VELOCITY);
     if (!dismiss) { reset(element, true); return; }
     haptic('tick');
     if (reducedMotion()) { onDismiss(); return; }

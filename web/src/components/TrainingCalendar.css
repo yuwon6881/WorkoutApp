@@ -51,7 +51,7 @@
   fill: var(--text);
   font-family: inherit;
   font-size: 22px;
-  font-weight: 760;
+  font-weight: 700;
   letter-spacing: -0.03em;
   font-variant-numeric: tabular-nums;
 }
@@ -155,10 +155,14 @@
   background: var(--surface-hover);
 }
 
-/* Week row */
+/* Week row: the seven days share one sunken track, so the week reads as a single strip and today
+   stands out of it as a solid tile. */
 .calendar-week-row {
   width: 100%;
   min-width: 0;
+  padding: 4px;
+  border-radius: calc(var(--radius-control) + 4px);
+  background: var(--surface-raised);
 }
 
 .calendar-week-rail {
@@ -228,8 +232,7 @@
   background: var(--surface-hover);
 }
 
-/* Day states. The days sit on the card itself; the date's disc carries the state, so a week reads
-   as one strip rather than seven boxes. Status keeps its icon below for anyone who cannot rely on
+/* Day states. The date's disc carries the state. Status keeps its icon below for anyone who cannot rely on
    colour. */
 .calendar-day-cell.day-completed .day-weekday {
   color: var(--teal);
@@ -253,15 +256,28 @@
   color: var(--muted);
 }
 
+/* Today is the one solid tile in the strip: accent fill, on-accent text, and its status mark in the
+   same ink, whatever the day's state. */
+.calendar-day-cell.today.is-today,
+.calendar-day-cell.today.is-today:hover {
+  background: var(--accent);
+}
+.calendar-day-cell.today.is-today .day-weekday,
+.calendar-day-cell.today.is-today .day-number,
+.calendar-day-cell.today.is-today .day-status-disc {
+  color: var(--on-accent);
+}
 .calendar-day-cell.today.is-today .day-weekday {
-  color: var(--text);
-  font-weight: 750;
+  font-weight: 680;
 }
 .calendar-day-cell.today.is-today .day-number {
-  box-shadow: inset 0 0 0 2px var(--accent);
+  background: transparent;
 }
-.calendar-day-cell.today.is-today.day-rest .day-number {
-  color: var(--text);
+.calendar-day-cell.today.is-today .rest-ring {
+  border-color: var(--on-accent);
+}
+.calendar-day-cell.today.is-today .status-dot {
+  background: var(--on-accent);
 }
 
 .day-weekday {
@@ -278,7 +294,7 @@
   place-items: center;
   border-radius: 50%;
   font-size: 16px;
-  font-weight: 760;
+  font-weight: 700;
   font-variant-numeric: tabular-nums;
   line-height: 1;
 }
@@ -395,6 +411,9 @@
     width: 42px;
     height: 42px;
     flex-basis: 42px;
+  }
+  .calendar-week-row {
+    padding: 4px 2px;
   }
   .calendar-week-rail {
     scroll-snap-type: none;

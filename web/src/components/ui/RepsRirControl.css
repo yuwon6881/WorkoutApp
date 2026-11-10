@@ -14,7 +14,7 @@
   box-shadow: 0 1px 4px var(--overlay);
   color: var(--muted);
   font-size: 14px;
-  font-weight: 760;
+  font-weight: 700;
   line-height: 1;
   letter-spacing: -0.02em;
   font-variant-numeric: tabular-nums;
@@ -33,7 +33,7 @@
 .reps-rir-entry { display: grid; gap: 14px; }
 .reps-rir-entry > p { margin: 0; color: var(--muted); font-size: 14px; text-align: center; }
 .reps-entry-value { display: flex; justify-content: center; align-items: baseline; gap: 8px; padding: 2px 4px 4px; }
-.reps-entry-value strong { min-width: 2ch; color: var(--text); font-size: 44px; font-weight: 760; letter-spacing: -0.03em; line-height: 1; font-variant-numeric: tabular-nums; text-align: center; }
+.reps-entry-value strong { min-width: 2ch; color: var(--text); font-size: 44px; font-weight: 700; letter-spacing: -0.03em; line-height: 1; font-variant-numeric: tabular-nums; text-align: center; }
 .reps-entry-value > span { color: var(--muted); font-size: 16px; font-weight: 600; }
 .reps-entry-effort { display: grid; gap: 8px; }
 .reps-entry-effort-rail { overflow-x: auto; padding: 3px; }
@@ -82,7 +82,7 @@
   background: var(--accent);
   color: var(--on-accent);
   font-size: 15px !important;
-  font-weight: 760;
+  font-weight: 700;
 }
 .reps-entry-keypad .reps-key.reps-keypad-done.button:hover:not(:disabled),
 .reps-entry-keypad .reps-key.reps-keypad-done.button:active:not(:disabled) { background: var(--accent); filter: brightness(1.06); }

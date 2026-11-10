@@ -44,6 +44,7 @@ export function ActiveProgramCard({ program, exercises, onStart, onPreview, onCh
   const [expanded, setExpanded] = useState(true);
   const [draft, setDraft] = useState<ImportDraft | null>(null);
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState('');
   const writes = useMemo(() => new ProgramDayWrites(api.updateTemplate, () => {}), [program.id]);
   const [resetOpen, setResetOpen] = useState(false);
   const [resetPhrase, setResetPhrase] = useState('');
@@ -71,8 +72,10 @@ export function ActiveProgramCard({ program, exercises, onStart, onPreview, onCh
 
   const detail = useCachedViewRead(`program:${program.id}`, program.revision,
     signal => api.getProgram(program.id, signal), !finished && Boolean(program.id));
-  const { loading, error } = detail;
-  const setError = detail.setError;
+  const { loading, error: readError } = detail;
+  useEffect(() => {
+    setSaveError('');
+  }, [program.id]);
   useEffect(() => {
       const full = detail.value;
       if (!full) return;
@@ -124,7 +127,7 @@ export function ActiveProgramCard({ program, exercises, onStart, onPreview, onCh
 
   async function savePending() {
     setSaving(true);
-    setError('');
+    setSaveError('');
     try {
       await writes.flush();
       const full = await api.getProgram(program.id);
@@ -133,7 +136,7 @@ export function ActiveProgramCard({ program, exercises, onStart, onPreview, onCh
       setDraft(programToDraft(full));
       await onChanged();
     } catch (failure) {
-      setError(failure instanceof Error ? failure.message : 'Could not save this program. Your edits are kept for retry.');
+      setSaveError(failure instanceof Error ? failure.message : 'Could not save this program. Your edits are kept for retry.');
       throw failure;
     } finally { setSaving(false); }
   }
@@ -150,6 +153,7 @@ export function ActiveProgramCard({ program, exercises, onStart, onPreview, onCh
   /// An edit can reach a block or the whole program; only the days it changed are saved.
   async function handleDraftChange(updatedDraft: ImportDraft) {
     const changed = new Set(draft ? changedDayIds(draft, updatedDraft) : updatedDraft.workouts.map(day => day.lineId));
+    setDraft(updatedDraft);
     writes.enqueue(updatedDraft.workouts.filter(day => changed.has(day.lineId)));
     await savePending();
   }
@@ -158,6 +162,10 @@ export function ActiveProgramCard({ program, exercises, onStart, onPreview, onCh
     ? `${weekCount} ${weekCount === 1 ? 'week' : 'weeks'} completed`
     : <ProgramWeekMeter week={weekIndex} weeks={weekCount} passedDays={progress?.passedDays ?? 0} totalDays={progress?.totalDays ?? 0} />;
   const actionsBlocked = actions.busy || saving || writes.pending.size > 0;
+  const hasPendingSave = writes.pending.size > 0 || Boolean(saveError);
+  const feedbackMessage = hasPendingSave
+    ? (saveError || 'Your edits are kept for retry.')
+    : (!finished ? readError : '');
 
   return <section {...dragProps} className={`panel slot-card program-card ${finished ? 'slot-card-finished' : ''} ${moving ? 'slot-card-moving' : ''}`}
     aria-busy={actions.busy || loading || saving}>
@@ -183,9 +191,13 @@ export function ActiveProgramCard({ program, exercises, onStart, onPreview, onCh
           </Button>
         </div>}
       </>}
-    {error && <CardFeedback message={error} action={{
-      label: writes.pending.size > 0 ? 'Retry save' : 'Retry refresh', disabled: saving,
-      onClick: () => { void savePending().catch(() => {}); }
+    {feedbackMessage && <CardFeedback message={feedbackMessage} action={{
+      label: hasPendingSave ? 'Retry save' : 'Retry refresh',
+      disabled: hasPendingSave ? saving : (loading || saving),
+      onClick: () => {
+        if (hasPendingSave) { void savePending().catch(() => {}); }
+        else { void detail.refresh(); }
+      }
     }} />}
 
     {resetOpen && <Modal title="Reset this week?" onClose={() => { setResetOpen(false); setResetPhrase(''); }}>

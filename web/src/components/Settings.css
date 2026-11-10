@@ -29,7 +29,7 @@
   border: 1px solid var(--accent-border);
   color: var(--accent);
   font-size: 18px;
-  font-weight: 750;
+  font-weight: 680;
   letter-spacing: -0.01em;
 }
 
@@ -50,7 +50,7 @@
 .settings-account-name {
   margin: 0;
   font-size: 18px;
-  font-weight: 750;
+  font-weight: 680;
   letter-spacing: -0.025em;
   color: var(--text);
   word-break: break-word;
@@ -172,7 +172,7 @@
 .settings-section-header h2 {
   margin: 0;
   font-size: 18px;
-  font-weight: 750;
+  font-weight: 680;
   letter-spacing: -0.025em;
   color: var(--text);
 }
