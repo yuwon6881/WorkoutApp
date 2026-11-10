@@ -21,9 +21,19 @@ import androidx.wear.ongoing.OngoingActivity
 import androidx.wear.ongoing.Status
 import com.workoutapp.wear.MainActivity
 import com.workoutapp.wear.R
+import com.workoutapp.wear.data.WorkoutRepository
 import com.workoutapp.wear.data.WorkoutSnapshot
 import com.workoutapp.wear.data.WorkoutStore
 import com.workoutapp.wear.ui.elapsedWorkoutSeconds
+import kotlin.coroutines.cancellation.CancellationException
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 
 /**
  * Keeps the live workout one tap away from the watch face and buzzes when rest ends. It exists only
@@ -32,6 +42,8 @@ import com.workoutapp.wear.ui.elapsedWorkoutSeconds
 class WorkoutOngoingService : Service() {
     private val handler = Handler(Looper.getMainLooper())
     private lateinit var store: WorkoutStore
+    private val pollScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    private var pollJob: Job? = null
     private var restAlert: Runnable? = null
     private var timerAlert: Runnable? = null
     private var restWakeLock: PowerManager.WakeLock? = null
@@ -55,13 +67,46 @@ class WorkoutOngoingService : Service() {
             return START_NOT_STICKY
         }
         scheduleAlerts(snapshot)
+        startPhoneChangePolling()
         return START_STICKY
     }
 
+    /**
+     * A rest the phone skipped or changed only reaches the watch through the API, and the screen's
+     * own refresh stops once the app is backgrounded. While a rest is running this asks the API on a
+     * timer; an adopted change re-arms the alerts through `startRest`/`start`, so a buzz for a rest
+     * the phone already skipped is dropped. It does nothing outside a running rest, to spare battery
+     * and requests (a rest started on the phone while the watch idles is seen when the screen opens).
+     * The loop is driven by the clock, never by an alert callback, so it cannot feed back into itself.
+     */
+    private fun startPhoneChangePolling() {
+        if (pollJob?.isActive == true) return
+        pollJob = pollScope.launch {
+            while (isActive) {
+                val snapshot = store.readSnapshot()
+                if (snapshot == null || (!snapshot.session.active && !snapshot.pendingFinish)) return@launch
+                // No running rest means no buzz that stale phone data could get wrong, so stop asking
+                // the network; the next rest start restarts this loop through onStartCommand.
+                val wait = refreshDelayMs(snapshot, System.currentTimeMillis()) ?: return@launch
+                delay(wait)
+                try {
+                    WorkoutRepository.get(applicationContext).refresh()
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (failure: Exception) {
+                    // Offline or signed out: the stored snapshot stays authoritative until the next pass.
+                    Log.d(TAG, "Background refresh skipped: ${failure.message}")
+                }
+            }
+        }
+    }
+
     override fun onDestroy() {
+        pollJob?.cancel()
         restAlert?.let(handler::removeCallbacks)
         timerAlert?.let(handler::removeCallbacks)
         releaseRestWakeLock()
+        pollScope.cancel()
         super.onDestroy()
     }
 
@@ -191,7 +236,11 @@ class WorkoutOngoingService : Service() {
                 }
                 if (store.claimSetTimerAlert(setId, startedAt)) vibrateAlert(this@WorkoutOngoingService)
                 timerAlert = null
-                if (restAlert == null) releaseRestWakeLock()
+                // Only the earliest countdown is armed at a time; arm the next running one now,
+                // or a second timed set would stay silent until something else updated the service.
+                val latest = store.readSnapshot()
+                if (latest != null && (latest.session.active || latest.pendingFinish)) scheduleAlerts(latest)
+                else if (restAlert == null) releaseRestWakeLock()
             }
         }
         timerAlert = alert
@@ -249,7 +298,24 @@ class WorkoutOngoingService : Service() {
         private const val ACTION_REST = "com.workoutapp.wear.REST"
         private const val ACTION_UPDATE = "com.workoutapp.wear.UPDATE"
         private const val WAKE_LOCK_GRACE_MS = 10_000L
-        private const val MAX_REST_WAKE_LOCK_MS = 15 * 60_000L
+        private const val REST_POLL_MS = 15_000L
+        private const val PRE_ALERT_CHECK_MS = 2_000L
+        private const val MIN_POLL_MS = 1_000L
+
+        /**
+         * How long to wait before the next background refresh while a rest runs, with one last check
+         * just before it ends so a skip made on the phone in that window is seen before the watch
+         * buzzes. Null when no rest is running (or it is paused): nothing to watch.
+         */
+        internal fun refreshDelayMs(snapshot: WorkoutSnapshot, nowEpochMs: Long): Long? {
+            val restEndsAt = snapshot.restEndsAtEpochMs?.takeIf { snapshot.session.pausedAt == null }
+                ?: return null
+            val untilCheck = restEndsAt - PRE_ALERT_CHECK_MS - nowEpochMs
+            return if (untilCheck in MIN_POLL_MS until REST_POLL_MS) untilCheck else REST_POLL_MS
+        }
+        // A timed set lasts up to two hours (WorkoutRepository.MAX_SET_SECONDS); a lock capped below
+        // that lets the CPU sleep through the end of a long countdown with the screen off.
+        private const val MAX_REST_WAKE_LOCK_MS = WorkoutRepository.MAX_SET_SECONDS * 1_000L + 5 * 60_000L
 
         fun start(context: Context, sessionName: String) = send(context, ACTION_START, sessionName)
 

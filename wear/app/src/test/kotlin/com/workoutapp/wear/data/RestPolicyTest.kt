@@ -7,8 +7,15 @@ import org.junit.Test
 
 class RestPolicyTest {
     @Test
-    fun `rest does not start after the final planned set`() {
+    fun `rest starts after the final working set, as on the phone`() {
         val session = session(exercise("bench", "", listOf(set("s1", 0, done = true))))
+        assertTrue(RestPolicy.shouldRestAfter(session, "bench", "s1"))
+    }
+
+    @Test
+    fun `rest does not start after a final warm-up with nothing following`() {
+        val warmup = SetPrescription(10, 10, warmup = true)
+        val session = session(exercise("bench", "", listOf(set("s1", 0, done = true)), prescriptions = listOf(warmup)))
         assertFalse(RestPolicy.shouldRestAfter(session, "bench", "s1"))
     }
 
@@ -23,7 +30,7 @@ class RestPolicyTest {
     }
 
     @Test
-    fun `dropset and myorep notes suppress the rest after that set`() {
+    fun `dropset and myorep notes do not suppress the rest after that set`() {
         val dropExercise = exercise("drop", "", listOf(
             set("drop-1", 0, true), set("drop-2", 1)
         ), notes = listOf("drop set", null))
@@ -31,15 +38,16 @@ class RestPolicyTest {
             set("myo-1", 0, true), set("myo-2", 1)
         ), notes = listOf("myorep", null))
 
-        assertFalse(RestPolicy.shouldRestAfter(session(dropExercise), "drop", "drop-1"))
-        assertFalse(RestPolicy.shouldRestAfter(session(myoExercise), "myo", "myo-1"))
+        assertTrue(RestPolicy.shouldRestAfter(session(dropExercise), "drop", "drop-1"))
+        assertTrue(RestPolicy.shouldRestAfter(session(myoExercise), "myo", "myo-1"))
     }
 
     @Test
-    fun `warmup that is next does not start a working-set rest`() {
+    fun `a warm-up between working sets does not give the set before it a rest of its own`() {
+        // Matches restAppliesAfter: only a warm-up's own rest is gated; a working set always rests.
         val warmup = SetPrescription(10, 10, warmup = true)
         val exercise = exercise("bench", "", listOf(set("s1", 0, true), set("s2", 1)), prescriptions = listOf(SetPrescription(8, 10), warmup))
-        assertFalse(RestPolicy.shouldRestAfter(session(exercise), "bench", "s1"))
+        assertTrue(RestPolicy.shouldRestAfter(session(exercise), "bench", "s1"))
     }
 
     @Test

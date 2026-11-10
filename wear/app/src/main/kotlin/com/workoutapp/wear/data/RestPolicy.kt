@@ -3,17 +3,18 @@ package com.workoutapp.wear.data
 data class NextSet(val exercise: WorkoutExercise, val set: WorkoutSet)
 
 object RestPolicy {
+    /**
+     * Mirrors `restAppliesAfter` in the phone's `restRules.ts`, so one set logged on either device
+     * starts the same shared rest: only the last warm-up before working sets rests among warm-ups;
+     * working sets (myo-reps, drop sets and the final set included) always rest, except for the
+     * immediate hand-off to the next superset partner.
+     */
     fun shouldRestAfter(session: WorkoutSession, exerciseId: String, setId: String): Boolean {
         val currentExercise = session.exercises.firstOrNull { it.id == exerciseId } ?: return false
-        val setIndex = currentExercise.sets.indexOfFirst { it.id == setId }
-        if (setIndex < 0) return false
-        val currentPrescription = currentExercise.prescription.getOrNull(currentExercise.sets[setIndex].position)
-        if (hasNoRestNote(currentPrescription?.notes)) return false
-
-        val next = nextSet(session, exerciseId, setId) ?: return false
-        val prescription = next.exercise.prescription.getOrNull(next.set.position)
-        if (next.set.warmup || prescription?.warmup == true) return false
-        if (hasNoRestNote(prescription?.notes)) return false
+        val currentSet = currentExercise.sets.firstOrNull { it.id == setId } ?: return false
+        val next = nextSet(session, exerciseId, setId)
+        if (isWarmup(currentExercise, currentSet)) return next != null && !isWarmup(next.exercise, next.set)
+        if (next == null) return true
         val currentGroup = supersetGroup(currentExercise.sequenceGroup)
         val nextGroup = supersetGroup(next.exercise.sequenceGroup)
         return !(currentGroup.isNotEmpty() && currentGroup == nextGroup &&
@@ -88,8 +89,6 @@ object RestPolicy {
     private fun supersetOrder(value: String, position: Int): Int
         = Regex("\\d+").find(value)?.value?.toIntOrNull() ?: position + 1
 
-    private fun hasNoRestNote(value: String?): Boolean {
-        val notes = value.orEmpty().lowercase()
-        return notes.contains("dropset") || notes.contains("drop set") || notes.contains("myorep")
-    }
+    private fun isWarmup(exercise: WorkoutExercise, set: WorkoutSet): Boolean =
+        set.warmup || exercise.prescription.getOrNull(set.position)?.warmup == true
 }

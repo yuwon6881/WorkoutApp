@@ -53,6 +53,43 @@ class WorkoutStoreTest {
     }
 
     @Test
+    fun `a local write built from a stale snapshot is refused instead of restoring older state`() {
+        val store = WorkoutStore(context)
+        try {
+            val read = snapshot()
+            store.saveSnapshot(read)
+            // A sync acknowledgement lands between the action's read and its write.
+            store.update { current, _ -> current?.copy(session = current.session.copy(revision = 9)) }
+
+            val failure = runCatching { store.enqueueIfCurrent(read, read.copy(restGeneration = "rest-1"), operation("op-1", 1)) }
+
+            assertTrue(failure.exceptionOrNull() is SnapshotChangedException)
+            assertEquals(9, store.readSnapshot()?.session?.revision)
+            assertTrue(store.pendingOperations().isEmpty())
+
+            val fresh = store.readSnapshot()!!
+            store.enqueueIfCurrent(fresh, fresh.copy(restGeneration = "rest-1"), operation("op-1", 1))
+            assertEquals(9, store.readSnapshot()?.session?.revision)
+            assertEquals(listOf("op-1"), store.pendingOperations().map { it.id })
+        } finally {
+            store.close()
+        }
+    }
+
+    @Test
+    fun `notices accumulate and keep only the latest few`() {
+        val store = WorkoutStore(context)
+        try {
+            store.clearNotice()
+            listOf("one", "two", "three", "four").forEach(store::postNotice)
+            assertEquals("two\nthree\nfour", store.notice.value)
+        } finally {
+            store.clearNotice()
+            store.close()
+        }
+    }
+
+    @Test
     fun `only one rest-expiry callback can claim a persisted alert generation`() {
         val first = WorkoutStore(context)
         first.saveSnapshot(snapshot().copy(restEndsAtEpochMs = 9_000_000L, restGeneration = "rest-1"))

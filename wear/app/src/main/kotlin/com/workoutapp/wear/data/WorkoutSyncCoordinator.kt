@@ -172,8 +172,11 @@ class WorkoutSyncCoordinator(
 
     /** Drops one edit WorkoutApp will never accept and re-reads the workout so the screen matches it. */
     private suspend fun reject(operation: PendingOperation, reason: String, knownRemote: WorkoutSession? = null) {
+        // The explanation is written first: a crash between the two leaves a notice and a retry that is
+        // refused again, never a silently dropped edit. It names the values so they can be re-entered.
+        val values = LostEditSummary.describe(operation, store.readSnapshot()?.unit ?: "kg")
+        store.postNotice(if (values == null) reason else "$reason Not saved: $values.")
         store.removeOperation(operation.sequence)
-        store.postNotice(reason)
         val remote = knownRemote ?: try {
             api.workout(operation.sessionId)
         } catch (cancelled: CancellationException) {
@@ -196,15 +199,18 @@ class WorkoutSyncCoordinator(
      */
     private fun closeSession(sessionId: String) {
         val released = store.pendingOperations().filter { it.sessionId == sessionId }
-        released.forEach { store.removeOperation(it.sequence) }
-        val cleared = store.update { current, _ -> if (current?.session?.id == sessionId) null else current } == null
-        if (cleared) WorkoutOngoingService.stop(context)
         val lostEdits = released.count { it.type != "finish" }
+        val values = LostEditSummary.list(released, store.readSnapshot()?.unit ?: "kg")
+        // Posted before anything is removed, so the values are readable even if the process dies mid-way.
         store.postNotice(when {
-            lostEdits > 0 -> "This workout was closed in WorkoutApp, so ${countLabel(lostEdits, "change")} from the watch could not be added."
+            lostEdits > 0 -> "This workout was closed in WorkoutApp, so ${countLabel(lostEdits, "change")} from the watch could not be added." +
+                if (values.isEmpty()) "" else " Not saved: $values."
             released.any { it.type == "finish" } -> "WorkoutApp had already saved this workout."
             else -> "This workout was closed in WorkoutApp."
         })
+        released.forEach { store.removeOperation(it.sequence) }
+        val cleared = store.update { current, _ -> if (current?.session?.id == sessionId) null else current } == null
+        if (cleared) WorkoutOngoingService.stop(context)
     }
 
     private fun countLabel(count: Int, noun: String) = "$count ${if (count == 1) noun else "${noun}s"}"
