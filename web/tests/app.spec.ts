@@ -675,6 +675,18 @@ test('build a workout, log a set against the server, and see it in history', asy
     await logger.getByRole('spinbutton', { name: 'Barbell bench press set 1 reps', exact: true }).fill('8');
     await logger.getByRole('spinbutton', { name: 'Barbell bench press set 1 reps', exact: true }).click();
     const entry = page.getByRole('dialog', { name: 'Reps & RIR', exact: true });
+    // The keypad is its own dialog inside the workout sheet: it is as tall as its content, never
+    // stretched to the sheet behind it, and on a phone it sits on the bottom edge at full width.
+    const entryBox = await entry.evaluate(element => {
+      const box = element.getBoundingClientRect();
+      const content = element.lastElementChild!.getBoundingClientRect();
+      return { slack: box.bottom - content.bottom, bottom: box.bottom, width: box.width, viewportHeight: innerHeight, viewportWidth: innerWidth };
+    });
+    expect(entryBox.slack).toBeLessThan(4);
+    if (entryBox.viewportWidth < 640) {
+      expect(Math.abs(entryBox.bottom - entryBox.viewportHeight)).toBeLessThan(2);
+      expect(entryBox.width).toBe(entryBox.viewportWidth);
+    }
     // Choosing the effort saves the reps with it and closes the sheet.
     await entry.getByRole('radio', { name: '2 RIR, 2 reps in reserve', exact: true }).click();
     await expect(entry).toBeHidden();

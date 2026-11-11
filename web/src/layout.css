@@ -119,6 +119,10 @@ dialog.modal:not([open]) { display: none; }
 /* Modal.tsx publishes the tallest the dialog has been; it never shrinks while open, so switching to
    a shorter tab does not move the controls. Never taller than the dialog may be. */
 .modal { min-height: min(var(--modal-min-height, 0px), 90dvh); }
+/* The floor belongs to the dialog that measured it. A custom property inherits, so a dialog opened
+   inside another (the reps keypad inside the workout sheet) would start at its parent's height and
+   stretch to it; each dialog starts from none and Modal.tsx sets its own inline. */
+.modal { --modal-min-height: 0px; }
 .modal:focus { outline: none; }
 
 @media (max-width: 639px) {
