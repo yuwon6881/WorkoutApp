@@ -48,16 +48,18 @@
 }
 
 /* Side by side, the next-workout card and the calendar card end on the same line: whichever is
-   shorter grows, and the calendar spreads its rows over the extra height. */
+   shorter grows, and the calendar spreads its rows over the extra height. The first-load skeleton
+   (.app-loading) keeps its own fixed shapes: it is drawn before the calendar styles arrive, and its
+   pixel baseline is rendered from exactly that. */
 @media (min-width: 1024px) {
-  .overview-hero-calendar-grid {
+  .overview-hero-calendar-grid:not(.app-loading *) {
     align-items: stretch;
   }
-  .overview-hero-calendar-grid > .overview-main-column > .next-workout-hero,
-  .overview-hero-calendar-grid > .overview-calendar-column > .panel {
+  .overview-hero-calendar-grid:not(.app-loading *) > .overview-main-column > .next-workout-hero,
+  .overview-hero-calendar-grid:not(.app-loading *) > .overview-calendar-column > .panel {
     flex: 1 1 auto;
   }
-  .overview-hero-calendar-grid > .overview-calendar-column > .training-calendar-card {
+  .overview-hero-calendar-grid:not(.app-loading *) > .overview-calendar-column > .training-calendar-card {
     justify-content: space-between;
   }
 }
