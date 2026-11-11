@@ -1,0 +1,5 @@
+/* Skipped workouts: passed, not done. A muted arc after the completed one. */
+.completion-skipped {
+  stroke: var(--border-hover);
+  stroke-linecap: round;
+}

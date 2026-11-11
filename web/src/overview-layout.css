@@ -46,3 +46,18 @@
     gap: 16px;
   }
 }
+
+/* Side by side, the next-workout card and the calendar card end on the same line: whichever is
+   shorter grows, and the calendar spreads its rows over the extra height. */
+@media (min-width: 1024px) {
+  .overview-hero-calendar-grid {
+    align-items: stretch;
+  }
+  .overview-hero-calendar-grid > .overview-main-column > .next-workout-hero,
+  .overview-hero-calendar-grid > .overview-calendar-column > .panel {
+    flex: 1 1 auto;
+  }
+  .overview-hero-calendar-grid > .overview-calendar-column > .training-calendar-card {
+    justify-content: space-between;
+  }
+}

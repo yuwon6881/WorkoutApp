@@ -43,3 +43,28 @@
     transition: none;
   }
 }
+
+/* The track and the count it measures stay together, and wrap under the week as a pair. */
+.program-week-meter {
+  flex-wrap: wrap;
+  row-gap: 4px;
+}
+
+.program-week-meter-days {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+.program-week-meter-days .program-week-meter-track {
+  flex: 0 0 72px;
+}
+
+.program-week-meter-count {
+  color: var(--muted);
+  font-size: var(--font-secondary);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}

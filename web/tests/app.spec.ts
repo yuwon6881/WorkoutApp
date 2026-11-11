@@ -1039,7 +1039,7 @@ test('overview completion follows the active program week rather than calendar a
     await route.fulfill({ response, json });
   });
   await signIn(page);
-  const ring = page.getByRole('img', { name: '2 of 4 workouts completed in program week 2', exact: true });
+  const ring = page.getByRole('img', { name: '2 of 4 workouts completed and 1 skipped in program week 2', exact: true });
   await expect(ring).toBeVisible();
   await expect(ring.locator('.completion-fill')).toHaveAttribute('stroke-dasharray', '50 100');
   if ((page.viewportSize()?.width ?? 0) >= 1024) {
