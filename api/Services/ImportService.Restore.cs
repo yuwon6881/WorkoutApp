@@ -16,14 +16,15 @@ public sealed partial class ImportService
         if (string.IsNullOrEmpty(import.DraftBaselineJson)) import.DraftBaselineJson = import.DraftJson;
         Validation.Require(!string.IsNullOrEmpty(import.DraftBaselineJson), "No default baseline exists for this draft.", 409);
 
-        var baselineDraft = ImportValidation.NormalizeDraft(Json.Read<ImportDraft>(import.DraftBaselineJson));
+        var baselineDraft = ImportBaselineCache.Read(id, import.DraftBaselineJson)
+            ?? ImportValidation.NormalizeDraft(Json.Read<ImportDraft>(import.DraftBaselineJson));
         await ValidateDraft(baselineDraft, ct);
         import.DraftJson = Json.Write(baselineDraft);
         import.Revision++;
         UpdateCounters(import, baselineDraft);
         await db.SaveChangesAsync(ct);
         await gate.Commit(ct);
-        return await Get(id, ct);
+        return await Saved(import, baselineDraft, ct);
     }
 
     public async Task<ImportView> RestoreExercise(Guid id, Guid exerciseLineId, int? revision, CancellationToken ct)
@@ -36,7 +37,8 @@ public sealed partial class ImportService
         if (string.IsNullOrEmpty(import.DraftBaselineJson)) import.DraftBaselineJson = import.DraftJson;
         Validation.Require(!string.IsNullOrEmpty(import.DraftBaselineJson), "No default baseline exists for this draft.", 409);
 
-        var baselineDraft = ImportValidation.NormalizeDraft(Json.Read<ImportDraft>(import.DraftBaselineJson));
+        var baselineDraft = ImportBaselineCache.Read(id, import.DraftBaselineJson)
+            ?? ImportValidation.NormalizeDraft(Json.Read<ImportDraft>(import.DraftBaselineJson));
         var baselineExercise = baselineDraft.Workouts.SelectMany(w => w.Exercises).FirstOrDefault(e => e.LineId == exerciseLineId);
         Validation.Require(baselineExercise != null, "That exercise cannot be restored to its default.", 404);
 
@@ -54,10 +56,15 @@ public sealed partial class ImportService
         UpdateCounters(import, nextDraft);
         await db.SaveChangesAsync(ct);
         await gate.Commit(ct);
-        return await Get(id, ct);
+        return await Saved(import, nextDraft, ct);
     }
 
     public static (bool CanRestoreDraft, List<Guid> RestorableExerciseLineIds) AnalyzeRestorability(AiImport import, ImportDraft? draft)
+        => AnalyzeRestorability(import, draft is null ? null : ImportValidation.NormalizeDraft(draft), null);
+
+    /// A view already holds the parsed baseline, so it hands it over instead of having it parsed again.
+    private static (bool CanRestoreDraft, List<Guid> RestorableExerciseLineIds) AnalyzeRestorability(
+        AiImport import, ImportDraft? draft, ImportDraft? parsedBaseline)
     {
         if (import.Status != ImportStatus.Ready)
             return (false, []);
@@ -66,9 +73,10 @@ public sealed partial class ImportService
         if (string.IsNullOrEmpty(baselineJson))
             return (false, []);
 
-        var baselineDraft = ImportValidation.NormalizeDraft(Json.Read<ImportDraft>(baselineJson));
+        var baselineDraft = parsedBaseline ?? ImportBaselineCache.Read(import.Id, baselineJson)
+            ?? ImportValidation.NormalizeDraft(Json.Read<ImportDraft>(baselineJson));
         var currentDraft = draft is not null
-            ? ImportValidation.NormalizeDraft(draft)
+            ? draft
             : (string.IsNullOrEmpty(import.DraftJson) ? null : ImportValidation.NormalizeDraft(Json.Read<ImportDraft>(import.DraftJson)));
         if (currentDraft is null)
             return (false, []);

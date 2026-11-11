@@ -57,20 +57,27 @@ public sealed partial class ImportService(AppDb db, CatalogService catalog, Prog
         import.DraftJson = Json.Write(next); import.Revision++; UpdateCounters(import, next);
         await db.SaveChangesAsync(ct);
         await gate.Commit(ct);
-        return await Get(id, ct);
+        return await Saved(import, ImportValidation.NormalizeDraft(next), ct);
     }
 
-    private async Task<ImportView> View(AiImport import, bool includeDraft, CancellationToken ct, Func<Task<bool>>? tracksRir = null)
+    /// The view of an import whose normalized draft the caller just saved, so a save neither reads
+    /// the row back nor parses and normalizes the same draft again to answer.
+    private Task<ImportView> Saved(AiImport import, ImportDraft savedDraft, CancellationToken ct)
+        => View(import, includeDraft: true, ct, savedDraft: savedDraft);
+
+    private async Task<ImportView> View(AiImport import, bool includeDraft, CancellationToken ct,
+        Func<Task<bool>>? tracksRir = null, ImportDraft? savedDraft = null)
     {
         ImportDraft? draft = null;
         var unresolved = new List<UnresolvedExercise>();
         if (includeDraft && !string.IsNullOrEmpty(import.DraftJson))
         {
-            draft = ImportValidation.NormalizeDraft(Json.Read<ImportDraft>(import.DraftJson));
+            draft = savedDraft ?? ImportValidation.NormalizeDraft(Json.Read<ImportDraft>(import.DraftJson));
             unresolved = Unresolved(draft);
         }
         var unresolvedCount = includeDraft ? unresolved.Count : import.UnresolvedCount;
-        var edits = import.Status == ImportStatus.Ready ? ImportReviewEdits.Compare(import.DraftBaselineJson, draft) : ImportReviewEdits.None;
+        var baseline = import.Status == ImportStatus.Ready ? ImportBaselineCache.Read(import.Id, import.DraftBaselineJson) : null;
+        var edits = baseline is not null && draft is not null ? ImportReviewEdits.Compare(baseline, draft) : ImportReviewEdits.None;
         var issues = includeDraft && draft is not null ? ImportValidation.ReviewIssues(draft, edits) : [];
         // Reading notes are recorded as the import runs and are as much a part of the review as
         // the issues derived from the draft, so both reach the panel through one list.
@@ -82,7 +89,7 @@ public sealed partial class ImportService(AppDb db, CatalogService catalog, Prog
         if (issues.Count > 0) issues = ImportReviewPolicy.ForReview(issues, await (tracksRir?.Invoke() ?? TracksRir(ct)));
         var alternatives = string.IsNullOrWhiteSpace(import.AlternativesJson) ? [] : Json.Read<List<ImportAlternative>>(import.AlternativesJson);
         var acceptable = import.Status == ImportStatus.Ready && unresolved.Count == 0 && issues.All(i => i.Severity == "info");
-        var (canRestoreDraft, restorableExerciseLineIds) = AnalyzeRestorability(import, draft);
+        var (canRestoreDraft, restorableExerciseLineIds) = AnalyzeRestorability(import, draft, baseline);
         return new ImportView(import.Id, import.Status, import.FileName, import.Pages, import.Error, import.Created, import.Model,
             import.Stage, unresolvedCount, draft, unresolved, acceptable, import.ProgramId, issues,
             alternatives, import.SelectedAlternativeId, import.Revision, canRestoreDraft, restorableExerciseLineIds);
@@ -105,7 +112,7 @@ public sealed partial class ImportService(AppDb db, CatalogService catalog, Prog
         await ValidateDraft(normalizedDraft, ct);
         import.DraftJson = Json.Write(normalizedDraft); import.Revision++; UpdateCounters(import, normalizedDraft);
         await db.SaveChangesAsync(ct);
-        return await Get(id, ct);
+        return await Saved(import, normalizedDraft, ct);
     }
 
     public Task<ImportView> Edit(Guid id, ImportDraft draft, CancellationToken ct) => Edit(id, draft, null, ct);
@@ -134,7 +141,7 @@ public sealed partial class ImportService(AppDb db, CatalogService catalog, Prog
         import.DraftJson = Json.Write(next); import.Revision++;
         await db.SaveChangesAsync(ct);
         await gate.Commit(ct);
-        return await Get(id, ct);
+        return await Saved(import, next, ct);
     }
 
     public Task<ImportView> EditDay(Guid id, Guid lineId, DraftWorkout day, CancellationToken ct) => EditDay(id, lineId, day, null, ct);
@@ -170,7 +177,7 @@ public sealed partial class ImportService(AppDb db, CatalogService catalog, Prog
         import.DraftJson = Json.Write(next); import.Revision++; UpdateCounters(import, next);
         await db.SaveChangesAsync(ct);
         await gate.Commit(ct);
-        return await Get(id, ct);
+        return await Saved(import, next, ct);
     }
 
     /// Acceptance is all-or-nothing: the review must have no unresolved mappings or document issues.

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { DraftWorkout, ImportDraft, ImportView } from '../types';
 import { ApiError, api } from '../lib/api';
 import { validateDraftWorkout, validateName } from '../lib/validation';
-import { changedDraftDays } from '../lib/importDraftDiff';
+import { changedDraftDays, shareUnchangedDays } from '../lib/importDraftDiff';
 
 type Options = {
   selected: ImportView | null;
@@ -69,9 +69,11 @@ export function useImportDraftSaver({ selected, setSelected, draft, setDraft, on
         // Keep the newest optimistic draft visible while later writes are waiting. The response
         // still advances the server revision used by the next queued request.
         if (editVersion.current === version) {
-          draftRef.current = saved.draft;
-          setDraft(saved.draft);
-          setSelected(saved);
+          // Days the save did not change keep their identity, so only the edited day re-renders.
+          const shown = saved.draft ? shareUnchangedDays(draftRef.current, saved.draft) : saved.draft;
+          draftRef.current = shown;
+          setDraft(shown);
+          setSelected(shown === saved.draft ? saved : { ...saved, draft: shown });
           setLocalDirty(false);
           dirtyRef.current = false;
           setSaveError('');
