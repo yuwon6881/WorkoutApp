@@ -230,7 +230,7 @@ describe('ExerciseLibrary UI and grouping', () => {
 
 describe('defaultChartMetric and ExerciseProgressChart', () => {
   it('falls back to reps when sets were logged without weight so the progress chart does not default to Unavailable', async () => {
-    const { defaultChartMetric } = await import('./Exercises');
+    const { defaultChartMetric } = await import('../lib/exerciseMetrics');
     const { ExerciseProgressChart } = await import('./ExerciseProgressChart');
 
     const repsOnlyPoints = [

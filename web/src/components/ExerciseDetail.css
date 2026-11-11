@@ -217,3 +217,24 @@
 .exercise-chart-single-note {
   margin: 0;
 }
+
+/* Both tabs stay mounted; the inactive one is hidden rather than rebuilt on every switch. */
+.exercise-detail-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  min-width: 0;
+}
+.exercise-detail-panel[hidden] {
+  display: none;
+}
+/* The figures of the previous range stay readable while the chosen one is read. */
+.exercise-detail-panel[aria-busy="true"] .exercise-chart,
+.exercise-detail-panel[aria-busy="true"] .chart-table {
+  opacity: 0.6;
+}
+/* Shaped like the heading row and chart that replace it, so the dialog does not jump when they arrive. */
+.exercise-detail-modal .detail-loading {
+  height: 316px;
+  border-radius: var(--radius);
+}

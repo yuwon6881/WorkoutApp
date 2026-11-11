@@ -1,33 +1,18 @@
-import { ExerciseLoadSettings } from './ExerciseLoadSettings';
-import { OneRepMaxSettings } from './OneRepMaxSettings';
-import { canEnterPerSide } from '../lib/equipmentGroups';
 import { loadAdjustable } from '../lib/exerciseLoads';
 import { useDeferredValue, useEffect, useMemo, useState } from 'react';
-import { ArrowLeftRight, Link2, Plus, Search, X, Trash2 } from 'lucide-react';
-import type { Exercise, ExerciseCategory, ExerciseInsight, Unit } from '../types';
+import { ArrowLeftRight, Link2, Plus, Search, X } from 'lucide-react';
+import type { Exercise, ExerciseCategory, Unit } from '../types';
 import { lastPerformedLabel } from '../lib/lastPerformed';
 import { useLastPerformed } from './useLastPerformed';
-import { useExerciseInsight } from './useExerciseInsight';
-import { ApiError, api } from '../lib/api';
-import { showSetCount } from '../lib/training';
-import { weightBasisDescription } from '../lib/weightBasis';
 import { Button } from './ui/Button';
-import { ExerciseHistory } from './ExerciseHistory';
-import { ExerciseHistoryClearing } from './ExerciseHistoryClearing';
-import { SegmentedControl } from './ui/SegmentedControl';
-import { ExerciseProgressChart } from './ExerciseProgressChart';
-import { ExerciseProgressTable } from './ExerciseProgressTable';
-import { Modal } from './ui/Modal';
 import { Select } from './ui/Select';
 import { CustomExerciseModal } from './CustomExerciseModal';
 import { getExerciseCategory, informativeEquipment } from '../lib/exerciseCategory';
 import { buildExerciseSearchIndex, searchExerciseScores } from '../lib/exerciseSearch';
 import { ChipScroller } from './ui/ChipScroller';
 import { GymAvailabilityBadge } from './GymAvailabilityBadge';
-import { ExerciseGymAvailability } from './ExerciseGymAvailability';
 import { useGymAvailabilityCheck } from '../lib/gymAvailability';
 import './Exercises.css';
-import './ExerciseDetail.css';
 import './RenderWindow.css';
 
 /// The catalog is supplied by the server and is empty until a seed file is loaded, so the
@@ -364,83 +349,5 @@ export function ExerciseLibrary({ exercises, onSelect, exclude = emptyIds, onOpe
   </div>;
 }
 
-function displayKg(value: number | null | undefined, unit: 'kg' | 'lb') {
-  if (value == null) return '—';
-  const amount = unit === 'lb' ? value * 2.2046226218 : value;
-  return `${amount.toFixed(amount >= 100 ? 0 : 1)} ${unit}`;
-}
-
-function dateLabel(value: string | null | undefined) {
-  return value ? new Date(`${value.slice(0, 10)}T12:00:00`).toLocaleDateString('en', { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
-}
-
-export function ExerciseDetailModal({ exercise, unit, onClose, onChanged }: { exercise: Exercise; unit: 'kg' | 'lb'; onClose: () => void; onChanged?: () => Promise<void> | void }) {
-  const [detailTab, setDetailTab] = useState<'progress' | 'history'>('progress');
-  const { insight, range, setRange, error, setError, historyBusy, moreHistory, historyCleared } = useExerciseInsight(exercise.id, onChanged);
-  const [selectedMetric, setSelectedMetric] = useState<ChartMetric | null>(null);
-  const [busy, setBusy] = useState(false);
-  const [deleteConfirm, setDeleteConfirm] = useState(false);
-  const metric = selectedMetric ?? defaultChartMetric(insight?.points ?? []);
-  async function deleteExercise() { setBusy(true); try { await api.deleteCustomExercise(exercise.id); setDeleteConfirm(false); await onChanged?.(); onClose(); } catch (failure) { setError(failure instanceof ApiError ? failure.message : 'Could not delete this custom exercise.'); } finally { setBusy(false); } }
-  const customDeletable = exercise.isCustom && !exercise.archived && !insight?.archived;
-  return <>
-    <Modal title={exercise.name} onClose={onClose} wide>
-      <div className="modal-body exercise-detail-modal">
-        <SegmentedControl label="Exercise detail view" value={detailTab} onChange={setDetailTab}
-          options={[{ value: 'progress', label: 'Progress' }, { value: 'history', label: 'History' }]} />
-        {detailTab === 'progress' && <div className="exercise-detail-meta">
-          <span className="pill pill-accent">{exercise.archived && exercise.isCustom ? 'Deleted custom exercise' : exercise.isCustom ? 'Custom exercise' : exercise.muscle || 'Full body'}</span>
-          {(exercise.secondaryMuscles ?? []).map(secondary => <span className="pill pill-muted" key={secondary}>{secondary}</span>)}
-          {informativeEquipment(exercise) && <span className="pill pill-equipment">{informativeEquipment(exercise)}</span>}
-          <span className="pill pill-category">{getExerciseCategory(exercise)}</span>
-        </div>}
-        {detailTab === 'progress' && !exercise.archived && <ExerciseGymAvailability exerciseId={exercise.id} requires={exercise.requires} />}
-        {detailTab === 'progress' && !exercise.archived && loadAdjustable(exercise) && <ExerciseLoadSettings key={exercise.id} exerciseId={exercise.id} exerciseName={exercise.name} unit={unit} perSide={canEnterPerSide(exercise)} onChanged={onChanged} />}
-        {detailTab === 'progress' && !exercise.archived && loadAdjustable(exercise) && <OneRepMaxSettings key={`1rm-${exercise.id}`} exerciseId={exercise.id} exerciseName={exercise.name} unit={unit} />}
-        {detailTab === 'progress' && loadAdjustable(exercise) && <p className="muted">{weightBasisDescription(exercise)}</p>}
-        {error && <div className="error-banner" role="alert">{error}</div>}
-        {!insight && !error && <div className="skeleton detail-loading" aria-label="Loading exercise details" />}
-        {insight && insight.totalHistoryRows === 0 && <p className="muted">No workout history yet. Complete a workout to see progress here.</p>}
-        {insight && insight.totalHistoryRows > 0 && detailTab === 'progress' && <>
-          <div className="section-heading"><h3>Progress</h3><div className="detail-selectors"><label className="field"><span>Metric</span><Select name="progress-metric-select" label="Progress metric" value={metric} onChange={val => setSelectedMetric(val as ChartMetric)} options={[{ value: 'estimated1rm', label: 'Estimated 1RM' }, { value: 'load', label: 'Heaviest load' }, { value: 'volume', label: 'Session volume' }, { value: 'reps', label: 'Reps' }]} /></label>{insight.totalHistoryRows > 1 && <label className="field"><span>Range</span><Select name="progress-range-select" label="Progress range" value={range} onChange={val => setRange(val as string)} options={[{ value: '1m', label: 'Last month' }, { value: '3m', label: 'Last 3 months' }, { value: '6m', label: 'Last 6 months' }, { value: 'all', label: 'All time' }]} /></label>}</div></div>
-          <ExerciseProgressChart label={`${chartMetricLabel(metric)} progress`} format={value => formatMetricValue(value, metric, unit)} points={insight.points.map(point => ({ key: `${point.sessionId}-${point.date}`, date: dateLabel(point.date), value: metricValue(point, metric) }))} />
-          {insight.points.length > 0 && <ExerciseProgressTable points={insight.points} formatDate={dateLabel} formatKg={value => displayKg(value, unit)} />}
-          {insight.partialVolume && insight.points.some(point => point.volumeKg != null) && <p className="muted detail-note">* Volume is partial because one or more logged loads were unknown.</p>}
-          <div className="detail-record-grid">
-            {/* A record with no logged load behind it (a rep-only movement) is left out, not shown as a dash. */}
-            {insight.estimated1RmKg != null && <div className="stat-card"><span className="stat-label">Estimated 1RM</span><strong>{displayKg(insight.estimated1RmKg, unit)}</strong><small>{dateLabel(insight.estimated1RmDate)}</small></div>}
-            {insight.heaviestKg != null && <div className="stat-card"><span className="stat-label">Heaviest load</span><strong>{displayKg(insight.heaviestKg, unit)}</strong><small>{insight.heaviestReps ? `${insight.heaviestReps} reps · ` : ''}{dateLabel(insight.heaviestDate)}</small></div>}
-            {insight.largestSetVolumeKg != null && <div className="stat-card"><span className="stat-label">Largest set volume</span><strong>{displayKg(insight.largestSetVolumeKg, unit)}</strong><small>{dateLabel(insight.largestSetVolumeDate)}</small></div>}
-            {insight.largestSessionVolumeKg != null && <div className="stat-card"><span className="stat-label">Largest session volume</span><strong>{displayKg(insight.largestSessionVolumeKg, unit)}</strong><small>{dateLabel(insight.largestSessionVolumeDate)}</small></div>}
-            <div className="stat-card"><span className="stat-label">Rep PR</span><strong>{insight.repPr ?? '—'}</strong>{insight.repPr != null && <small>{dateLabel(insight.repPrDate)}</small>}</div>
-            <div className="stat-card"><span className="stat-label">Sessions</span><strong>{insight.sessions > 0 ? insight.sessions : '—'}</strong>{insight.sessions > 0 && <small>completed workouts</small>}</div>
-            <div className="stat-card"><span className="stat-label">Last performed</span><strong>{dateLabel(insight.lastPerformedDate)}</strong>{insight.setCount > 0 && <small>{insight.setCount} working sets</small>}</div>
-          </div>
-          <div className="detail-resistance-records" aria-label="Resistance records">{insight.externalLoadPrKg != null && <span>External load PR <strong>{displayKg(insight.externalLoadPrKg, unit)}</strong></span>}{insight.addedLoadPrKg != null && <span>Added load PR <strong>{displayKg(insight.addedLoadPrKg, unit)}</strong></span>}{insight.assistanceReductionPrKg != null && <span>Lowest assistance <strong>{displayKg(insight.assistanceReductionPrKg, unit)}</strong></span>}{insight.systemLoadPrKg != null && <span>System load PR <strong>{displayKg(insight.systemLoadPrKg, unit)}</strong></span>}</div>
-        </>}
-        {insight && insight.totalHistoryRows > 0 && detailTab === 'history' && <>
-          <div className="section-heading exercise-history-heading"><h3>History</h3><span className="exercise-history-count">{insight.totalHistoryRows} {insight.totalHistoryRows === 1 ? 'workout' : 'workouts'}</span></div>
-          <ExerciseHistory rows={insight.history} exerciseId={exercise.id} unit={unit} />
-          {insight.history.length < insight.totalHistoryRows && <Button variant="tertiary" className="full-width" onClick={() => void moreHistory()} disabled={historyBusy}>{historyBusy ? 'Loading…' : 'Load more history'}</Button>}
-          {!insight.history.length && !insight.historyClears?.length && <p className="muted">No workout history for this exercise yet.</p>}
-        </>}
-        {detailTab === 'history' && insight?.historyClears?.map(clear => <div className="exercise-history-cleared" role="status" key={clear.clearedAt}>Exercise history cleared on {dateLabel(clear.clearedAt)} · {showSetCount(clear.removedSets)} removed</div>)}
-        {detailTab === 'history' && Boolean(insight?.clearableSetCount) && <ExerciseHistoryClearing exerciseId={exercise.id} clearableSets={insight!.clearableSetCount} onCleared={historyCleared} />}
-      </div>
-      <div className={`modal-actions ${customDeletable ? '' : 'dismiss-only'}`.trim()}>{customDeletable && <Button variant="destructive" onClick={() => setDeleteConfirm(true)} disabled={busy}><Trash2 size={15} />Delete custom exercise</Button>}<Button variant="primary" onClick={onClose}>Done</Button></div>
-    </Modal>
-    {deleteConfirm && <Modal title="Delete custom exercise?" onClose={() => setDeleteConfirm(false)}><div className="modal-body"><p>This removes the exercise from future selections. Existing workout names, sets, records, and totals stay preserved; saved templates will mark the reference as deleted until you replace it.</p><div className="modal-actions"><Button variant="tertiary" onClick={() => setDeleteConfirm(false)}>Cancel</Button><Button variant="destructive" onClick={() => void deleteExercise()} disabled={busy}>{busy ? 'Deleting…' : 'Delete exercise'}</Button></div></div></Modal>}
-  </>;
-}
-
-export type ChartMetric = 'estimated1rm' | 'load' | 'volume' | 'reps';
-const chartMetrics: ChartMetric[] = ['estimated1rm', 'load', 'volume', 'reps'];
-export function defaultChartMetric(points: ExerciseInsight['points']): ChartMetric {
-  if (!points.length) return 'estimated1rm';
-  return chartMetrics.find(candidate => points.some(point => metricValue(point, candidate) != null)) ?? 'estimated1rm';
-}
-function metricValue(point: ExerciseInsight['points'][number], metric: ChartMetric) {
-  return metric === 'estimated1rm' ? point.estimated1RmKg : metric === 'load' ? point.loadKg : metric === 'volume' ? point.volumeKg : point.reps;
-}
-function chartMetricLabel(metric: ChartMetric) { return metric === 'estimated1rm' ? 'Estimated 1RM' : metric === 'load' ? 'Heaviest load' : metric === 'volume' ? 'Session volume' : 'Reps'; }
-function formatMetricValue(value: number | null, metric: ChartMetric, unit: 'kg' | 'lb') { return value == null ? 'Unavailable' : metric === 'reps' ? `${value} reps` : displayKg(value, unit); }
+// The detail dialog ships in this lazy chunk with the library that opens it.
+export { ExerciseDetailModal } from './ExerciseDetailModal';

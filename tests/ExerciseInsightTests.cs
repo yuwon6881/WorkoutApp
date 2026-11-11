@@ -105,6 +105,33 @@ public sealed class ExerciseInsightTests
         Assert.Equal(5, point.Reps);
     }
 
+    [Fact]
+    public async Task Dates_follow_the_readers_time_zone_rather_than_utc()
+    {
+        // Finished at 23:30 UTC on 10 March, which is already 11 March in Kuala Lumpur (UTC+8).
+        var (h, templateId, benchId) = await Ready();
+        await using var owned = h;
+        var session = await h.Workouts.Start(templateId, null, default);
+        await h.Workouts.Save(session.Id, new SessionInput(null,
+            [new SessionExerciseInput(benchId, "Bench press", null, [Harness.Set(8, 10)],
+                [new SetInput(60, 10, 8, true)])], session.Revision, null), default);
+        await h.Workouts.Finish(session.Id, null, default);
+        var stored = h.Db.Workouts.Single(workout => workout.Id == session.Id);
+        stored.FinishedAt = new DateTime(2026, 3, 10, 23, 30, 0, DateTimeKind.Utc);
+        await h.Db.SaveChangesAsync();
+
+        var local = await new ExerciseService(h.Db).Insight(benchId, "all", 0, 20, default, "Asia/Kuala_Lumpur");
+        var utc = await new ExerciseService(h.Db).Insight(benchId, "all", 0, 20, default);
+
+        var expected = new DateOnly(2026, 3, 11);
+        Assert.Equal(expected, Assert.Single(local.Points).Date);
+        Assert.Equal(expected, Assert.Single(local.History).Date);
+        Assert.Equal(expected, local.Estimated1RmDate);
+        Assert.Equal(expected, local.HeaviestDate);
+        Assert.Equal(expected, local.LastPerformedDate);
+        Assert.Equal(new DateOnly(2026, 3, 10), Assert.Single(utc.Points).Date);
+    }
+
     private static async Task<(Harness h, Guid templateId, Guid benchId)> Ready()
     {
         var h = await Harness.Create();

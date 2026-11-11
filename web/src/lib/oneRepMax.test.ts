@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isPercentLoad, oneRepMaxField, parseOneRepMax, percentagePrescription } from './oneRepMax';
+import { describeOneRepMax, isPercentLoad, oneRepMaxField, parseOneRepMax, percentagePrescription } from './oneRepMax';
 
 describe('one-rep max entry', () => {
   it('reads kilograms and converts pounds to kilograms', () => {
@@ -15,6 +15,19 @@ describe('one-rep max entry', () => {
   it('shows a stored value in the account unit and nothing when unknown', () => {
     expect(oneRepMaxField(142.882, 'lb')).toBe('315');
     expect(oneRepMaxField(null, 'kg')).toBe('');
+  });
+
+  it('names the estimate beside a typed value that differs from it', () => {
+    expect(describeOneRepMax({ overrideKg: 100, estimatedKg: 119.6, effectiveKg: 100 }, 'kg'))
+      .toBe('100 kg, entered by you. Your recent heavy sets suggest about 120 kg.');
+    expect(describeOneRepMax({ overrideKg: 120, estimatedKg: 119.6, effectiveKg: 120 }, 'kg'))
+      .toBe('120 kg, entered by you. Used for sets a program prints as a percentage of 1RM.');
+  });
+
+  it('says what an estimate is for and when there is nothing to go on', () => {
+    expect(describeOneRepMax({ overrideKg: null, estimatedKg: 102.37, effectiveKg: 102.37 }, 'kg'))
+      .toBe('About 102 kg, estimated from your recent heavy sets. Used for sets a program prints as a percentage of 1RM.');
+    expect(describeOneRepMax({ overrideKg: null, estimatedKg: null, effectiveKg: null }, 'kg')).toMatch(/^Not set yet/);
   });
 
   it('recognises the percentage loads the server turns into weights', () => {

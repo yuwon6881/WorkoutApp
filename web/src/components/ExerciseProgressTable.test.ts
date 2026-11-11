@@ -8,8 +8,9 @@ const point = (n: number, over: Partial<ExerciseMetricPoint> = {}): ExerciseMetr
   date: `2026-10-${String(n).padStart(2, '0')}`, sessionId: `s${n}`, sessionName: `Session ${n}`,
   estimated1RmKg: null, loadKg: null, volumeKg: null, reps: null, partial: false, ...over
 });
+const kg = (value: number | null | undefined) => value == null ? '—' : `${value} kg`;
 const render = (points: ExerciseMetricPoint[]) => renderToStaticMarkup(createElement(ExerciseProgressTable, {
-  points, formatDate: value => value, formatKg: value => value == null ? '—' : `${value} kg`
+  points, formatDate: value => value, formatEstimate: kg, formatLoad: kg, formatVolume: kg
 }));
 
 describe('ExerciseProgressTable', () => {

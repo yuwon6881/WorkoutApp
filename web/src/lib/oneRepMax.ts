@@ -1,5 +1,5 @@
 import type { Unit } from '../types';
-import { toDisplay, toKg } from './training';
+import { showWeight, toDisplay, toKg } from './training';
 
 /// What the server knows about a lift's one-rep max: the value the lifter typed, the estimate from
 /// their recent heavy sets, and the one a percentage-based program uses (typed first).
@@ -20,6 +20,26 @@ export const oneRepMaxField = (kg: number | null, unit: Unit): string => {
   const value = toDisplay(kg, unit);
   return value === null ? '' : String(Number(value.toFixed(1)));
 };
+
+/// One line for the setting row. A typed value never hides what the logged sets say: when the two
+/// differ, the estimate is named beside it so a value typed long ago does not go quietly stale.
+export function describeOneRepMax(view: OneRepMaxView, unit: Unit): string {
+  const purpose = 'Used for sets a program prints as a percentage of 1RM.';
+  const estimate = view.estimatedKg === null ? null : showEstimatedMax(view.estimatedKg, unit);
+  if (view.overrideKg !== null) {
+    const typed = showWeight(view.overrideKg, unit);
+    // Within a small plate either way the two agree; naming the estimate would only be noise.
+    const agrees = view.estimatedKg === null || Math.abs(view.estimatedKg - view.overrideKg) < view.overrideKg * 0.025;
+    return estimate === null || agrees
+      ? `${typed}, entered by you. ${purpose}`
+      : `${typed}, entered by you. Your recent heavy sets suggest about ${estimate}.`;
+  }
+  if (estimate !== null) return `About ${estimate}, estimated from your recent heavy sets. ${purpose}`;
+  return 'Not set yet. Enter one so percentage-based sets can show a weight.';
+}
+
+/// The estimate as a whole number in the account unit: it is approximate, so decimals would overstate it.
+export const showEstimatedMax = (kg: number, unit: Unit): string => `${Math.round(toDisplay(kg, unit) ?? 0)} ${unit}`;
 
 /// A set prints a percentage load such as "75%", "80-85%" or "82.5-87.5% 1RM".
 export const isPercentLoad = (loadText: string | null | undefined, notes?: string | null): boolean => {

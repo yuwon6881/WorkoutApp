@@ -14,18 +14,20 @@ public sealed partial class ExerciseService
         public ExerciseInsight? Value { get; set; }
     }
 
-    public async Task<ExerciseInsight> Insight(Guid id, string? range, int page, int size, CancellationToken ct)
+    public async Task<ExerciseInsight> Insight(Guid id, string? range, int page, int size, CancellationToken ct, string? timeZone = null)
     {
         Validation.Require(page >= 0 && size is > 0 and <= 100, "Invalid exercise history page.");
-        if (cache is null) return Slice(await BuildInsight(id, ct), range, page, size);
+        var zone = ReaderZone(timeZone);
+        if (cache is null) return Slice(await BuildInsight(id, zone, ct), range, page, size, zone);
         // Metadata authorization is current even when the numerical result can be reused.
         await Metadata(id, ct);
         var revision = await db.ResourceGenerations.AsNoTracking().SingleOrDefaultAsync(ct) ?? new ResourceGeneration();
         // The whole-history figures are shared by every range and page, so switching either
-        // reuses them instead of reading the exercise's history again.
-        var source = $"exercise-insight:v4:{db.CurrentUser}:{id}:{revision.History}:{revision.Progress}:{revision.CustomExercises}:{revision.ExerciseLoads}:{revision.Programs}";
-        var view = $"{source}:{DateTime.UtcNow:yyyyMMdd}:{range}:{page}:{size}";
-        return await Cached(view, async () => Slice(await Cached(source, () => BuildInsight(id, ct), ct), range, page, size), ct);
+        // reuses them instead of reading the exercise's history again. Dates are cut in the
+        // reader's zone, so the zone is part of what is reused.
+        var source = $"exercise-insight:v5:{db.CurrentUser}:{id}:{zone.Id}:{revision.History}:{revision.Progress}:{revision.CustomExercises}:{revision.ExerciseLoads}:{revision.Programs}";
+        var view = $"{source}:{LocalDay(DateTime.UtcNow, zone):yyyyMMdd}:{range}:{page}:{size}";
+        return await Cached(view, async () => Slice(await Cached(source, () => BuildInsight(id, zone, ct), ct), range, page, size, zone), ct);
     }
 
     private async Task<ExerciseInsight> Cached(string key, Func<Task<ExerciseInsight>> build, CancellationToken ct)

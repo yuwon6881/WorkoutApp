@@ -51,7 +51,7 @@ vi.mock('react', () => ({
   }
 }));
 
-import { useExerciseInsight } from './useExerciseInsight';
+import { keepLoadedHistory, useExerciseInsight } from './useExerciseInsight';
 
 function renderHook(exerciseId = 'bench', onChanged?: () => Promise<void> | void) {
   stateCursor = 0;
@@ -195,5 +195,25 @@ describe('useExerciseInsight cache pagination and invalidation', () => {
     hook = renderHook('bench');
     expect(cachedAfterClear).toHaveBeenCalled();
     expect(hook.insight?.history).toHaveLength(1);
+  });
+});
+
+describe('keepLoadedHistory', () => {
+  const row = (sessionId: string) => ({ ...pagePayload(0, 3, 'x').history[0], sessionId });
+  const insight = (ids: string[], page: number, totalHistoryRows = 3): ExerciseInsight =>
+    ({ ...pagePayload(0, totalHistoryRows, 'x'), totalHistoryRows, page, history: ids.map(row) });
+
+  it('keeps the pages already loaded when another range answers with the first page of the same history', () => {
+    const kept = keepLoadedHistory(insight(['a', 'b', 'c'], 1), insight(['a', 'b'], 0));
+    expect(kept.history.map(item => item.sessionId)).toEqual(['a', 'b', 'c']);
+    expect(kept.page).toBe(1);
+  });
+
+  it('takes the new answer when the history itself changed', () => {
+    const fewer = insight(['a'], 0, 1);
+    expect(keepLoadedHistory(insight(['a', 'b', 'c'], 1), fewer)).toBe(fewer);
+    const newer = insight(['n', 'a'], 0);
+    expect(keepLoadedHistory(insight(['a', 'b', 'c'], 1), newer)).toBe(newer);
+    expect(keepLoadedHistory(null, newer)).toBe(newer);
   });
 });

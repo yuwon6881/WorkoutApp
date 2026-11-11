@@ -142,7 +142,11 @@ export const api = {
   deleteGym: (id: string) => call<GymsView>(`/api/gyms/${encodeURIComponent(id)}`, 'DELETE'),
   createCustomExercise: (input: { name: string; muscle?: string; secondaryMuscles?: string[]; equipment?: string; loadStepKg?: number; loadModel: string; movementPattern?: string; category?: string; weightBasis?: 'total' | 'per_side'; trackingMode?: TrackingMode }) => call<CustomExerciseCreated>('/api/exercises/custom', 'POST', input),
   deleteCustomExercise: (id: string) => call<void>(`/api/exercises/custom/${id}`, 'DELETE'),
-  exerciseInsight: (id: string, range = '3m', page = 0, size = 20, signal?: AbortSignal) => call<ExerciseInsight>(`/api/exercises/${id}/insight?range=${range}&page=${page}&size=${size}`, 'GET', undefined, signal),
+  // Dates are cut on the server, so it is told the zone the reader's days fall in.
+  exerciseInsight: (id: string, range = '3m', page = 0, size = 20, signal?: AbortSignal) => {
+    const timeZone = encodeURIComponent(Intl.DateTimeFormat().resolvedOptions().timeZone);
+    return call<ExerciseInsight>(`/api/exercises/${id}/insight?range=${range}&page=${page}&size=${size}&timeZone=${timeZone}`, 'GET', undefined, signal);
+  },
   exerciseClearPreview: (id: string, signal?: AbortSignal) => call<ExerciseClearPreview>(`/api/exercises/${id}/clear-preview`, 'GET', undefined, signal),
   clearExerciseHistory: (id: string) => call<ExerciseClearPreview>(`/api/exercises/${id}/clear-history`, 'POST'),
 

@@ -66,13 +66,11 @@ export function ExerciseLoadSettings({ exerciseId, exerciseName, unit, perSide =
 
   const inherited = settings?.inherited;
   const group = inherited?.equipmentGroup ?? null;
-  const feedback = <>
-    {error && <div className="error-banner" role="alert">{error} <Button variant="secondary" disabled={busy}
-      onClick={() => setReload(current => current + 1)}>Reload settings</Button></div>}
-    {!settings && !error && <p className="muted" role="status">Loading weight settings…</p>}
-  </>;
+  const failure = error && <div className="error-banner" role="alert">{error} <Button variant="secondary" disabled={busy}
+    onClick={() => setReload(current => current + 1)}>Reload settings</Button></div>;
   const weightEditor = <>
-    {feedback}
+    {failure}
+    {!settings && !error && <p className="muted" role="status">Loading weight settings…</p>}
     {settings && <LoadRuleEditor key={unit} unit={unit} name="exercise-load" busy={busy} perSide={perSide}
       rule={{ loadStepKg: settings.ownStepKg ?? null, availableLoadsKg: settings.ownAvailableLoadsKg ?? null }}
       preferList={group ? equipmentGroupInfo(group).preferList : false}
@@ -84,9 +82,12 @@ export function ExerciseLoadSettings({ exerciseId, exerciseName, unit, perSide =
 
   if (editor) return weightEditor;
   return <section className="exercise-load-settings" aria-label="Exercise weight settings">
-    {!editing && feedback}
+    {!editing && failure}
+    {/* The description line holds "Loading…" until the rule arrives, so the row keeps its height
+        and nothing under it moves. */}
     <SettingRow label={<strong>Weight settings</strong>}
-      description={settings ? `${describeLoad(settings.loadStepKg, settings.availableLoadsKg, unit)} · ${describeSource(settings.source, group)}` : undefined}>
+      description={settings ? `${describeLoad(settings.loadStepKg, settings.availableLoadsKg, unit)} · ${describeSource(settings.source, group)}`
+        : error ? undefined : 'Loading…'}>
       <Button variant="secondary" disabled={busy || !settings} onClick={event => {
         editTrigger.current = event.currentTarget;
         setEditing(true);

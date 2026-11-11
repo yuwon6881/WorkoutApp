@@ -166,14 +166,15 @@ public sealed partial class ExerciseService(AppDb db, IMemoryCache? cache = null
     }
 
     /// The selected range's chart points and one page of history, cut from the whole-history insight.
-    private static ExerciseInsight Slice(ExerciseInsight full, string? range, int page, int size)
+    private static ExerciseInsight Slice(ExerciseInsight full, string? range, int page, int size, TimeZoneInfo zone)
     {
+        var today = LocalDay(DateTime.UtcNow, zone);
         var cutoff = range switch
         {
-            "1m" => DateOnly.FromDateTime(DateTime.UtcNow).AddMonths(-1),
-            "6m" => DateOnly.FromDateTime(DateTime.UtcNow).AddMonths(-6),
+            "1m" => today.AddMonths(-1),
+            "6m" => today.AddMonths(-6),
             "all" => DateOnly.MinValue,
-            _ => DateOnly.FromDateTime(DateTime.UtcNow).AddMonths(-3)
+            _ => today.AddMonths(-3)
         };
         return full with
         {
@@ -183,8 +184,18 @@ public sealed partial class ExerciseService(AppDb db, IMemoryCache? cache = null
         };
     }
 
+    /// The calendar day a stored UTC instant falls on for the reader, so the chart, the records and
+    /// the history list name the day the lifter trained on.
+    private static DateOnly LocalDay(DateTime utc, TimeZoneInfo zone)
+        => DateOnly.FromDateTime(TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(utc, DateTimeKind.Utc), zone));
+
+    /// An absent or unknown zone reads as UTC rather than failing the whole view over a date label.
+    private static TimeZoneInfo ReaderZone(string? timeZone)
+        => !string.IsNullOrWhiteSpace(timeZone) && TimeZoneInfo.TryFindSystemTimeZoneById(timeZone.Trim(), out var zone)
+            ? zone : TimeZoneInfo.Utc;
+
     /// Every chart point and history row; Slice narrows them to what was requested.
-    private async Task<ExerciseInsight> BuildInsight(Guid id, CancellationToken ct)
+    private async Task<ExerciseInsight> BuildInsight(Guid id, TimeZoneInfo zone, CancellationToken ct)
     {
         var meta = await Metadata(id, ct);
         // This reads the exercise's whole history, so it leaves out the start-of-workout snapshots.
@@ -219,7 +230,7 @@ public sealed partial class ExerciseService(AppDb db, IMemoryCache? cache = null
             // The row reads as one set: the heaviest load with its own reps, never reps from a lighter
             // back-off set. Only a session with no load to show falls back to its most reps.
             var rep = best ?? groupStrength.Where(x => x.Reps is not null).OrderByDescending(x => x.Reps).FirstOrDefault();
-            records.Add((group.Key, DateOnly.FromDateTime(session.FinishedAt!.Value), session.Name,
+            records.Add((group.Key, LocalDay(session.FinishedAt!.Value, zone), session.Name,
                 estimates.Count == 0 ? null : estimates.Max(), best == null ? null : RecordedLoad(best),
                 volume.Count == 0 ? null : volume.Sum(), rep?.Reps, partial));
         }
@@ -257,12 +268,12 @@ public sealed partial class ExerciseService(AppDb db, IMemoryCache? cache = null
         return new ExerciseInsight(id, meta.Name, meta.Muscle, meta.Equipment, meta.LoadModel, meta.LoadStepKg,
             meta.IsCustom, meta.Archived, records.Select(x => x.SessionId).Distinct().Count(), sets.Count, allSets.Count,
             bestE.E1rm, bestE.E1rm is null ? null : bestE.Date, heavy.Load, heaviestSet?.Reps,
-            heaviestSet is null ? null : DateOnly.FromDateTime(sessions[byExercise[heaviestSet.SessionExerciseId].SessionId].FinishedAt!.Value), largestSet.Load is null ? null : largestSet.Load.Value * largestSet.Set.Reps!.Value,
-            largestSet.Load is null ? null : DateOnly.FromDateTime(largestSet.Session.FinishedAt!.Value), largestSession.Volume,
+            heaviestSet is null ? null : LocalDay(sessions[byExercise[heaviestSet.SessionExerciseId].SessionId].FinishedAt!.Value, zone), largestSet.Load is null ? null : largestSet.Load.Value * largestSet.Set.Reps!.Value,
+            largestSet.Load is null ? null : LocalDay(largestSet.Session.FinishedAt!.Value, zone), largestSession.Volume,
             largestSession.Volume is null ? null : largestSession.Date,
             // An exercise can have finished sessions and still no set that states both a load and
             // reps — every load unknown, for instance — and the empty tuple's Set is null.
-            reps.Set?.Reps, reps.Set?.Reps is null ? null : DateOnly.FromDateTime(reps.Session.FinishedAt!.Value),
+            reps.Set?.Reps, reps.Set?.Reps is null ? null : LocalDay(reps.Session.FinishedAt!.Value, zone),
             last.Date == default ? null : last.Date, records.Any(x => x.Partial), points, historyRows, 0, historyRows.Count, historyRows.Count,
             externalLoads.Count == 0 ? null : externalLoads.Max(),
             addedLoads.Count == 0 ? null : addedLoads.Max(),
