@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { AlertTriangle, ArrowLeftRight, Check, Dumbbell, Link2, Loader2, Plus, RotateCcw, Timer, Trash2, Unlink2 } from 'lucide-react';
 import type { CustomExerciseCreated, DraftExercise, DraftSet, Exercise } from '../types';
 import { restOptions } from '../lib/training';
-import { draftExerciseName, isPlaceholderName, selectDraftExercise } from '../lib/draftExerciseSwap';
+import { customAsExercise, draftExerciseName, isPlaceholderName, selectDraftExercise } from '../lib/draftExerciseSwap';
 import { Button } from './ui/Button';
 import { DemoLink } from './ui/DemoLink';
 import { Select } from './ui/Select';
@@ -98,11 +98,12 @@ export function ExerciseEditor({ exercise: saved, exercises, allDayExercises, re
   const repRange = usesRepRange(exercise.sets.filter(set => !hasOpenReps(set)));
   // A hold or hang is prescribed in seconds, as it is in the builder and the workout.
   const timed = selected?.trackingMode === 'duration';
-  const select = (exerciseId: string | null) => {
-    const selectedExercise = exerciseId ? exercises.find(item => item.id === exerciseId) : undefined;
+  const selectExercise = (selectedExercise: Exercise | undefined) => {
     if (selectedExercise) onChange(selectDraftExercise(exercise, selectedExercise, exercises, editing.keepWrittenName));
     setPickerOpen(false);
   };
+  const select = (exerciseId: string | null) =>
+    selectExercise(exerciseId ? exercises.find(item => item.id === exerciseId) : undefined);
 
   // Edits are held in this card until Save, so the default is reached by restoring the saved row
   // (when it differs) and dropping the held edits; otherwise they would keep masking the restore.
@@ -402,9 +403,11 @@ export function ExerciseEditor({ exercise: saved, exercises, allDayExercises, re
         onExerciseCreated={async (newExercise: CustomExerciseCreated) => {
           // Reload the account-owned library before mapping so the exercise picker and mapping
           // endpoint both observe the server-created row. A failed map is retried by the modal
-          // with the same ID; it never submits a second create request.
+          // with the same ID; it never submits a second create request. The row is linked from
+          // the created exercise itself: this handler still holds the library as it was before
+          // the reload, where the new exercise does not exist yet.
           await onCustomExerciseCreated?.();
-          select(newExercise.id);
+          selectExercise(customAsExercise(newExercise));
           setCustomOpen(false);
           setPickerOpen(false);
         }}

@@ -115,7 +115,7 @@ public static class ExerciseCategories
         if (eq is "bodyweight" or "band"
             || loadModel is LoadModels.FullBodyweight or LoadModels.BodyweightContextOnly or LoadModels.RepsOnly)
             return BodyWeight;
-        if (eq is "machine" or "smith machine" or "cable")
+        if (eq is "machine" or "plate-loaded machine" or "smith machine" or "cable")
             return Machine;
         return FreeWeights;
     }

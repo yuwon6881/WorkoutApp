@@ -88,9 +88,14 @@ export function WorkoutActiveExercise({
   const [restTimerOpen, setRestTimerOpen] = useState(false);
   const [catalogError, setCatalogError] = useState('');
   const [focusedLoads, setFocusedLoads] = useState<Pick<Exercise, 'loadStepKg' | 'availableLoadsKg'> | null>(null);
+  // Set once a library read has answered, so an exercise the library no longer lists (an archived
+  // custom one still in a saved plan) reads as missing rather than as still loading.
+  const [catalogAnswered, setCatalogAnswered] = useState(false);
   const loadCatalog = () => {
     setCatalogError('');
-    void onCatalogNeeded?.().catch(failure => setCatalogError(failure instanceof Error ? failure.message : 'Exercises could not be loaded.'));
+    if (!onCatalogNeeded) { setCatalogAnswered(true); return; }
+    void onCatalogNeeded().then(() => setCatalogAnswered(true))
+      .catch(failure => setCatalogError(failure instanceof Error ? failure.message : 'Exercises could not be loaded.'));
   };
   const [showTargets, setShowTargets] = useState(false);
   const [confirmRemove, setConfirmRemove] = useState(false);
@@ -382,7 +387,9 @@ export function WorkoutActiveExercise({
           <div className="modal-body">
             {libraryExercise ? <ExerciseLoadSettings exerciseId={libraryExercise.id} exerciseName={exercise.name} unit={unit} editor
               perSide={canEnterPerSide(libraryExercise)} onClose={closeWeights} onChanged={onCatalogChanged} /> : <div role="status">
-              <p>{catalogError || 'Loading weight settings…'}</p>
+              <p>{catalogError || (catalogAnswered
+                ? 'This exercise is no longer in your library, so its weights cannot be changed here.'
+                : 'Loading weight settings…')}</p>
               {catalogError && <Button variant="secondary" onClick={loadCatalog}>Retry</Button>}
             </div>}
           </div>

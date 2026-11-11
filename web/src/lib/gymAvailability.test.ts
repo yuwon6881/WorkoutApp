@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { GymLaunch, GymsView } from '../types';
-import { availableFirst, gymAvailability, gymAvailabilityText, gymLaunchFrom, requirementsById } from './gymAvailability';
+import { gymAvailability, gymAvailabilityText, gymLaunchFrom, requirementsById } from './gymAvailability';
 
 const gym = (missing: string[], overrides: GymLaunch['active']['exerciseOverrides'] = {}): GymLaunch => ({
   active: { id: 'g1', name: 'Hotel', missingEquipment: missing, exerciseOverrides: overrides, revision: 1, active: true },
@@ -62,11 +62,5 @@ describe('gymLaunchFrom without its active gym', () => {
   it('reports no gym rather than guessing one', () => {
     expect(gymLaunchFrom({ activeId: 'gone', equipment: [],
       profiles: [{ id: 'g1', name: 'Home', missingEquipment: [], exerciseOverrides: {}, revision: 1, active: false }] })).toBeNull();
-  });
-});
-
-describe('availableFirst', () => {
-  it('moves unavailable items to the end without reordering either half', () => {
-    expect(availableFirst([1, 2, 3, 4, 5], value => value % 2 === 0)).toEqual([2, 4, 1, 3, 5]);
   });
 });

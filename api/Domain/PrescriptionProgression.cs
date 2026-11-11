@@ -309,7 +309,7 @@ internal static class PrescriptionProgression
     /// load, or fewer reps at the same load), so a break never makes the next session harder.
     private static SetProgressionSuggestion? Easier(SetProgressionSuggestion trainedThrough, double? load, int reps, int away)
     {
-        var lighter = trainedThrough.SuggestedLoadKg is { } suggested && load is { } held && suggested < held - .0001;
+        var lighter = trainedThrough.SuggestedLoadKg is { } suggested && load is { } held && suggested < held - ProgressionEvidence.LoadToleranceKg;
         var fewer = ProgressionEvidence.SameLoad(trainedThrough.SuggestedLoadKg, load) && trainedThrough.SuggestedReps < reps;
         return lighter || fewer
             ? trainedThrough with { Reason = $"Back after {away} days away. {trainedThrough.Reason}" }

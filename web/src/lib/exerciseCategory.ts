@@ -22,8 +22,16 @@ export function getExerciseCategory(exercise: { category?: string; equipment?: s
     || exercise.loadModel === 'bodyweight_context_only' || exercise.loadModel === 'reps_only') {
     return 'Body Weight';
   }
-  if (equipment === 'machine' || equipment === 'smith machine' || equipment === 'cable') {
+  if (equipment === 'machine' || equipment === 'plate-loaded machine' || equipment === 'smith machine' || equipment === 'cable') {
     return 'Machine';
   }
   return 'Free Weights';
+}
+
+/// Picking Bodyweight implies the full-bodyweight model, and leaving Bodyweight takes that implied
+/// choice back: a barbell lift must not stay full-bodyweight because Bodyweight was tried first.
+/// A model chosen for any other equipment is the lifter's own and is kept.
+export function loadModelForEquipment(previousEquipment: string, equipment: string, loadModel: string): string {
+  if (equipment === 'Bodyweight') return loadModel === 'external' ? 'full_bodyweight' : loadModel;
+  return previousEquipment === 'Bodyweight' && loadModel === 'full_bodyweight' ? 'external' : loadModel;
 }

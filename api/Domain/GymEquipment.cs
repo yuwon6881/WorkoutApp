@@ -37,7 +37,8 @@ public static class GymEquipment
         => requirement.Split('|', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
     /// A custom exercise has no curated requirement; its equipment value is the only evidence.
-    /// A machine is too broad to name one item, so it needs nothing until the lifter marks it.
+    /// A machine is too broad to name one item, so it needs nothing until the lifter marks it;
+    /// a plate-loaded one still cannot be loaded at a gym without plates.
     public static IReadOnlyList<string> ForEquipment(string? equipment) => (equipment ?? "").Trim().ToLowerInvariant() switch
     {
         "barbell" => ["barbell"],
@@ -45,7 +46,7 @@ public static class GymEquipment
         "trap bar" => ["trap-bar"],
         "dumbbell" or "dumbbells" => ["dumbbells"],
         "kettlebell" or "kettlebells" => ["kettlebells"],
-        "plate" or "plates" => ["plates"],
+        "plate" or "plates" or "plate-loaded machine" => ["plates"],
         "medicine ball" => ["medicine-ball"],
         "band" or "bands" => ["bands"],
         "smith machine" => ["smith-machine"],

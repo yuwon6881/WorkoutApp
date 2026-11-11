@@ -1,4 +1,4 @@
-import type { DraftExercise, Exercise } from '../types';
+import type { CustomExerciseCreated, DraftExercise, Exercise } from '../types';
 import { demoUrlForName } from './demoLinks';
 import { MAX_SUBSTITUTIONS } from './validation';
 
@@ -38,6 +38,16 @@ export function selectDraftExercise(exercise: DraftExercise, replacement: Exerci
     return true;
   }).slice(0, MAX_SUBSTITUTIONS);
   return next;
+}
+
+/** A custom exercise as the server returned it, in the library's shape, before the library reloads. */
+export function customAsExercise(created: CustomExerciseCreated): Exercise {
+  return {
+    id: created.id, slug: `exercise-${created.id}`, name: created.name, muscle: created.muscle,
+    secondaryMuscles: created.secondaryMuscles, equipment: created.equipment, category: created.category,
+    aliases: [], loadStepKg: created.loadStepKg, loadModel: created.loadModel, weightBasis: created.weightBasis,
+    movementPattern: created.movementPattern, source: 'custom', isCustom: true, archived: created.archived
+  };
 }
 
 /** Keep written names as import provenance, but show the linked catalog name in program views. */

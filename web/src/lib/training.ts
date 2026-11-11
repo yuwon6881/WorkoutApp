@@ -10,8 +10,11 @@ export const toDisplay = (kg: number | null, unit: Unit): number | null =>
 /// The step for an exercise with no resolved rule, matching the server's Progression.DefaultStep.
 export const defaultLoadStepKg = (unit: Unit): number => unit === 'lb' ? 5 / PER_KG : 2.5;
 
+/// Pounds convert without rounding, as the server's own pound steps and the watch do: a typed
+/// 225 lb is then the very kilograms a prefilled 225 lb suggestion holds, so progression and
+/// records see one load rather than two a fraction of a gram apart.
 export const toKg = (value: number | null, unit: Unit): number | null =>
-  value === null ? null : unit === 'lb' ? Math.round((value / PER_KG) * 1000) / 1000 : value;
+  value === null ? null : unit === 'lb' ? value / PER_KG : value;
 
 export const showWeight = (kg: number | null, unit: Unit): string => {
   const value = toDisplay(kg, unit);

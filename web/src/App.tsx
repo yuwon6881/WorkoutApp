@@ -281,7 +281,9 @@ export default function App() {
       const archived: Exercise = {
         id: insight.id, slug: `exercise-${insight.id}`, name: insight.name, muscle: insight.muscle,
         equipment: insight.equipment, aliases: [], loadStepKg: insight.loadStepKg,
-        loadModel: insight.loadModel, source: insight.isCustom ? 'custom' : 'catalog',
+        loadModel: insight.loadModel, category: insight.category, weightBasis: insight.weightBasis,
+        trackingMode: insight.trackingMode, secondaryMuscles: insight.secondaryMuscles,
+        source: insight.isCustom ? 'custom' : 'catalog',
         isCustom: insight.isCustom, archived: insight.archived
       };
       setExerciseDetail(archived);

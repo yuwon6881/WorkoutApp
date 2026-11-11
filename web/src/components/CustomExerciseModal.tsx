@@ -1,7 +1,7 @@
 import { useId, useRef, useState, type FormEvent } from 'react';
 import type { CustomExerciseCreated, ExerciseCategory, TrackingMode, WeightBasis } from '../types';
 import { ApiError, api } from '../lib/api';
-import { getExerciseCategory } from '../lib/exerciseCategory';
+import { getExerciseCategory, loadModelForEquipment } from '../lib/exerciseCategory';
 import { ChevronDown } from 'lucide-react';
 import { Button } from './ui/Button';
 import { Field } from './ui/Field';
@@ -103,7 +103,7 @@ export function CustomExerciseModal({ onClose, onCreated, initialName = '', onEx
           ...MUSCLE_OPTIONS.map(item => ({ value: item, label: item }))
         ]} /></label>
         <label className="field"><span>Equipment</span><Select name="custom-exercise-equipment" label="Equipment" value={equipment} onChange={value => {
-          const nextLoadModel = value === 'Bodyweight' && loadModel === 'external' ? 'full_bodyweight' : loadModel;
+          const nextLoadModel = loadModelForEquipment(equipment, value, loadModel);
           setEquipment(value);
           setLoadModel(nextLoadModel);
           setCategory(getExerciseCategory({ equipment: value, loadModel: nextLoadModel }));

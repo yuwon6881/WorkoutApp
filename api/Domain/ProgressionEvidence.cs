@@ -38,8 +38,13 @@ internal static class ProgressionEvidence
             ? reserve <= target - 1
             : exposure.Reps < minimum && !exposure.IsRepRangeTransition;
 
+    /// Two stored loads closer than this are one physical weight. A pound entry reaches the server
+    /// rounded to a gram by one client and unrounded by another (or as the prefilled suggestion), so
+    /// the same 225 lb differs by up to half a gram; no real equipment step is anywhere near 5 g.
+    public const double LoadToleranceKg = .005;
+
     public static bool SameLoad(double? left, double? right)
-        => left is null && right is null || left is { } l && right is { } r && Math.Abs(l - r) < .0001;
+        => left is null && right is null || left is { } l && right is { } r && Math.Abs(l - r) < LoadToleranceKg;
 
     public static bool Changed(SetExposure source, int? min, int? max, double? goal)
         => source.HasPrescription && (source.RepMin != min || source.RepMax != max || EffortTargetChanged(source, goal));

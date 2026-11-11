@@ -34,7 +34,8 @@ public record ExerciseInsight(Guid Id, string Name, string Muscle, string Equipm
     List<ExerciseHistoryRow> History, int Page, int Size, int TotalHistoryRows,
     double? ExternalLoadPrKg = null, double? AddedLoadPrKg = null, double? AssistanceReductionPrKg = null,
     double? SystemLoadPrKg = null, List<ExerciseHistoryClearView>? HistoryClears = null,
-    string Category = ExerciseCategories.FreeWeights);
+    string Category = ExerciseCategories.FreeWeights, string WeightBasis = WeightBases.Total,
+    string TrackingMode = TrackingModes.Reps, List<string>? SecondaryMuscles = null);
 
 public record ExerciseClearPreview(Guid ExerciseId, string Name, int AffectedWorkouts, int AffectedSets,
     bool HasActiveWorkout, bool CanClear, string? ActiveWorkoutName = null);
@@ -267,17 +268,26 @@ public sealed partial class ExerciseService(AppDb db, IMemoryCache? cache = null
             addedLoads.Count == 0 ? null : addedLoads.Max(),
             assistanceLoads.Count == 0 ? null : assistanceLoads.Min(),
             systemLoads.Count == 0 ? null : systemLoads.Max(), clears,
-            meta.Category);
+            meta.Category, meta.WeightBasis, meta.TrackingMode, meta.SecondaryMuscles);
     }
 
-    private async Task<(string Name, string Muscle, string Equipment, string Category, string LoadModel, double LoadStepKg, bool IsCustom, bool Archived)> Metadata(Guid id, CancellationToken ct)
+    // Weight basis, tracking mode and secondary muscles ride along so the details of an exercise
+    // that has left the library (an archived custom one) still read its numbers the way it logged them.
+    private async Task<(string Name, string Muscle, string Equipment, string Category, string LoadModel, double LoadStepKg, bool IsCustom, bool Archived,
+        string WeightBasis, string TrackingMode, List<string> SecondaryMuscles)> Metadata(Guid id, CancellationToken ct)
     {
         var catalogRow = await db.Exercises.AsNoTracking().SingleOrDefaultAsync(x => x.Id == id, ct);
-        if (catalogRow != null) return (catalogRow.Name, catalogRow.Muscle, catalogRow.Equipment, catalogRow.Category, catalogRow.LoadModel, catalogRow.LoadStepKg, false, !catalogRow.Active);
+        if (catalogRow != null)
+            return (catalogRow.Name, catalogRow.Muscle, catalogRow.Equipment, catalogRow.Category, catalogRow.LoadModel, catalogRow.LoadStepKg, false, !catalogRow.Active,
+                catalogRow.WeightBasis, TrackingModes.Normalize(catalogRow.TrackingMode), SecondaryMuscles(catalogRow.Muscle, catalogRow.SecondaryMusclesJson));
         var custom = await db.CustomExercises.AsNoTracking().SingleOrDefaultAsync(x => x.Id == id, ct);
         Validation.Require(custom != null, "That exercise no longer exists.", 404);
-        return (custom!.Name, custom.Muscle, custom.Equipment, custom.Category, custom.LoadModel, custom.LoadStepKg, true, custom.Archived);
+        return (custom!.Name, custom.Muscle, custom.Equipment, custom.Category, custom.LoadModel, custom.LoadStepKg, true, custom.Archived,
+            custom.WeightBasis, TrackingModes.Normalize(custom.TrackingMode), SecondaryMuscles(custom.Muscle, custom.SecondaryMusclesJson));
     }
+
+    private static List<string> SecondaryMuscles(string muscle, string json)
+        => CatalogService.NormalizeMuscles(muscle, string.IsNullOrWhiteSpace(json) ? [] : Json.Read<List<string>>(json));
 
     private async Task<List<SessionExercise>> FinishedExerciseRows(Guid id, CancellationToken ct)
         => await FinishedExerciseRowsQuery(id).ToListAsync(ct);

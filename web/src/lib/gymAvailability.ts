@@ -76,8 +76,3 @@ export function gymLaunchFrom(view: GymsView): GymLaunch | null {
     missingLabels: Object.fromEntries(view.equipment.filter(item => missing.has(item.key)).map(item => [item.key, equipmentDisplayName(item)]))
   };
 }
-
-/** Keeps the server's order within each half: exercises this gym can host come first. */
-export function availableFirst<T>(items: readonly T[], isAvailable: (item: T) => boolean): T[] {
-  return [...items.filter(isAvailable), ...items.filter(item => !isAvailable(item))];
-}
