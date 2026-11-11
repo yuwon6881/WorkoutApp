@@ -84,7 +84,7 @@ internal static partial class ImportValidation
             }).ToList();
             return workout with { Block = block, Exercises = exercises };
         }).ToList();
-        return draft with { Workouts = workouts };
+        return ImportStructureIds.Unify(draft with { Workouts = workouts });
     }
 
     public static string SlotSignature(DraftWorkout workout, int position)
