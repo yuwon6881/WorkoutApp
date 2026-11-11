@@ -276,3 +276,28 @@ describe('technique sets and live records', () => {
     expect(checkLivePr(ex, 1)?.kind).toBe('reps');
   });
 });
+
+describe('one weight stored two ways', () => {
+  // 225 lb as the web once stored it (rounded to a gram) and as it is stored unrounded.
+  const roundedKg = 102.058;
+  const exactKg = 225 / 2.2046226218;
+  const records = (...reps: [number, number][]) => reps.map(([loadKg, count]) => ({
+    loadModel: 'external' as const, resistanceMode: 'external' as const, loadKg, reps: count
+  }));
+
+  it('compares reps with the record at the same physical weight', () => {
+    expect(checkLivePr(exercise([set({ weightKg: exactKg, reps: 11, rpe: null })], null, null, 'external', records([roundedKg, 10])), 0)?.kind).toBe('reps');
+    expect(checkLivePr(exercise([set({ weightKg: exactKg, reps: 10, rpe: null })], null, null, 'external', records([roundedKg, 10])), 0)).toBeNull();
+  });
+
+  it('reads the higher of two stored records for one weight', () => {
+    const row = exercise([set({ weightKg: exactKg, reps: 11, rpe: null })], null, null, 'external', records([Number(exactKg.toFixed(4)), 8], [roundedKg, 12]));
+    expect(checkLivePr(row, 0)).toBeNull();
+  });
+
+  it('counts an earlier set today at the same weight, however it was stored', () => {
+    const row = exercise([set({ weightKg: roundedKg, reps: 12, rpe: null }), set({ weightKg: exactKg, reps: 11, rpe: null })],
+      null, null, 'external', records([roundedKg, 10]));
+    expect(checkLivePr(row, 1)).toBeNull();
+  });
+});

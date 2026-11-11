@@ -10,6 +10,12 @@ export const toDisplay = (kg: number | null, unit: Unit): number | null =>
 /// The step for an exercise with no resolved rule, matching the server's Progression.DefaultStep.
 export const defaultLoadStepKg = (unit: Unit): number => unit === 'lb' ? 5 / PER_KG : 2.5;
 
+/// Two stored loads closer than this are one physical weight: a pound entry was once rounded to a
+/// gram, and is unrounded from the watch or a prefilled suggestion. Mirrors
+/// ProgressionEvidence.LoadToleranceKg on the server.
+export const LOAD_TOLERANCE_KG = 0.005;
+export const sameLoadKg = (left: number, right: number): boolean => Math.abs(left - right) < LOAD_TOLERANCE_KG;
+
 /// Pounds convert without rounding, as the server's own pound steps and the watch do: a typed
 /// 225 lb is then the very kilograms a prefilled 225 lb suggestion holds, so progression and
 /// records see one load rather than two a fraction of a gram apart.

@@ -1,5 +1,5 @@
 import type { LoggedSet, PreviousRepRecord, SessionExercise, Unit } from '../types';
-import { calculateEstimated1Rm, toDisplay } from './training';
+import { calculateEstimated1Rm, sameLoadKg, toDisplay } from './training';
 import { isStrengthSet } from './setTechnique';
 
 export type LivePrResult = {
@@ -42,11 +42,23 @@ export function getLoadKey(exercise: SessionExercise, set: LoggedSet): {
   return { loadKey: JSON.stringify([loadModel, resistanceMode, rounded]), comparableLoad: set.weightKg, isRepsOnly: false, loadModel, resistanceMode };
 }
 
-function previousRepBest(exercise: SessionExercise, current: NonNullable<ReturnType<typeof getLoadKey>>): number | undefined {
-  return exercise.previousRepRecords?.find((record: PreviousRepRecord) =>
+type LoadKey = NonNullable<ReturnType<typeof getLoadKey>>;
+
+const sameComparableLoad = (left: number | null, right: number | null): boolean =>
+  left === null || right === null ? left === right : sameLoadKg(left, right);
+
+/// Whether two sets were done at the same load of the same kind, however that weight was stored.
+const sameRecordLoad = (left: LoadKey, right: LoadKey): boolean =>
+  left.loadModel === right.loadModel && left.resistanceMode === right.resistanceMode &&
+  sameComparableLoad(left.comparableLoad, right.comparableLoad);
+
+/// The most reps on record at this load. Older stored records can hold one weight twice, so the
+/// highest match counts rather than the first.
+function previousRepBest(exercise: SessionExercise, current: LoadKey): number | undefined {
+  const matches = (exercise.previousRepRecords ?? []).filter((record: PreviousRepRecord) =>
     record.loadModel === current.loadModel && record.resistanceMode === current.resistanceMode &&
-    (record.loadKg === null ? current.comparableLoad === null
-      : current.comparableLoad !== null && Math.abs(record.loadKg - current.comparableLoad) < 1e-4))?.reps;
+    sameComparableLoad(record.loadKg, current.comparableLoad));
+  return matches.length ? Math.max(...matches.map(record => record.reps)) : undefined;
 }
 
 export function checkLivePr(exercise: SessionExercise, setIndex: number): LivePrResult | null {
@@ -75,7 +87,7 @@ export function checkLivePr(exercise: SessionExercise, setIndex: number): LivePr
         .filter((other, idx) => idx !== setIndex && other.done && isStrengthSet(exercise, other))
         .filter(other => {
           const otherInfo = getLoadKey(exercise, other);
-          return otherInfo !== null && otherInfo.loadKey === loadInfo.loadKey;
+          return otherInfo !== null && sameRecordLoad(otherInfo, loadInfo);
         })
         .map(other => other.reps ?? 0);
       if (!earlierRepsAtLoad.some(val => val >= set.reps!)) {

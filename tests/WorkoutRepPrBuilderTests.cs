@@ -23,6 +23,43 @@ public class WorkoutRepPrBuilderTests
         Assert.Equal(1, result.SessionCounts[current]);
     }
 
+    // 225 lb typed on the web before pounds stopped being rounded to a gram, then the same 225 lb
+    // unrounded (prefilled, from the watch, or typed since).
+    private const double RoundedKg = 102.058;
+    private const double ExactKg = 225 / 2.2046226218;
+
+    [Theory]
+    [InlineData(10, false)]
+    [InlineData(11, true)]
+    public void One_weight_stored_rounded_and_unrounded_shares_a_rep_record(int reps, bool record)
+    {
+        var prior = Guid.NewGuid();
+        var current = Guid.NewGuid();
+        var later = Exposure(current, FirstFinish.AddDays(1), 0, ExactKg, reps);
+
+        var result = WorkoutRepPrBuilder.Build([Exposure(prior, FirstFinish, 0, RoundedKg, 10), later]);
+
+        Assert.Equal(record, result.Sets[later.SetId].IsPr);
+        Assert.Single(result.PreviousByExercise.Values.Single());
+    }
+
+    [Fact]
+    public void A_baseline_that_holds_one_weight_twice_keeps_the_higher_reps()
+    {
+        var current = Guid.NewGuid();
+        var set = Exposure(current, FirstFinish, 0, ExactKg, 11);
+        var baseline = new WorkoutRepBaseline(ExerciseId, WorkoutViewBuilder.PrKey(ExerciseId, "Bench press").Item2,
+        [
+            new(LoadModels.External, ResistanceModes.External, RoundedKg, 12),
+            new(LoadModels.External, ResistanceModes.External, Math.Round(ExactKg, 4), 8)
+        ]);
+
+        var result = WorkoutRepPrBuilder.Build([set], [baseline]);
+
+        Assert.False(result.Sets[set.SetId].IsPr);
+        Assert.Equal(12, result.PreviousByExercise.Values.Single().Single().Reps);
+    }
+
     private static readonly DateTime FirstFinish = new(2026, 9, 1, 10, 0, 0, DateTimeKind.Utc);
     private static readonly Guid ExerciseId = Guid.Parse("10000000-0000-0000-0000-000000000001");
 

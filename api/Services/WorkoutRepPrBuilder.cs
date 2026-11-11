@@ -52,10 +52,29 @@ internal static class WorkoutRepPrBuilder
         var sessionCounts = new Dictionary<Guid, int>();
         var running = new Dictionary<((Guid, string) Exercise, string LoadModel, string ResistanceMode, string Load), int>();
 
+        // One physical weight is not always stored as the same kilograms (a pound entry was once
+        // rounded to a gram, and is unrounded from the watch or a prefilled suggestion), so a load
+        // takes the key of the first load of its exercise and kind within the progression tolerance.
+        var knownLoads = new Dictionary<((Guid, string) Exercise, string LoadModel, string ResistanceMode), List<RepPrLoadKey>>();
+        RepPrLoadKey Canonical((Guid, string) exercise, RepPrLoadKey load)
+        {
+            if (load.LoadKg is null) return load;
+            var kind = (exercise, load.LoadModel, load.ResistanceMode);
+            if (!knownLoads.TryGetValue(kind, out var known)) knownLoads[kind] = known = [];
+            if (known.FirstOrDefault(other => ProgressionEvidence.SameLoad(other.LoadKg, load.LoadKg)) is { } same) return same;
+            known.Add(load);
+            return load;
+        }
+
         foreach (var item in baseline ?? [])
             foreach (var record in item.Records)
-                if (LoadKey(record.LoadModel, record.ResistanceMode, record.LoadKg, record.LoadKg) is { } load)
-                    running[((item.ExerciseId, item.Name), load.LoadModel, load.ResistanceMode, load.Value)] = record.Reps;
+                if (LoadKey(record.LoadModel, record.ResistanceMode, record.LoadKg, record.LoadKg) is { } stored)
+                {
+                    var load = Canonical((item.ExerciseId, item.Name), stored);
+                    var recordKey = ((item.ExerciseId, item.Name), load.LoadModel, load.ResistanceMode, load.Value);
+                    // A baseline written before loads were matched this way can hold one weight twice.
+                    running[recordKey] = Math.Max(running.GetValueOrDefault(recordKey), record.Reps);
+                }
 
         var sessions = exposures.GroupBy(x => new { x.SessionId, x.FinishedAt, x.StartedAt })
             .OrderBy(x => x.Key.FinishedAt).ThenBy(x => x.Key.StartedAt).ThenBy(x => x.Key.SessionId);
@@ -69,8 +88,9 @@ internal static class WorkoutRepPrBuilder
 
                 foreach (var set in exercise.OrderBy(x => x.ExercisePosition).ThenBy(x => x.Position).ThenBy(x => x.SetId))
                 {
-                    if (set.Reps is not > 0 || LoadKey(set.LoadModel, set.ResistanceMode, set.WeightKg, set.SystemLoadKg) is not { } load)
+                    if (set.Reps is not > 0 || LoadKey(set.LoadModel, set.ResistanceMode, set.WeightKg, set.SystemLoadKg) is not { } entered)
                         continue;
+                    var load = Canonical(exercise.Key, entered);
 
                     var recordKey = (exercise.Key, load.LoadModel, load.ResistanceMode, load.Value);
                     var hadPrevious = running.TryGetValue(recordKey, out var previous);
