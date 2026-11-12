@@ -1,4 +1,4 @@
-import { Loader2 } from 'lucide-react';
+import { LiftLoader } from './ui/LiftLoader';
 import { Skeleton } from './ui/Skeleton';
 import './WorkoutSheet.css';
 import './ActiveWorkout.css';
@@ -23,7 +23,7 @@ export function WorkoutStartingContent({ name, status = 'Starting workout…' }:
           </div>
         </div>
         <div className="workout-top-rail">
-          <span className="workout-starting-status" role="status"><Loader2 size={16} className="spin" />{status}</span>
+          <span className="workout-starting-status" role="status"><LiftLoader size="md" />{status}</span>
         </div>
       </div>
       <div className="workout-exercise-strip-container workout-starting-part" aria-hidden="true">

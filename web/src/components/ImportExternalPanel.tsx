@@ -3,6 +3,7 @@ import { AlertTriangle, ClipboardCopy, ClipboardPaste, FileJson, Trash2, UploadC
 import { ApiError, api } from '../lib/api';
 import { correctionRequest, describeFailure, type ExternalImportPrompt } from '../lib/externalImport';
 import { Button } from './ui/Button';
+import { LiftLoader } from './ui/LiftLoader';
 import { SegmentedControl } from './ui/SegmentedControl';
 import type { ExternalImportFailure, ImportProgress } from './useImportPipeline';
 import './ImportExternalPanel.css';
@@ -210,7 +211,7 @@ export function ImportExternalPanel({ busy, failure, progress, onChooseFile, onD
                 {pasteHint && <p className="iep-inline-error" role="status">{pasteHint}</p>}
               </div>
             )}
-            {progress && <p className="iep-status" role="status">{progress.label}: {progress.detail}</p>}
+            {progress && <p className="iep-status iep-status-busy" role="status"><LiftLoader size="sm" />{progress.label}: {progress.detail}</p>}
           </div>
         </li>
       </ol>

@@ -233,3 +233,5 @@
 }
 
 .iep-excerpt-code span { color: var(--red); }
+.iep-status-busy { display: inline-flex; align-items: center; gap: 10px; }
+.iep-status-busy { display: inline-flex; align-items: center; gap: 10px; }

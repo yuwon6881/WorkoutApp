@@ -4,7 +4,8 @@ import { ApiError, api } from '../lib/api';
 import { buildAttentionRows, type ImportIssueTarget } from '../lib/importAttentionRows';
 import { resumableImport } from '../lib/importSelection';
 import { CardFeedback } from './ui/CardFeedback';
-import { AlertTriangle, Loader2 } from 'lucide-react';
+import { AlertTriangle } from 'lucide-react';
+import { LiftLoader } from './ui/LiftLoader';
 import { BackButton } from './ui/BackButton';
 import { DraftOutline, type DraftOutlineHandle } from './ImportDraftTree';
 import { useImportPipeline } from './useImportPipeline';
@@ -134,7 +135,7 @@ export function ImportReview({ exercises, imports, onBack, onChanged, notify }: 
         onDropFile={dropped => { setSaveError(''); void pipeline.uploadExternal(dropped); }}
         onSubmitText={text => { setSaveError(''); void pipeline.uploadExternal(text); }} />}
 
-    {hasDraft && pipeline.progress && <p className="muted" role="status">{pipeline.progress.label}…</p>}
+    {hasDraft && pipeline.progress && <p className="muted import-progress-line" role="status"><LiftLoader size="sm" />{pipeline.progress.label}…</p>}
     {saver.pending && <p className="muted" role="status">Saving your changes…</p>}
     {pipeline.failure && <ImportFailureBanner failure={pipeline.failure} onDismiss={pipeline.clearFailure} />}
     {saveError && <CardFeedback message={saveError} action={{ label: 'Retry save', disabled: busy,
@@ -147,7 +148,7 @@ export function ImportReview({ exercises, imports, onBack, onChanged, notify }: 
     {selected && !draft && selected.status === 'ready' && !selected.error && (
       <section className="panel" role="status">
         <div className="empty-message">
-          <Loader2 size={24} className="spin" />
+          <LiftLoader />
           <h3>Loading program draft…</h3>
           <p>Preparing the extracted days and exercises for review.</p>
         </div>
