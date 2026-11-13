@@ -1,10 +1,10 @@
+/* The day rows sit directly in the program card: a frame around them would be a box inside a box. */
 .program-week-checklist {
   display: grid;
   gap: 12px;
   margin: 14px 0;
-  padding: 14px;
-  border: 1px solid var(--border);
-  border-radius: 12px;
+  padding: 0;
+  border: none;
   background: transparent;
 }
 

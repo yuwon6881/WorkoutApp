@@ -85,7 +85,7 @@ for (const failure of ['connection', 'render'] as const) {
   });
 }
 
-test('Workout leaves Fitness Account to choose its own OS theme', async ({page}) => {
+test('Workout hands Fitness Account the theme it is showing', async ({page}) => {
   await page.addInitScript(() => localStorage.setItem('workout-theme', 'light'));
   let requestedUrl = '';
   await page.route('**/api/auth/central/start*', async route => {
@@ -96,7 +96,7 @@ test('Workout leaves Fitness Account to choose its own OS theme', async ({page})
   await expect(page.getByRole('heading', {name: 'Sign in to Workout'})).toBeVisible();
   await page.getByRole('button', {name: 'Sign in with Fitness Account'}).click();
   await expect(page.getByText('Fitness Account preview')).toBeVisible();
-  expect(new URL(requestedUrl).searchParams.has('theme')).toBe(false);
+  expect(new URL(requestedUrl).searchParams.get('theme')).toBe('light');
 });
 
 test('cancelled consent shows sign-in immediately while session validation is pending', async ({page}) => {

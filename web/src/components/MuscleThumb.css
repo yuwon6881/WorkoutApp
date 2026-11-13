@@ -5,3 +5,5 @@
 .muscle-thumb-silhouette{fill:var(--muscle-thumb-skin)}
 .muscle-thumb-part,.muscle-thumb-region{fill:color-mix(in srgb,var(--muted) 42%,var(--surface));stroke:var(--muscle-thumb-skin);stroke-width:1.6;stroke-linejoin:round}
 .muscle-thumb-region.is-highlighted{fill:color-mix(in oklch,var(--accent) var(--muscle-shade,35%),color-mix(in srgb,var(--muted) 42%,var(--surface)))}
+/* The sprite holds each muscle's crop once (MuscleThumbSprite); it takes no space itself. */
+.muscle-thumb-sprite{position:absolute;width:0;height:0;overflow:hidden}

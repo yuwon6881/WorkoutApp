@@ -12,6 +12,8 @@ import { buildExerciseSearchIndex, searchExerciseScores } from '../lib/exerciseS
 import { ChipScroller } from './ui/ChipScroller';
 import { GymAvailabilityBadge } from './GymAvailabilityBadge';
 import { useGymAvailabilityCheck } from '../lib/gymAvailability';
+import { muscleThumbTarget } from '../lib/muscleThumbTarget';
+import { MuscleThumbSprite, MuscleThumbUse } from './MuscleThumbSprite';
 import './Exercises.css';
 import './RenderWindow.css';
 
@@ -201,6 +203,7 @@ export function ExerciseLibrary({ exercises, onSelect, exclude = emptyIds, added
               ) : (
                 <article className="panel exercise-card exercise-card-action" key={e.id} tabIndex={0} role="button" aria-label={`View ${e.name} details`}
                   onClick={() => onOpen?.(e)} onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onOpen?.(e); } }}>
+                  <span className="exercise-card-thumb"><MuscleThumbUse muscle={muscleThumbTarget(e)} /></span>
                   <div className="exercise-card-top">
                     <h3 className="exercise-card-title" title={e.name}>{e.name}</h3>
                     {informativeEquipment(e) && <div className="exercise-card-badges">
@@ -241,6 +244,7 @@ export function ExerciseLibrary({ exercises, onSelect, exclude = emptyIds, added
   </>;
 
   return <div>
+    {!onSelect && <MuscleThumbSprite />}
     {!onSelect && <div className="page-heading"><h1 data-page-heading tabIndex={-1}>Exercises</h1><Button variant="primary" onClick={() => setCreateOpen(true)}><Plus size={16} />Create exercise</Button></div>}
     <div className="search-row">
       <label className="search-box">

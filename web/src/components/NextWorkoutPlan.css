@@ -66,3 +66,22 @@
   width: 100%;
   height: 18px;
 }
+
+/* The opening exercises read as an ordered plan: a quiet position number leads each row and a
+   hairline separates them. Row height is unchanged, so the loading rows still reserve the same space. */
+.hero-plan-list {
+  counter-reset: hero-plan;
+}
+
+.hero-plan-row {
+  counter-increment: hero-plan;
+}
+
+.hero-plan-name::before {
+  content: counter(hero-plan);
+  display: inline-block;
+  width: 22px;
+  color: var(--faint);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}

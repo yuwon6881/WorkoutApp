@@ -251,6 +251,66 @@
   }
 }
 
+/* Library cards lead with a body-map crop of the muscle the movement trains, so the grid can be
+   scanned by shape before it is read. Equipment drops to a quiet line under the title; the muscle
+   pills follow, and the last top set closes the card under a hairline. */
+.exercise-grid > .exercise-card {
+  display: grid;
+  grid-template-columns: 56px minmax(0, 1fr);
+  grid-auto-rows: min-content;
+  align-content: start;
+  justify-content: normal;
+  gap: 6px 14px;
+  padding: 16px;
+}
+.exercise-card-thumb {
+  --muscle-thumb-gap: var(--surface-raised);
+  grid-row: 1 / span 2;
+  align-self: start;
+  display: block;
+  width: 56px;
+  height: 56px;
+  border-radius: 14px;
+  background: var(--surface-raised);
+  overflow: hidden;
+}
+.exercise-card-thumb > .muscle-thumb {
+  /* Inherited by the sprite's plates, which are drawn through <use>. */
+  --muscle-shade: 90%;
+  width: 100%;
+  height: 100%;
+}
+.exercise-grid > .exercise-card > .exercise-card-top {
+  grid-column: 2;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 2px;
+}
+.exercise-grid > .exercise-card .exercise-card-badges {
+  margin-left: 0;
+  justify-content: flex-start;
+}
+.exercise-grid > .exercise-card .exercise-card-badges .pill {
+  min-height: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  font-size: var(--font-secondary);
+  font-weight: 500;
+  white-space: normal;
+}
+.exercise-grid > .exercise-card > .exercise-card-meta {
+  grid-column: 2;
+  align-self: start;
+}
+.exercise-grid > .exercise-card > .exercise-card-last {
+  grid-column: 1 / -1;
+  margin: 6px 0 0;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+
 /* Aligned search well & filter toolbar */
 .exercise-minor-filters {
   display: flex;

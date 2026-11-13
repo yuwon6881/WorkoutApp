@@ -138,12 +138,12 @@
   }
 }
 
-/* On Overview the week's totals sit inside the calendar card, under the days they count, as one
-   row of three figures split by hairlines (the day strip above is the card's only filled block):
-   the value, then a one-line label, the same shape in every column. */
+/* On Overview the week's totals sit inside the calendar card, under the days they count, as three
+   soft tiles: a labelled icon in the measure's data colour, then the figure in ink. The tint is a
+   flat wash of that one colour; the numbers never take it. */
 .training-calendar-card .stats-grid.progress-stats {
-  gap: 0;
-  padding: 2px 4px 0;
+  gap: 8px;
+  padding: 0;
   background: transparent;
   border: none;
   border-radius: 0;
@@ -153,42 +153,44 @@
 .training-calendar-card .progress-stat-card,
 .training-calendar-card .progress-stat-card:first-child,
 .training-calendar-card .progress-stat-card:last-of-type {
+  --stat-tone: var(--muted);
   justify-content: flex-start;
-  gap: 2px;
-  padding: 2px 14px;
+  gap: 6px;
+  padding: 12px 12px 13px;
   border: none;
-  border-radius: 0;
-  background: transparent;
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--stat-tone) 10%, transparent);
 }
 
-.training-calendar-card .progress-stat-card + .progress-stat-card {
-  border-left: 1px solid var(--border);
-}
-
-.training-calendar-card .progress-stat-card:first-child {
-  padding-left: 4px;
-}
-
-.training-calendar-card .stat-card-value {
-  order: -1;
-}
+.training-calendar-card .progress-stat-card[data-tone="accent"] { --stat-tone: var(--accent); }
+.training-calendar-card .progress-stat-card[data-tone="teal"] { --stat-tone: var(--teal); }
+.training-calendar-card .progress-stat-card[data-tone="amber"] { --stat-tone: var(--amber); }
 
 .training-calendar-card .stat-label-text {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   font-size: var(--font-secondary);
-  font-weight: 500;
+  font-weight: 560;
   white-space: nowrap;
+}
+
+.training-calendar-card .stat-label-text > svg {
+  flex: 0 0 auto;
+  color: var(--stat-tone);
 }
 
 .training-calendar-card .progress-stat-card strong,
 .training-calendar-card .stat-card-value > strong {
   font-size: 26px;
-  font-weight: 650;
+  font-weight: 680;
 }
 
 @media (max-width: 359px) {
   .training-calendar-card .progress-stat-card,
   .training-calendar-card .progress-stat-card:first-child,
   .training-calendar-card .progress-stat-card:last-of-type {
-    padding: 2px 8px;
+    padding: 10px 8px 11px;
   }
+  .training-calendar-card .stat-label-text > svg { display: none; }
 }

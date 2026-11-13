@@ -4,6 +4,7 @@ import { Button } from './ui/Button';
 import { CardFeedback } from './ui/CardFeedback';
 import { StartupScreen } from './ui/StartupScreen';
 import { centralAuthError } from '../lib/centralAuthError';
+import { initialTheme } from '../lib/theme';
 
 export function Auth() {
   const [errorCode] = useState(() => new URLSearchParams(window.location.search).get('central_error'));
@@ -35,7 +36,8 @@ export function Auth() {
         if (navigationStarted.current) return;
         navigationStarted.current = true;
         setStarting(true);
-        window.location.assign('/api/auth/central/start');
+        // Fitness Account wears the theme this app is showing, not the one the OS prefers.
+        window.location.assign(`/api/auth/central/start?theme=${initialTheme()}`);
       }}>
         <span>{starting ? 'Opening Fitness Account…' : 'Sign in with Fitness Account'}</span>
         {starting ? <Loader2 size={18} className="spin" aria-hidden="true" /> : <ArrowRight size={18} aria-hidden="true" />}

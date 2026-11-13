@@ -291,3 +291,91 @@
 @media (min-width: 1024px) {
   .history-show-all { min-height: 36px; }
 }
+
+/* Overview: once there are workouts to show, the newest sit as cards on the canvas under a bare
+   section title, side by side where there is room. Loading and empty states keep the one panel. */
+.panel.history-recent:has(.history-item-wrap) {
+  padding: 0;
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+}
+
+.history-recent:has(.history-item-wrap) .section-heading {
+  margin: 0 2px 12px;
+}
+
+.history-recent .history-month {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 14px;
+}
+
+@media (min-width: 1024px) {
+  .history-recent .history-month { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+
+.history-recent .history-item-wrap {
+  align-items: flex-start;
+  gap: 4px;
+  padding: 16px 10px 16px 16px;
+  background: var(--surface);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  transition: border-color var(--motion-control) var(--motion-ease), box-shadow var(--motion-control) var(--motion-ease), transform var(--motion-control) var(--motion-ease);
+}
+
+.history-recent .history-item-wrap:hover {
+  background: var(--surface);
+  box-shadow: var(--shadow-raised);
+  transform: translateY(-1px);
+}
+
+.history-recent .history-item-wrap:has(.history-row:active) {
+  background: var(--surface-raised);
+}
+
+/* Where cards sit side by side, the date tile and name share the first line and the figures run
+   beneath both; a phone keeps the compact row. */
+.history-recent .history-row {
+  padding: 0;
+}
+
+@media (min-width: 640px) {
+  .history-recent .history-row {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+    gap: 14px 12px;
+  }
+  .history-recent .history-row .row-title { display: contents; }
+  .history-recent .history-row .row-title > strong { font-size: 16px; }
+  .history-recent .history-stats { grid-column: 1 / -1; }
+}
+
+.history-recent .history-date {
+  background: var(--accent-soft);
+}
+
+.history-recent .history-date > span {
+  color: var(--accent);
+}
+
+.history-recent .history-stats {
+  gap: 6px 12px;
+}
+
+@media (max-width: 639px) {
+  .history-recent .history-month {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 10px;
+  }
+  .history-recent .history-item-wrap {
+    padding: 14px 6px 14px 14px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .history-recent .history-item-wrap:hover { transform: none; }
+}
