@@ -30,6 +30,13 @@
 .muscle-balance-stat-card:not(:first-child){
   border-left:1px solid var(--border);
 }
+/* Each summary label leads with an icon in its measure's data colour; the figure stays ink. */
+.muscle-balance-stat-label{display:flex;align-items:center;gap:6px;min-width:0}
+.muscle-balance-stat-label>svg{flex:0 0 auto;color:var(--stat-tone,var(--muted))}
+.muscle-balance-stat-label[data-tone="accent"]{--stat-tone:var(--accent)}
+.muscle-balance-stat-label[data-tone="teal"]{--stat-tone:var(--teal)}
+.muscle-balance-stat-label[data-tone="blue"]{--stat-tone:var(--blue)}
+.muscle-balance-stat-label[data-tone="amber"]{--stat-tone:var(--amber)}
 .muscle-balance-stat-label{
   color:var(--muted);
   font-size: var(--font-secondary);

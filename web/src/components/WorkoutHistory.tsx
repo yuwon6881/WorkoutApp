@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { ArrowRight, Clock3, Dumbbell, Layers, Trash2, Trophy } from 'lucide-react';
+import { ArrowRight, Clock3, Dumbbell, History, Layers, Trash2, Trophy } from 'lucide-react';
 import type { HistoryPage, HistorySummaryPage, Session, Unit } from '../types';
 import { viewReadCache } from '../lib/viewReadCache';
 import { ApiError, api } from '../lib/api';
@@ -232,6 +232,7 @@ export function WorkoutHistory({
 
       {!sessions.length && !loading && (
         <div className="empty-message">
+          <History size={26} aria-hidden="true" />
           <h3>No workouts yet</h3>
           <p>Finish a workout to see its sets and volume here.</p>
           <Button onClick={onStart}>Explore workouts<ArrowRight size={16} /></Button>

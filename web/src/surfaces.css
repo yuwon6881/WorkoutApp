@@ -72,3 +72,6 @@ input:not([type=checkbox]):not([type=radio]):not([type=range]):focus,select:focu
 /* A chip strip that already fits has nothing to scroll: no disabled arrows, and no space kept for them. */
 .filter-chips-nav:not(.has-overflow){grid-template-columns:minmax(0,1fr)}
 .filter-chips-nav:not(.has-overflow)>.filter-nav-btn{display:none}
+
+/* Empty states: the leading icon sits in a soft accent tile above a short title and one next step. */
+.empty-message>svg{box-sizing:content-box;width:26px;height:26px;padding:15px;margin-bottom:6px;border-radius:18px;background:var(--accent-soft);color:var(--accent)}

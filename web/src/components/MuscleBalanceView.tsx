@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { RotateCw } from 'lucide-react';
+import { Dumbbell, Layers, RotateCw, Target, Trophy } from 'lucide-react';
 import type { MuscleBalanceRow, MuscleBalanceView as MuscleBalanceData } from '../types';
 import { ApiError, api } from '../lib/api';
 import { formatSets, orderBreakdownGroups, peakSets, RANGES } from '../lib/muscleBalance';
@@ -143,26 +143,26 @@ export function MuscleBalanceView({ timeZone, onExercise, refreshKey, unconfirme
         <>
           <div className="muscle-balance-stats-strip" role="region" aria-label="Coverage summary">
             <div className="muscle-balance-stat-card">
-              <span className="muscle-balance-stat-label">Workouts</span>
+              <span className="muscle-balance-stat-label" data-tone="accent"><Dumbbell size={14} aria-hidden="true" />Workouts</span>
               <strong className="muscle-balance-stat-value">{view.sessions ? view.sessions : '—'}</strong>
             </div>
             <div className="muscle-balance-stat-card">
-              <span className="muscle-balance-stat-label">Total sets</span>
+              <span className="muscle-balance-stat-label" data-tone="teal"><Layers size={14} aria-hidden="true" />Total sets</span>
               <strong className="muscle-balance-stat-value">{view.totalSets > 0 ? formatSets(view.totalSets) : '—'}</strong>
             </div>
             <div className="muscle-balance-stat-card">
-              <span className="muscle-balance-stat-label">Trained groups</span>
+              <span className="muscle-balance-stat-label" data-tone="blue"><Target size={14} aria-hidden="true" />Trained groups</span>
               <strong className="muscle-balance-stat-value">{trained.length > 0 ? `${trained.length} of ${muscles.length}` : '—'}</strong>
             </div>
             {trained[0] ? (
               <Button presentation="plain" className="muscle-balance-stat-card muscle-balance-stat-action"
                 aria-label={`Top muscle: ${trained[0].muscle}. Show its sets`} onClick={() => showMuscle(trained[0].muscle)}>
-                <span className="muscle-balance-stat-label">Top muscle</span>
+                <span className="muscle-balance-stat-label" data-tone="amber"><Trophy size={14} aria-hidden="true" />Top muscle</span>
                 <strong className="muscle-balance-stat-value">{trained[0].muscle}</strong>
               </Button>
             ) : (
               <div className="muscle-balance-stat-card">
-                <span className="muscle-balance-stat-label">Top muscle</span>
+                <span className="muscle-balance-stat-label" data-tone="amber"><Trophy size={14} aria-hidden="true" />Top muscle</span>
                 <strong className="muscle-balance-stat-value">—</strong>
               </div>
             )}
