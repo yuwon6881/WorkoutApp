@@ -63,10 +63,11 @@ test('a running workout shows each set’s prescribed percentage', async ({ page
   const headers = { 'X-Workout-Request': '1', Origin: new URL(page.url()).origin };
   const active = await (await page.request.get('/api/workouts/active')).json();
   if (active) await page.request.post(`/api/workouts/${active.id}/discard`, { headers });
-  const catalog = await (await page.request.get('/api/exercises')).json();
-  const bench = catalog.find((exercise: { name: string }) => exercise.name === 'Barbell bench press');
-  const maxUrl = `/api/exercises/${bench.id}/one-rep-max`;
-  const savedMax = (await (await page.request.get(maxUrl)).json()).overrideKg as number | null;
+  const created = await page.request.post('/api/exercises/custom', { headers, data: {
+    name: `Percentage bench ${info.project.name} ${Date.now()}`, muscle: 'Chest', equipment: 'Barbell', loadModel: 'external', weightBasis: 'total'
+  } });
+  expect(created.ok(), await created.text()).toBeTruthy();
+  const bench = await created.json();
   const set = { repMin: 8, repMax: 8, targetRpe: 8, restSeconds: 90 };
   const response = await page.request.post('/api/templates', { headers, data: {
     name: `Percentage targets ${info.project.name} ${Date.now()}`, focus: '', note: '',
@@ -79,8 +80,17 @@ test('a running workout shows each set’s prescribed percentage', async ({ page
   const templateId = (await response.json()).id as string;
   let sessionId: string | undefined;
   try {
-    const saved = await page.request.put(maxUrl, { headers, data: { oneRepMaxKg: 100 } });
-    expect(saved.ok(), await saved.text()).toBeTruthy();
+    const seed = await page.request.post('/api/workouts', { headers, data: { templateId } });
+    expect(seed.ok(), await seed.text()).toBeTruthy();
+    const seedSession = await seed.json();
+    sessionId = seedSession.id;
+    const logged = await page.request.patch(`/api/workouts/${seedSession.id}/sets/${seedSession.exercises[0].sets[0].id}`, {
+      headers, data: { revision: seedSession.revision, mutationId: crypto.randomUUID(), weightKg: 100, reps: 5, rpe: 8, done: true }
+    });
+    expect(logged.ok(), await logged.text()).toBeTruthy();
+    const finished = await page.request.post(`/api/workouts/${seedSession.id}/finish`, { headers, data: { revision: (await logged.json()).revision } });
+    expect(finished.ok(), await finished.text()).toBeTruthy();
+    sessionId = undefined;
     const started = await page.request.post('/api/workouts', { headers, data: { templateId } });
     expect(started.ok(), await started.text()).toBeTruthy();
     const session = await started.json();
@@ -91,7 +101,8 @@ test('a running workout shows each set’s prescribed percentage', async ({ page
     await expect(rows.nth(0).locator('.set-percentage-target')).toHaveText('70% 1RM');
     await expect(rows.nth(1).locator('.set-percentage-target')).toHaveText('82.5–87.5% 1RM');
     await expect(rows.nth(2).locator('.set-percentage-target')).toHaveText('60% of top set');
-    await expect(sheet.getByRole('spinbutton', { name: `${bench.name} set 1 weight`, exact: true })).toHaveValue('70');
+    await expect(sheet.getByRole('spinbutton', { name: `${bench.name} set 1 weight`, exact: true })).not.toHaveValue('');
+    expect(session.exercises[0].sets[0].suggestion.reason).toContain('estimated 1RM');
     for (const row of await rows.all()) {
       const target = row.locator('.set-percentage-target');
       expect(await target.evaluate(element => element.scrollWidth <= element.clientWidth)).toBeTruthy();
@@ -107,7 +118,7 @@ test('a running workout shows each set’s prescribed percentage', async ({ page
     await expect(targets.getByText('60% of top set')).toBeVisible();
   } finally {
     if (sessionId) await page.request.post(`/api/workouts/${sessionId}/discard`, { headers });
-    await page.request.put(maxUrl, { headers, data: { oneRepMaxKg: savedMax } });
     await page.request.delete(`/api/templates/${templateId}`, { headers });
+    await page.request.delete(`/api/exercises/custom/${bench.id}`, { headers });
   }
 });

@@ -165,6 +165,61 @@ test.afterEach(async ({ page }) => {
 });
 
 for (const theme of ['dark', 'light']) {
+  test(`populated exercise progress in ${theme} theme`, async ({ page }, info) => {
+    await signIn(page);
+    await navigate(page, 'Settings');
+    await page.getByRole('group', { name: 'Appearance' })
+      .getByRole('button', { name: theme === 'dark' ? 'Dark' : 'Light' }).click();
+    await page.route('**/api/exercises/*/insight?*', async route => {
+      const response = await route.fetch();
+      const original = await response.json() as ExerciseInsight;
+      const date = '2026-10-27';
+      const fixture: ExerciseInsight = {
+        ...original, loadModel: 'external', sessions: 2, setCount: 6, totalHistoryRows: 2,
+        estimated1RmKg: 120, estimated1RmDate: date, heaviestKg: 100, heaviestReps: 8, heaviestDate: date,
+        largestSetVolumeKg: 800, largestSetVolumeDate: date, largestSessionVolumeKg: 2400,
+        largestSessionVolumeDate: date, repPr: 10, repPrDate: date, lastPerformedDate: date,
+        externalLoadPrKg: 100, addedLoadPrKg: null, assistanceReductionPrKg: null, systemLoadPrKg: null,
+        partialVolume: true, points: [
+          { date: '2026-10-20', sessionId: 'one', sessionName: 'First', estimated1RmKg: 110, loadKg: 90, volumeKg: 2160, reps: 8, partial: false },
+          { date, sessionId: 'two', sessionName: 'Second', estimated1RmKg: 120, loadKg: 100, volumeKg: 2400, reps: 8, partial: true }
+        ]
+      };
+      await route.fulfill({ json: fixture });
+    });
+    await navigate(page, 'Exercises');
+    await page.getByRole('textbox', { name: 'Search exercises' }).fill('bench');
+    await page.getByRole('button', { name: 'View Barbell bench press details' }).first().click();
+    const detail = page.getByRole('dialog', { name: 'Barbell bench press', exact: true });
+    await expect(detail.locator('.detail-record-grid .stat-card')).toHaveCount(7);
+    await expect(detail.getByRole('table', { name: 'Exercise progress table' })).toBeVisible();
+    await expect(detail).not.toContainText('External load PR');
+    await expect(detail).toContainText('Volume is partial');
+    const fits = await detail.locator('.chart-table-row:not(.chart-table-head), .detail-record-grid .stat-card').evaluateAll(elements => elements.every(element => {
+      const bounds = element.getBoundingClientRect();
+      return [...element.querySelectorAll('span, strong, small')].every(child => {
+        const box = child.getBoundingClientRect();
+        return box.left >= bounds.left - 1 && box.right <= bounds.right + 1;
+      });
+    }));
+    expect(fits, 'history values and record text fit their containers').toBe(true);
+    if (page.viewportSize()!.width < 640) {
+      const cardWidths = await detail.locator('.detail-record-grid .stat-card').evaluateAll(cards => cards.map(card => card.getBoundingClientRect().width));
+      expect(Math.max(...cardWidths.slice(0, 6)) - Math.min(...cardWidths.slice(0, 6)), 'the first six record tiles share two equal columns').toBeLessThan(2);
+      expect(cardWidths[6], 'the last tile fills the final row').toBeGreaterThan(cardWidths[0] * 1.9);
+    }
+    await checkLayout(page, 'populated exercise progress');
+    await detail.locator('.chart-table').scrollIntoViewIfNeeded();
+    await page.screenshot({ animations: 'disabled', path: join(screenshotsDirectory, 'responsive', `${info.project.name}-${theme}-exercise-progress-table.png`) });
+    await detail.locator('.detail-record-grid').scrollIntoViewIfNeeded();
+    await page.screenshot({ animations: 'disabled', path: join(screenshotsDirectory, 'responsive', `${info.project.name}-${theme}-exercise-progress-records.png`) });
+    if (page.viewportSize()!.width < 640) {
+      await detail.locator('.detail-record-grid .stat-card').first().evaluate(card => card.remove());
+      const widths = await detail.locator('.detail-record-grid .stat-card').evaluateAll(cards => cards.map(card => card.getBoundingClientRect().width));
+      expect(Math.max(...widths) - Math.min(...widths), 'six record tiles stay in equal columns').toBeLessThan(2);
+    }
+  });
+
   test(`active logger layout in ${theme} theme`, async ({ page }, info) => {
     await signIn(page);
     await page.evaluate(async () => {

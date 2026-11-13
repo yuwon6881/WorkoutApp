@@ -60,8 +60,7 @@ public sealed partial class WorkoutService
         var step = exercise.ExerciseId is { } id && info.TryGetValue(id, out var found) ? found.StepKg : Progression.DefaultStep(userUnit);
         var histories = await PreviousExposures(exercise.ExerciseId, exercise.NameSnapshot, ct);
         var lastTrained = ProgressionLayoff.Newest(histories.Values.SelectMany(exposures => exposures));
-        var oneRepMax = OneRepMaxFor(prescriptions, exercise.LoadModel, exercise.ExerciseId,
-            await OneRepMaxService.Overrides(db, [exercise.ExerciseId], ct), histories.Values.SelectMany(rows => rows));
+        var oneRepMax = OneRepMaxFor(prescriptions, exercise.LoadModel, histories.Values.SelectMany(rows => rows));
         var workingOrdinal = 0; SetProgressionSuggestion? first = null; SetProgressionSuggestion? straight = null;
         SetPrescription? straightPlan = null;
         var previousOfKind = new Dictionary<string, PlannedSuggestion>();
@@ -92,10 +91,9 @@ public sealed partial class WorkoutService
 
     /// The one-rep max a percentage-based plan needs, or null when no set of it prints a percentage, so
     /// ordinary programs never pay for the estimate.
-    private static OneRepMax? OneRepMaxFor(IEnumerable<SetPrescription> plan, string loadModel, Guid? exerciseId,
-        IReadOnlyDictionary<Guid, double> typed, IEnumerable<SetExposure> history)
+    private static double? OneRepMaxFor(IEnumerable<SetPrescription> plan, string loadModel, IEnumerable<SetExposure> history)
         => loadModel == LoadModels.External && plan.Any(set => !set.Warmup && !PercentageLoad.IsRelative(set) && PercentageLoad.Parse(set.LoadText) is not null)
-            ? PercentageLoad.Resolve(exerciseId is { } id && typed.TryGetValue(id, out var kg) ? kg : null, history)
+            ? PercentageLoad.EstimateOneRepMax(history)
             : null;
 
     /// A technique never done on this movement before has no history of its own; it starts from the
@@ -103,9 +101,9 @@ public sealed partial class WorkoutService
     private SetProgressionSuggestion MakeSuggestion(SetPrescription prescription, IReadOnlyList<SetExposure> exposures,
         string mode, double step, NutritionContextResult context, string resistanceMode, string loadModel,
         BodyWeightSnapshot? bodyWeight, IReadOnlyList<double>? availableLoads = null, DateTime? lastTrained = null,
-        OneRepMax? oneRepMax = null)
+        double? oneRepMax = null)
         => PercentageLoad.Apply(prescription, Suggest(prescription, exposures, mode, step, context, resistanceMode, loadModel, bodyWeight, availableLoads, lastTrained),
-            oneRepMax?.Kg, oneRepMax?.Estimated ?? false, new LoadOptions(step, AvailableLoadsKg: availableLoads));
+            oneRepMax, new LoadOptions(step, AvailableLoadsKg: availableLoads));
 
     private SetProgressionSuggestion Suggest(SetPrescription prescription, IReadOnlyList<SetExposure> exposures,
         string mode, double step, NutritionContextResult context, string resistanceMode, string loadModel,

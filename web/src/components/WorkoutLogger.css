@@ -121,6 +121,11 @@
 
 .workout-set-rows { display: flex; flex-direction: column; gap: 4px; }
 
+.workout-set-order-feedback .card-feedback {
+  margin: 2px 0 6px;
+  padding: 10px 12px;
+}
+
 .workout-set-rows .workout-set-row {
   position: relative;
   isolation: isolate;

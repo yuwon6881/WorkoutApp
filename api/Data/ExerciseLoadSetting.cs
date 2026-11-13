@@ -22,10 +22,3 @@ public sealed class EquipmentLoadDefault : OwnedRecord
     public string LoadStepUnit { get; set; } = WeightUnits.Kg;
     public string? AvailableLoadsJson { get; set; }
 }
-
-/// The lifter's own one-rep max for one exercise (Id is the exercise), used to turn a program's
-/// printed %1RM into a load. Without a row progression falls back to an estimate from history.
-public sealed class ExerciseOneRepMax : OwnedRecord
-{
-    public double OneRepMaxKg { get; set; }
-}

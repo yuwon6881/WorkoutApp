@@ -49,6 +49,7 @@ describe('WorkoutTargetsModal', () => {
     }));
     expect(markup).toContain('70% 1RM');
     expect(markup).toContain('77.5 kg');
+    expect(markup).not.toContain('One-rep max');
   });
   // A leading warm-up is not listed, but it still occupies the first set; each working row must
   // read its own set's suggestion and last result rather than its neighbour's.

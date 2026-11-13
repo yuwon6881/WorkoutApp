@@ -38,7 +38,7 @@ public sealed class PercentageLoadTests
     [Fact]
     public void A_back_off_set_follows_its_percentage_whatever_the_last_load_was()
     {
-        var result = PercentageLoad.Apply(Plan("75%"), Engine(60, true), 100, false, Step);
+        var result = PercentageLoad.Apply(Plan("75%"), Engine(60, true), 100, Step);
 
         Assert.Equal(75, result.SuggestedLoadKg);
         Assert.Equal(3, result.SuggestedReps);
@@ -48,8 +48,8 @@ public sealed class PercentageLoadTests
     [Fact]
     public void A_week_with_a_higher_percentage_raises_the_load()
     {
-        var week1 = PercentageLoad.Apply(Plan("70%"), Engine(70, true), 140, false, Step);
-        var week2 = PercentageLoad.Apply(Plan("80%"), Engine(70, true), 140, false, Step);
+        var week1 = PercentageLoad.Apply(Plan("70%"), Engine(70, true), 140, Step);
+        var week2 = PercentageLoad.Apply(Plan("80%"), Engine(70, true), 140, Step);
 
         Assert.Equal(97.5, week1.SuggestedLoadKg);
         Assert.Equal(112.5, week2.SuggestedLoadKg);
@@ -60,24 +60,25 @@ public sealed class PercentageLoadTests
     {
         foreach (var last in new double?[] { null, 70, 87.5, 95 })
         {
-            var result = PercentageLoad.Apply(Plan("82.5-87.5%", 8.5), Engine(last, last is not null), 100, true, Step);
+            var result = PercentageLoad.Apply(Plan("82.5-87.5%", 8.5), Engine(last, last is not null), 100, Step);
 
             Assert.Equal(85, result.SuggestedLoadKg);
             Assert.Equal(3, result.SuggestedReps);
             Assert.Contains("Middle of the band", result.Reason);
             Assert.Contains("estimated 1RM", result.Reason);
             Assert.Contains("target effort", result.Reason);
+            Assert.DoesNotContain("correct your 1RM", result.Reason);
         }
     }
 
     [Fact]
     public void Without_a_one_rep_max_the_load_stays_blank_instead_of_borrowing_ordinary_progression()
     {
-        var result = PercentageLoad.Apply(Plan("75%"), Engine(60, true), null, false, Step);
+        var result = PercentageLoad.Apply(Plan("75%"), Engine(60, true), null, Step);
 
         Assert.Null(result.SuggestedLoadKg);
         Assert.Equal(3, result.SuggestedReps);
-        Assert.Contains("Enter your 1RM", result.Reason);
+        Assert.Contains("recent heavy set", result.Reason);
     }
 
     [Fact]
@@ -85,17 +86,17 @@ public sealed class PercentageLoadTests
     {
         var engine = Engine(60, true) with { SuggestedReps = 8 };
 
-        Assert.Equal(3, PercentageLoad.Apply(Plan("75%"), engine, 100, false, Step).SuggestedReps);
+        Assert.Equal(3, PercentageLoad.Apply(Plan("75%"), engine, 100, Step).SuggestedReps);
     }
 
     [Fact]
     public void Warm_ups_plain_loads_and_reps_only_movements_are_left_alone()
     {
         var engine = Engine(60, true);
-        Assert.Same(engine, PercentageLoad.Apply(Plan("75%", warmup: true), engine, 100, false, Step));
-        Assert.Same(engine, PercentageLoad.Apply(Plan("RPE note"), engine, 100, false, Step));
+        Assert.Same(engine, PercentageLoad.Apply(Plan("75%", warmup: true), engine, 100, Step));
+        Assert.Same(engine, PercentageLoad.Apply(Plan("RPE note"), engine, 100, Step));
         var repsOnly = engine with { ResistanceMode = ResistanceModes.RepsOnly };
-        Assert.Same(repsOnly, PercentageLoad.Apply(Plan("75%"), repsOnly, 100, false, Step));
+        Assert.Same(repsOnly, PercentageLoad.Apply(Plan("75%"), repsOnly, 100, Step));
     }
 
     [Fact]
@@ -137,7 +138,7 @@ public sealed class PercentageLoadTests
     [Fact]
     public void A_relative_top_set_percentage_never_borrows_a_one_rep_max_or_history_load()
     {
-        var result = PercentageLoad.Apply(Plan("60% of top set"), Engine(100, true), 100, false, Step);
+        var result = PercentageLoad.Apply(Plan("60% of top set"), Engine(100, true), 100, Step);
         Assert.Null(result.SuggestedLoadKg);
     }
 
@@ -145,6 +146,6 @@ public sealed class PercentageLoadTests
     public void Testing_opener_follows_the_printed_start_instruction()
     {
         var plan = Plan("100-105%") with { Notes = "Start with 100% and increase by 2.5% every attempt." };
-        Assert.Equal(100, PercentageLoad.Apply(plan, Engine(90, true), 100, false, Step).SuggestedLoadKg);
+        Assert.Equal(100, PercentageLoad.Apply(plan, Engine(90, true), 100, Step).SuggestedLoadKg);
     }
 }

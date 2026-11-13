@@ -14,7 +14,6 @@ public sealed class AppDb(DbContextOptions<AppDb> options) : DbContext(options)
     public DbSet<Exercise> Exercises => Set<Exercise>();
     public DbSet<CustomExercise> CustomExercises => Set<CustomExercise>();
     public DbSet<ExerciseLoadSetting> ExerciseLoadSettings => Set<ExerciseLoadSetting>();
-    public DbSet<ExerciseOneRepMax> ExerciseOneRepMaxes => Set<ExerciseOneRepMax>();
     public DbSet<EquipmentLoadDefault> EquipmentLoadDefaults => Set<EquipmentLoadDefault>();
     public DbSet<GymProfile> GymProfiles => Set<GymProfile>();
     public DbSet<ExerciseAlias> Aliases => Set<ExerciseAlias>();
@@ -114,9 +113,6 @@ public sealed class AppDb(DbContextOptions<AppDb> options) : DbContext(options)
             t.HasCheckConstraint("CK_ExerciseLoadSettings_OneRule", OneRule());
             t.HasCheckConstraint("CK_ExerciseLoadSettings_LoadStepUnit", StepUnit());
         });
-        Configure<ExerciseOneRepMax>(m);
-        m.Entity<ExerciseOneRepMax>().ToTable("ExerciseOneRepMaxes", t =>
-            t.HasCheckConstraint("CK_ExerciseOneRepMaxes_Kg", "\"OneRepMaxKg\" > 0 AND \"OneRepMaxKg\" <= 1000"));
         Configure<EquipmentLoadDefault>(m);
         m.Entity<EquipmentLoadDefault>().Property(x => x.Equipment).HasMaxLength(40);
         m.Entity<EquipmentLoadDefault>().HasIndex(x => new { x.UserId, x.GymProfileId, x.Equipment }).IsUnique();

@@ -54,7 +54,6 @@ builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<CatalogService>();
 builder.Services.AddScoped<ExerciseService>();
 builder.Services.AddScoped<ExerciseLoadSettingsService>();
-builder.Services.AddScoped<OneRepMaxService>();
 builder.Services.AddScoped<LoadSettingsService>();
 builder.Services.AddScoped<GymProfileService>();
 builder.Services.AddScoped<TemplateService>();

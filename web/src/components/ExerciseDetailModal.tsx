@@ -14,7 +14,6 @@ import { ExerciseHistoryClearing } from './ExerciseHistoryClearing';
 import { ExerciseLoadSettings } from './ExerciseLoadSettings';
 import { ExerciseProgressChart } from './ExerciseProgressChart';
 import { ExerciseProgressTable } from './ExerciseProgressTable';
-import { OneRepMaxSettings } from './OneRepMaxSettings';
 import { useExerciseInsight } from './useExerciseInsight';
 import { Button } from './ui/Button';
 import { Modal } from './ui/Modal';
@@ -94,7 +93,6 @@ export function ExerciseDetailModal({ exercise, unit, onClose, onChanged }: {
           {!exercise.archived && <ExerciseGymAvailability exerciseId={exercise.id} requires={exercise.requires} />}
           {editable && <ExerciseLoadSettings key={exercise.id} exerciseId={exercise.id} exerciseName={exercise.name} unit={unit}
             perSide={canEnterPerSide(exercise)} onChanged={onChanged} />}
-          {editable && <OneRepMaxSettings key={`1rm-${exercise.id}`} exerciseId={exercise.id} exerciseName={exercise.name} unit={unit} />}
           {adjustable && <p className="muted">{weightBasisDescription(exercise)}</p>}
         </div>
 
@@ -144,7 +142,7 @@ export function ExerciseDetailModal({ exercise, unit, onClose, onChanged }: {
   </>;
 }
 
-function ProgressPanel({ insight, unit, basis, range, onRange }: {
+export function ProgressPanel({ insight, unit, basis, range, onRange }: {
   insight: ExerciseInsight;
   unit: Unit;
   basis: WithWeightBasis;
@@ -155,6 +153,9 @@ function ProgressPanel({ insight, unit, basis, range, onRange }: {
   const metric = selectedMetric ?? defaultChartMetric(insight.points);
   const load = (kg: number | null | undefined) => showExerciseWeight(kg, unit, basis);
   const volume = (kg: number | null | undefined) => showVolume(kg ?? null, unit);
+  const otherResistanceRecords = insight.addedLoadPrKg != null || insight.assistanceReductionPrKg != null || insight.systemLoadPrKg != null;
+  const showExternalRecord = insight.externalLoadPrKg != null && !(insight.loadModel === 'external'
+    && !otherResistanceRecords && insight.heaviestKg === insight.externalLoadPrKg);
 
   return <>
     <div className="section-heading">
@@ -192,12 +193,12 @@ function ProgressPanel({ insight, unit, basis, range, onRange }: {
       <Record label="Last performed" value={dateLabel(insight.lastPerformedDate)}
         note={insight.setCount > 0 ? `${insight.setCount} working sets` : undefined} />
     </div>
-    <div className="detail-resistance-records" aria-label="Resistance records">
-      {insight.externalLoadPrKg != null && <span>External load PR <strong>{load(insight.externalLoadPrKg)}</strong></span>}
+    {(showExternalRecord || otherResistanceRecords) && <div className="detail-resistance-records" aria-label="Resistance records">
+      {showExternalRecord && <span>External load PR <strong>{load(insight.externalLoadPrKg)}</strong></span>}
       {insight.addedLoadPrKg != null && <span>Added load PR <strong>{load(insight.addedLoadPrKg)}</strong></span>}
       {insight.assistanceReductionPrKg != null && <span>Lowest assistance <strong>{load(insight.assistanceReductionPrKg)}</strong></span>}
       {insight.systemLoadPrKg != null && <span>System load PR <strong>{load(insight.systemLoadPrKg)}</strong></span>}
-    </div>
+    </div>}
   </>;
 }
 

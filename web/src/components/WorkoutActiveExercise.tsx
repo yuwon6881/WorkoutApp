@@ -22,9 +22,10 @@ import { api } from '../lib/api';
 import { restOptions } from '../lib/training';
 import { showExerciseWeight } from '../lib/weightBasis';
 import { ProgressionChangeBadge } from './ProgressionChangeBadge';
-import { earlierPendingSet, setNumberLabel, withSetAdded, withSetRemoved } from '../lib/workoutDraft';
+import { earlierPendingSet, setNumberLabel, setOrderProblem, withSetAdded, withSetRemoved } from '../lib/workoutDraft';
 import { allowedSetTypes, withSetType } from '../lib/workoutSetTypes';
 import { Button } from './ui/Button';
+import { CardFeedback } from './ui/CardFeedback';
 import { TextAreaField } from './ui/Field';
 import { Modal } from './ui/Modal';
 import { MenuButton, MenuItem } from './ui/MenuButton';
@@ -88,6 +89,7 @@ export function WorkoutActiveExercise({
   const [weightsOpen, setWeightsOpen] = useState(false);
   const [restTimerOpen, setRestTimerOpen] = useState(false);
   const [catalogError, setCatalogError] = useState('');
+  const [blockedSetId, setBlockedSetId] = useState<string | null>(null);
   const [focusedLoads, setFocusedLoads] = useState<Pick<Exercise, 'loadStepKg' | 'availableLoadsKg'> | null>(null);
   // Set once a library read has answered, so an exercise the library no longer lists (an archived
   // custom one still in a saved plan) reads as missing rather than as still loading.
@@ -158,7 +160,17 @@ export function WorkoutActiveExercise({
   liveActions.current = { editSet, toggle, removeSet, change, draft, index };
   const rowActions = useMemo(() => ({
     editSet: (...args: Parameters<typeof editSet>) => liveActions.current.editSet(...args),
-    toggle: (...args: Parameters<typeof toggle>) => liveActions.current.toggle(...args),
+    toggle: (ei: number, si: number) => {
+      const current = liveActions.current;
+      const attempted = current.draft.exercises[ei];
+      const set = attempted.sets[si];
+      if (!current.draft.pausedAt && !set.done && setOrderProblem(attempted, si)) {
+        setBlockedSetId(set.id);
+        return false;
+      }
+      setBlockedSetId(null);
+      return current.toggle(ei, si);
+    },
     onRemoveSet: (si: number) => liveActions.current.removeSet(si),
     onSetType: (si: number, type: Parameters<typeof withSetType>[3]) => {
       const current = liveActions.current;
@@ -294,6 +306,7 @@ export function WorkoutActiveExercise({
           {removedSets.after(null).map(placeholder => <WorkoutRemovedSet key={placeholder.key} placeholder={placeholder} onUndo={removedSets.undo} onDismiss={removedSets.dismiss} />)}
           {exercise.sets.map((set, si) => {
             const plan = prescription[si] ?? prescription.at(-1);
+            const orderProblem = set.id === blockedSetId && !set.done ? setOrderProblem(exercise, si) : null;
             return (
               <Fragment key={set.id}>
               <WorkoutSetRow
@@ -316,6 +329,7 @@ export function WorkoutActiveExercise({
                 onSetType={rowActions.onSetType}
                 onRemoveSet={rowActions.onRemoveSet}
               />
+              {orderProblem && <div className="workout-set-order-feedback"><CardFeedback tone="warning" message={orderProblem} /></div>}
               {removedSets.after(set.id).map(placeholder => <WorkoutRemovedSet key={placeholder.key} placeholder={placeholder} onUndo={removedSets.undo} onDismiss={removedSets.dismiss} />)}
               </Fragment>
             );

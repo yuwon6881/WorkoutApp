@@ -1,3 +1,4 @@
+using Microsoft.EntityFrameworkCore;
 using Workout.Api.Data;
 using Workout.Api.Domain;
 using Workout.Api.Services;
@@ -8,16 +9,16 @@ namespace Workout.Tests;
 public sealed class PercentageProgramStartTests
 {
     [Fact]
-    public async Task Relative_backoff_does_not_use_a_saved_one_rep_max()
+    public async Task Relative_backoff_does_not_use_an_estimated_one_rep_max()
     {
         var h = await Harness.Create();
         await using var _ = h;
         await h.SignIn();
         await h.Seed(new SeedExercise("bench", "Bench", "Chest", "Barbell", null, 2.5));
         var id = await h.ExerciseId("bench");
-        await new OneRepMaxService(h.Db, h.Workouts).Save(id, new OneRepMaxInput(100), default);
         var plan = Harness.Set(10, 20) with { LoadText = "60%", Notes = PercentageLoad.PriorSetNote };
         var template = await h.Templates.Create(Harness.Template("Day", Harness.Exercise(id, "Bench", plan)), null, 1, 0, default);
+        await Log(h, template.Id, id, "Bench", 90, 1);
         var started = await h.Workouts.Start(template.Id, null, default);
         var set = started.Exercises.Single().Sets.Single();
         Assert.Null(set.WeightKg);
@@ -32,10 +33,10 @@ public sealed class PercentageProgramStartTests
         await h.SignIn();
         await h.Seed(new SeedExercise("bench", "Bench", "Chest", "Barbell", null, 2.5));
         var id = await h.ExerciseId("bench");
-        await new OneRepMaxService(h.Db, h.Workouts).Save(id, new OneRepMaxInput(100), default);
         var plan = Harness.Set(10, 20) with { LoadText = "60%" };
         var exercise = Harness.Exercise(id, "Bench", plan) with { Note = "Use ~60% of the weight you used on your top set." };
         var template = await h.Templates.Create(Harness.Template("Day", exercise), null, 1, 0, default);
+        await Log(h, template.Id, id, "Bench", 90, 1);
         var started = await h.Workouts.Start(template.Id, null, default);
         Assert.Null(started.Exercises.Single().Sets.Single().WeightKg);
         Assert.Contains(PercentageLoad.PriorSetNote, started.Exercises.Single().Prescription.Single().Notes);
@@ -57,30 +58,66 @@ public sealed class PercentageProgramStartTests
     }
 
     [Fact]
-    public async Task A_percentage_set_has_no_load_until_a_one_rep_max_is_known_then_follows_it()
+    public async Task Legacy_manual_max_is_preserved_but_never_used_for_the_workout()
     {
         var (h, id, template) = await Setup("75%");
         await using var _ = h;
-        var oneRepMax = new OneRepMaxService(h.Db, h.Workouts);
+        await AddLegacyMax(h, id);
 
         var unknown = await h.Workouts.Start(template, null, default);
         Assert.Null(unknown.Exercises.Single().Sets.Single().WeightKg);
         await h.Workouts.Discard(unknown.Id, default);
 
-        var saved = await oneRepMax.Save(id, new OneRepMaxInput(140), default);
-        Assert.Equal(140, saved.EffectiveKg);
-
+        await Log(h, template, id, "Squat", 100, 5);
         var started = await h.Workouts.Start(template, null, default);
-        Assert.Equal(105, started.Exercises.Single().Sets.Single().WeightKg);
-        await h.Workouts.Discard(started.Id, default);
-
-        var cleared = await oneRepMax.Save(id, new OneRepMaxInput(null), default);
-        Assert.Null(cleared.OverrideKg);
-        Assert.Null(cleared.EffectiveKg);
+        Assert.Equal(92.5, started.Exercises.Single().Sets.Single().WeightKg);
+        Assert.Equal(200, await ReadLegacyMax(h));
     }
 
     [Fact]
-    public async Task Without_a_typed_one_rep_max_the_estimate_from_a_logged_heavy_set_is_used()
+    public async Task Swapping_a_percentage_exercise_uses_replacement_history_not_its_legacy_max()
+    {
+        var (h, _, template) = await Setup("75%");
+        await using var _ = h;
+        await h.Seed(new SeedExercise("bench", "Bench", "Chest", "Barbell", null, 2.5));
+        var bench = await h.ExerciseId("bench");
+        await AddLegacyMax(h, bench);
+        var benchTemplate = await h.Templates.Create(Harness.Template("Bench", Harness.Exercise(bench, "Bench", Harness.Set(5, 5))), null, 1, 0, default);
+
+        var first = await h.Workouts.Start(template, null, default);
+        var unknown = await h.Workouts.Swap(first.Id,
+            new SessionSubstitutionInput(first.Exercises.Single().Id, bench, "Bench", first.Revision, null), default);
+        Assert.Null(unknown.Exercises.Single().Sets.Single().WeightKg);
+        await h.Workouts.Discard(first.Id, default);
+
+        await Log(h, benchTemplate.Id, bench, "Bench", 100, 5);
+        var next = await h.Workouts.Start(template, null, default);
+        var swapped = await h.Workouts.Swap(next.Id,
+            new SessionSubstitutionInput(next.Exercises.Single().Id, bench, "Bench", next.Revision, null), default);
+        var set = swapped.Exercises.Single().Sets.Single();
+        Assert.Equal(92.5, set.WeightKg);
+        Assert.Contains("estimated 1RM", set.Suggestion!.Reason);
+        Assert.Equal(200, await ReadLegacyMax(h));
+    }
+
+    [Fact]
+    public async Task A_percentage_set_has_no_load_until_a_one_rep_max_is_known_then_follows_it()
+    {
+        var (h, id, template) = await Setup("75%");
+        await using var _ = h;
+
+        var unknown = await h.Workouts.Start(template, null, default);
+        Assert.Null(unknown.Exercises.Single().Sets.Single().WeightKg);
+        await h.Workouts.Discard(unknown.Id, default);
+
+        await Log(h, template, id, "Squat", 120, 3);
+        var started = await h.Workouts.Start(template, null, default);
+        Assert.Equal(105, started.Exercises.Single().Sets.Single().WeightKg);
+        await h.Workouts.Discard(started.Id, default);
+    }
+
+    [Fact]
+    public async Task The_estimate_from_a_logged_heavy_set_is_used()
     {
         var (h, id, template) = await Setup("75%");
         await using var _ = h;
@@ -91,13 +128,31 @@ public sealed class PercentageProgramStartTests
                 [new SetInput(100, 5, 8, true, Id: exercise.Sets.Single().Id)], Id: exercise.Id)], first.Revision, null), default);
         await h.Workouts.Finish(first.Id, null, default);
 
-        var view = await new OneRepMaxService(h.Db, h.Workouts).Get(id, default);
-        Assert.Equal(100 * (1 + 7 / 30.0), view.EstimatedKg!.Value, 6);
-
         var next = await h.Workouts.Start(template, null, default);
         var set = next.Exercises.Single().Sets.Single();
         Assert.Equal(92.5, set.WeightKg);
         Assert.Contains("estimated 1RM", set.Suggestion!.Reason);
+    }
+
+    private static async Task AddLegacyMax(Harness h, Guid exerciseId)
+    {
+        await h.Db.Database.ExecuteSqlRawAsync("""
+            CREATE TABLE IF NOT EXISTS "ExerciseOneRepMaxes" (
+                "UserId" TEXT NOT NULL, "Id" TEXT NOT NULL,
+                "OneRepMaxKg" REAL NOT NULL, "Revision" INTEGER NOT NULL,
+                PRIMARY KEY ("UserId", "Id"))
+            """);
+        await h.Db.Database.ExecuteSqlInterpolatedAsync($"""
+            INSERT INTO "ExerciseOneRepMaxes" ("UserId", "Id", "OneRepMaxKg", "Revision")
+            VALUES ({h.Db.CurrentUser!.Value}, {exerciseId}, {200.0}, {1})
+            """);
+    }
+
+    private static async Task<double> ReadLegacyMax(Harness h)
+    {
+        await using var command = h.Db.Database.GetDbConnection().CreateCommand();
+        command.CommandText = "SELECT \"OneRepMaxKg\" FROM \"ExerciseOneRepMaxes\"";
+        return Convert.ToDouble(await command.ExecuteScalarAsync());
     }
 
     private static async Task Log(Harness h, Guid templateId, Guid exerciseId, string name, double load, int reps)
@@ -122,7 +177,7 @@ public sealed class PercentageProgramStartTests
             Harness.Set(3, 3, 8.5) with { LoadText = "80%" },
             Harness.Set(3, 3, 8.5) with { LoadText = "85%" },
             Harness.Set(3, 3, 8.5) with { LoadText = "70%" })), null, 1, 0, default);
-        await new OneRepMaxService(h.Db, h.Workouts).Save(id, new OneRepMaxInput(100), default);
+        await Log(h, template.Id, id, "Bench", 90, 1);
 
         var started = await h.Workouts.Start(template.Id, null, default);
 
@@ -137,10 +192,10 @@ public sealed class PercentageProgramStartTests
         await h.SignIn();
         await h.Seed(new SeedExercise("squat", "Squat", "Quads", "Barbell", null, 2.5));
         var id = await h.ExerciseId("squat");
-        await new OneRepMaxService(h.Db, h.Workouts).Save(id, new OneRepMaxInput(140), default);
         var week1 = await h.Templates.Create(Harness.Template("W1", Harness.Exercise(id, "Squat", Harness.Set(5, 5) with { LoadText = "70%" })), null, 1, 0, default);
         var week2 = await h.Templates.Create(Harness.Template("W2", Harness.Exercise(id, "Squat", Harness.Set(5, 5) with { LoadText = "80%" })), null, 1, 0, default);
 
+        await Log(h, week1.Id, id, "Squat", 120, 3);
         await Log(h, week1.Id, id, "Squat", 97.5, 5);
         var next = await h.Workouts.Start(week2.Id, null, default);
 
@@ -158,7 +213,7 @@ public sealed class PercentageProgramStartTests
         var set = next.Exercises.Single().Sets.Single();
 
         Assert.Null(set.WeightKg);
-        Assert.Contains("Enter your 1RM", set.Suggestion!.Reason);
+        Assert.Contains("recent heavy set", set.Suggestion!.Reason);
     }
 
     [Fact]
@@ -171,11 +226,11 @@ public sealed class PercentageProgramStartTests
             new SeedExercise("curl", "Curl", "Biceps", "Dumbbell", null, 2));
         var squat = await h.ExerciseId("squat");
         var curl = await h.ExerciseId("curl");
-        await new OneRepMaxService(h.Db, h.Workouts).Save(squat, new OneRepMaxInput(140), default);
         var template = await h.Templates.Create(Harness.Template("Day",
             Harness.Exercise(squat, "Squat", Harness.Set(5, 5) with { LoadText = "75%" }),
             Harness.Exercise(curl, "Curl", Harness.Set(8, 12))), null, 1, 0, default);
 
+        await Log(h, template.Id, squat, "Squat", 120, 3);
         await Log(h, template.Id, curl, "Curl", 20, 12);
         var next = await h.Workouts.Start(template.Id, null, default);
 

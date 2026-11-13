@@ -62,6 +62,15 @@ vi.mock('react', async () => {
 
 import { WorkoutActiveExercise } from './WorkoutActiveExercise';
 import { WorkoutSetRow } from './WorkoutSetRow';
+import { CardFeedback } from './ui/CardFeedback';
+
+function findFeedback(node: unknown): Record<string, unknown>[] {
+  if (!node || typeof node !== 'object') return [];
+  if (Array.isArray(node)) return node.flatMap(findFeedback);
+  const el = node as { type?: unknown; props?: Record<string, unknown> };
+  const found = el.type === CardFeedback && el.props ? [el.props] : [];
+  return el.props?.children ? [...found, ...findFeedback(el.props.children)] : found;
+}
 
 function findSetRows(node: unknown): Record<string, unknown>[] {
   if (!node || typeof node !== 'object') return [];
@@ -111,6 +120,27 @@ function renderWithDraft(draft: Session, props: { editSet?: () => void; change?:
 }
 
 describe('WorkoutActiveExercise set row isolation', () => {
+  it('shows the set-order warning beside the attempted row and clears it when the blocker is logged', () => {
+    stateSlots.length = 0; refSlots.length = 0; memoSlots.length = 0;
+    const warmup = { ...baseExercise.sets[0], warmup: true };
+    const current = { ...baseExercise, sets: [warmup, baseExercise.sets[1]] };
+    const draft = { id: 's1', exercises: [current], pausedAt: null } as Session;
+    const toggle = vi.fn();
+    const rows = renderWithDraft(draft, { toggle });
+    expect((rows[1].toggle as (ei: number, si: number) => unknown)(0, 1)).toBe(false);
+    expect(toggle).not.toHaveBeenCalled();
+    stateCursor = 0; refCursor = 0; memoCursor = 0;
+    const render = (session: Session) => WorkoutActiveExercise({
+      exercise: session.exercises[0], index: 0, unit: 'kg', draft: session, exercises: [bench],
+      change: () => undefined, editSet: () => undefined, toggle,
+      onSwap: async () => undefined, onRemoveExercise: () => undefined
+    });
+    expect(findFeedback(render(draft)).map(feedback => feedback.message)).toContain('Log warm-up 1 first, or remove it if you are skipping it.');
+    stateCursor = 0; refCursor = 0; memoCursor = 0;
+    const resolved = { ...draft, exercises: [{ ...current, sets: [{ ...warmup, done: true }, current.sets[1]] }] };
+    expect(findFeedback(render(resolved))).toHaveLength(0);
+  });
+
   it('keeps sibling WorkoutSetRow props shallowly equal across single-set edits and uses default memo comparison', () => {
     for (const cleanup of cleanups.values()) if (typeof cleanup === 'function') cleanup();
     cleanups.clear(); prevDeps.clear(); stateSlots.length = 0; refSlots.length = 0; memoSlots.length = 0;

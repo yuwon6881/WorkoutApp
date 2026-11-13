@@ -156,7 +156,6 @@ public sealed partial class WorkoutService(
             var models = await catalog.LoadModelsFor(planned.Select(p => p.ExerciseId), ct);
             var histories = await PreviousExposuresBatch(planned.Select(p => (p.ExerciseId, p.SourceName)), ct);
             var timed = await CatalogService.TrackingModesFor(db, planned.Select(p => p.ExerciseId), ct);
-            var typedOneRepMaxes = await OneRepMaxService.Overrides(db, planned.Select(p => p.ExerciseId), ct);
             foreach (var plan in planned)
             {
                 var prescription = ImportLoadBasis.ApplyPrescriptions(Json.Read<List<SetPrescription>>(plan.SetsJson), plan.Note);
@@ -178,7 +177,7 @@ public sealed partial class WorkoutService(
                 var previous = histories.GetValueOrDefault(historyKey) ?? [];
                 var lastTrained = ProgressionLayoff.Newest(previous.Values.SelectMany(exposures => exposures));
                 var step = plan.ExerciseId is { } id2 && info.TryGetValue(id2, out var found) ? found.StepKg : Progression.DefaultStep(userUnit);
-                var oneRepMax = OneRepMaxFor(prescription, loadModel, plan.ExerciseId, typedOneRepMaxes, previous.Values.SelectMany(rows => rows));
+                var oneRepMax = OneRepMaxFor(prescription, loadModel, previous.Values.SelectMany(rows => rows));
                 var workingOrdinal = 0;
                 // Timed holds are measured in seconds; the rep-based progression has nothing honest to suggest.
                 var isTimed = plan.ExerciseId is { } timedId && timed.ContainsKey(timedId);

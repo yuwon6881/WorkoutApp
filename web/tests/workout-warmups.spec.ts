@@ -58,6 +58,15 @@ test('working loads fill the empty sets after them and warm-ups ramp up to them'
     const ramp = await Promise.all((await weights(workout, squat.name).all()).map(field => field.inputValue()));
     expect(ramp).toEqual(['20', '50', '70', '85', '100', '100', '100']);
     await expect(workout.getByRole('button', { name: 'Add warm-ups', exact: true })).toHaveCount(0);
+    await workout.getByRole('button', { name: `Log ${squat.name} set 5 (log earlier sets first)` }).click();
+    const warning = workout.getByRole('alert').filter({ hasText: 'Log warm-up 1 first, or remove it if you are skipping it.' });
+    await expect(warning).toBeVisible();
+    await expect(workout.locator('.workout-set-rows').getByRole('alert')).toHaveCount(1);
+    const warningBox = await warning.boundingBox();
+    const tableBox = await workout.locator('.workout-set-rows').boundingBox();
+    expect(warningBox).not.toBeNull();
+    expect(tableBox).not.toBeNull();
+    expect(Math.abs((warningBox!.x + warningBox!.width / 2) - (tableBox!.x + tableBox!.width / 2))).toBeLessThan(2);
     await workout.screenshot({ path: info.outputPath('warmups-added.png') });
 
     // The plan gives the press one warm-up; its load calls for more, so the lifter chooses.

@@ -3,9 +3,8 @@ import type { Preferences, SessionExercise } from '../types';
 import { showReps } from '../lib/training';
 import { previousSetSummaries } from '../lib/previousSets';
 import { setTarget } from '../lib/setTarget';
-import { isPercentLoad, percentagePrescription } from '../lib/oneRepMax';
+import { percentagePrescription } from '../lib/oneRepMax';
 import { Modal } from './ui/Modal';
-import { OneRepMaxSettings } from './OneRepMaxSettings';
 import { Skeleton } from './ui/Skeleton';
 import { getRirColorClass } from './ui/RpeControl';
 import { useRecentExerciseSets, type RecentSetsStatus } from './useRecentExerciseSets';
@@ -120,9 +119,6 @@ export function WorkoutTargetsView({ exercise, unit, trackRir, previousSets, pre
             );
           })}
         </ul>
-        {exercise.exerciseId && exercise.prescription.some(p => !p.warmup && isPercentLoad(p.loadText, p.notes)) && (
-          <OneRepMaxSettings exerciseId={exercise.exerciseId} exerciseName={exercise.name} unit={unit} />
-        )}
       </div>
     </Modal>
   );

@@ -33,4 +33,15 @@ describe('ExerciseProgressTable', () => {
   it('shows no fold control when everything fits', () => {
     expect(render([point(1, { loadKg: 20 }), point(2, { loadKg: 22.5 })])).not.toContain('Show all');
   });
+
+  it('associates each displayed value with its heading and omits the verbose estimate note', () => {
+    const markup = render([point(1, { estimated1RmKg: 120, loadKg: 100, volumeKg: 800, reps: 8, partial: true })]);
+    expect(markup).toContain('data-label="Date"');
+    expect(markup).toContain('data-label="1RM"');
+    expect(markup).toContain('data-label="Load"');
+    expect(markup).toContain('data-label="Volume"');
+    expect(markup).toContain('800 kg *');
+    expect(markup).toContain('data-label="Reps"');
+    expect(markup).not.toContain('Estimated 1RM needs the reps in reserve');
+  });
 });

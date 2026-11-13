@@ -26,7 +26,6 @@ export function ExerciseProgressTable({ points, formatDate, formatEstimate, form
     { key: 'reps', label: 'Reps', cell: p => String(p.reps ?? '—'), present: p => p.reps != null }
   ];
   const columns = allColumns.filter(column => points.some(column.present));
-  const has1Rm = columns.some(column => column.key === 'estimated1rm');
   const newestFirst = [...points].reverse();
   const rows = expanded ? newestFirst : newestFirst.slice(0, collapsedRows);
   const template = { gridTemplateColumns: `minmax(0, 1.3fr) repeat(${columns.length}, minmax(0, 1fr))` };
@@ -38,11 +37,10 @@ export function ExerciseProgressTable({ points, formatDate, formatEstimate, form
         {columns.map(column => <span role="columnheader" key={column.key}>{column.label}</span>)}
       </div>
       {rows.map(point => <div className="chart-table-row" role="row" style={template} key={`row-${point.sessionId}-${point.date}`}>
-        <span role="cell">{formatDate(point.date)}</span>
-        {columns.map(column => <span role="cell" key={column.key}>{column.cell(point)}</span>)}
+        <span role="cell" data-label="Date">{formatDate(point.date)}</span>
+        {columns.map(column => <span role="cell" data-label={column.label} key={column.key}>{column.cell(point)}</span>)}
       </div>)}
     </div>
-    {has1Rm && <p className="chart-table-note">Estimated 1RM needs the reps in reserve you log with a set. Sets logged without it are left out of the estimate.</p>}
     {newestFirst.length > collapsedRows && <Button variant="tertiary" className="full-width" onClick={() => setExpanded(value => !value)}>
       {expanded ? 'Show fewer sessions' : `Show all ${newestFirst.length} sessions`}
     </Button>}
