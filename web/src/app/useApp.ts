@@ -8,6 +8,7 @@ import { SaveQueue } from '../lib/queue';
 import type { QueueStatus } from '../lib/queue';
 import type { AppResource, Bootstrap, Preferences, Session, ShellBootstrap } from '../types';
 import { clearLaunchSnapshot, readLaunchSnapshot, saveLaunchSnapshot } from '../lib/launchSnapshot';
+import { forgetSignedInDevice, markSignedInDevice } from '../lib/signedInDevice';
 import { deleteWorkoutPushToken, getWorkoutPushDeviceId } from '../lib/push/firebaseMessaging';
 import { retireWorkoutPushAfterAccountSwitch, retireWorkoutPushDevice } from '../lib/push/cleanup';
 import { defaultDevicePreferences, loadDevicePreferences, saveDevicePreferences as persistDevicePreferences } from '../lib/workoutDevicePreferences';
@@ -99,7 +100,7 @@ export function useApp(): AppState {
       clearStopwatches(); forgetSessionDetail(); pendingPreferences.current = null; setPreferencePending(false);
       void retireCurrentPushDevice();
       void setLastAccount(null).catch(() => undefined);
-      clearLaunchSnapshot(); confirmDevice();
+      clearLaunchSnapshot(); forgetSignedInDevice(); confirmDevice();
       setRecovery(null);
       loadEpoch.current++; sharedReads.reset(); viewReadCache.reset(); resourcesInFlight.current.clear();
       setSignedOut(true);
@@ -212,13 +213,13 @@ export function useApp(): AppState {
       }
       confirmDevice();
       setData(next); setResourceError(''); setError(''); setSignedOut(false);
-      saveLaunchSnapshot(shell);
+      saveLaunchSnapshot(shell); markSignedInDevice();
       if (!queue.unsaved) queue.clear();
     } catch (failure) {
       if (epoch !== loadEpoch.current) return;
       const problem = failure instanceof ApiError ? failure : new ApiError('Could not load your training.', -1);
       if (problem.signedOut) mutationAccount.current = null;
-      if (problem.signedOut) { clearLaunchSnapshot(); confirmDevice(); viewReadCache.reset(); clearStopwatches(); forgetSessionDetail(); pendingPreferences.current = null; setPreferencePending(false); validatedAccountId = null; resetGoogleHealthState(); await setLastAccount(null).catch(() => undefined); setRecovery(null); setSignedOut(true); setData(null); setError(''); queue.clear(); queue.set('signed-out'); }
+      if (problem.signedOut) { clearLaunchSnapshot(); forgetSignedInDevice(); confirmDevice(); viewReadCache.reset(); clearStopwatches(); forgetSessionDetail(); pendingPreferences.current = null; setPreferencePending(false); validatedAccountId = null; resetGoogleHealthState(); await setLastAccount(null).catch(() => undefined); setRecovery(null); setSignedOut(true); setData(null); setError(''); queue.clear(); queue.set('signed-out'); }
       else {
         // The device copy only bridges the wait for the server; a failed read shows the
         // connection recovery screen rather than training data the server has not confirmed.
@@ -384,7 +385,7 @@ export function useApp(): AppState {
     mutationAccount.current = null;
     clearStopwatches(); forgetSessionDetail(); pendingPreferences.current = null; setPreferencePending(false);
     resetGoogleHealthState(); await setLastAccount(null).catch(() => undefined); queue.clear();
-    clearLaunchSnapshot(); confirmDevice();
+    clearLaunchSnapshot(); forgetSignedInDevice(); confirmDevice();
     setData(null); setRecovery(null); setSignedOut(true);
   }, [queue, confirmDevice]);
 

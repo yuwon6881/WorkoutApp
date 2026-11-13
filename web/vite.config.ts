@@ -7,6 +7,7 @@ import { featureCss } from './scripts/feature-css';
 import { preloadLatinFont } from './scripts/preload-latin-font';
 import { bootShell } from './scripts/boot-shell';
 import { assetResponsePlugin } from './scripts/static-asset-cache';
+import { hoverMedia } from './scripts/hover-media';
 
 const packageVersion = (JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8')) as { version: string }).version;
 const buildRevision = process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 7) ?? process.env.GITHUB_SHA?.slice(0, 7) ?? 'local';
@@ -34,6 +35,8 @@ const proxy = { '/api': { target: apiTarget, changeOrigin: false }, '/health': {
 export default defineConfig({
   define: { __APP_VERSION__: JSON.stringify(`${packageVersion}+${buildRevision}`) },
   appType: 'mpa',
+  // Hover styles apply only where a pointer can hover, so a tap never leaves one lit (scripts/hover-media.ts).
+  css: { postcss: { plugins: [hoverMedia()] } },
   server: {
     proxy,
     watch: {

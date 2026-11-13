@@ -234,7 +234,7 @@ export function WorkoutHistory({
         <div className="empty-message">
           <h3>No workouts yet</h3>
           <p>Finish a workout to see its sets and volume here.</p>
-          <Button onClick={onStart}>Find a workout<ArrowRight size={16} /></Button>
+          <Button onClick={onStart}>Explore workouts<ArrowRight size={16} /></Button>
         </div>
       )}
 

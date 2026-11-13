@@ -2,6 +2,8 @@ import { memo, useEffect, useState } from 'react';
 import { Check, Pause, Trash2 } from 'lucide-react';
 import type { LoggedSet, Preferences, SessionExercise, SetPrescription } from '../types';
 import { defaultLoadStepKg, toDisplay, toKg } from '../lib/training';
+import { formatTypedNumber } from '../lib/numberInput';
+import { plannedRirChoices } from '../lib/rirTarget';
 import { setTarget } from '../lib/setTarget';
 import { percentagePrescription } from '../lib/oneRepMax';
 import { effortPatch, effortValue, loadIsEditable } from '../lib/workoutDraft';
@@ -92,6 +94,10 @@ export const WorkoutSetRow = memo(function WorkoutSetRow({
   const target = setTarget(set, plan, exercise, unit, trackRir);
   const prescribedPercentage = percentagePrescription(plan?.loadText, plan?.notes);
   const targetDescription = `set-target-reason-${set.id}`;
+  // The next load the exercise allows: its own weight list when it has one, else its increment.
+  const steppedLoadKg = (fromKg: number | null, direction: 1 | -1): number | null => availableLoadsKg?.length
+    ? nextAvailableLoad(fromKg, availableLoadsKg, direction)
+    : Math.max(0, (fromKg ?? 0) + direction * stepKg);
   const remove = () => {
     discardStopwatch(set.id);
     onRemoveSet(si);
@@ -140,11 +146,12 @@ export const WorkoutSetRow = memo(function WorkoutSetRow({
           value={shown}
           // A bodyweight movement has no load to enter, so its field stays an empty dash.
           disabled={!loadEditable}
-          onStep={direction => {
-            const next = availableLoadsKg?.length
-              ? nextAvailableLoad(set.weightKg, availableLoadsKg, direction)
-              : Math.max(0, (set.weightKg ?? 0) + direction * stepKg);
-            editSet(ei, si, { weightKg: next });
+          onStep={direction => editSet(ei, si, { weightKg: steppedLoadKg(set.weightKg, direction) })}
+          keypad={{
+            label: `${exercise.name} set ${si + 1}`,
+            unit,
+            stepLabel: availableLoadsKg?.length ? null : formatTypedNumber(toDisplay(stepKg, unit), 2),
+            stepFrom: (from, direction) => toDisplay(steppedLoadKg(toKg(from, unit), direction), unit)
           }}
           // Correcting a logged set keeps it logged; only the log button unlogs a set.
           onChange={value => editSet(ei, si, { weightKg: toKg(value, unit) })}
@@ -161,6 +168,7 @@ export const WorkoutSetRow = memo(function WorkoutSetRow({
         />
       ) : (
         <RepsRirControl name={`reps-${exercise.id}-${si}`} label={`${exercise.name} set ${si + 1}`}
+          hint={target.reps && target.reps !== '—' ? target.reps : null} targetRir={trackRir ? plannedRirChoices(plan) : []}
           reps={set.reps} rir={effortValue(set)} trackRir={trackRir}
           onChange={(reps, rir) => editSet(ei, si, { reps, ...(trackRir ? effortPatch(rir) : {}) })} />
       )}

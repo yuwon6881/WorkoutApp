@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { basename, resolve } from 'node:path';
-import { transformWithEsbuild, type Plugin } from 'vite';
+import { preprocessCSS, transformWithEsbuild, type Plugin, type ResolvedConfig } from 'vite';
 
 // These styles participate in the first screen. Optional feature links are inserted before
 // the shell stylesheet, preserving the existing feature-before-index/layout cascade.
@@ -9,11 +9,12 @@ const critical = new Set(['BottomNav.css', 'SideNav.css', 'Dashboard.css', 'Hist
 
 export function featureCss(): Plugin {
   let production = false;
+  let resolvedConfig: ResolvedConfig | null = null;
   const prefix = '\0workout-feature-css:';
   return {
     name: 'workout-ordered-feature-css',
     enforce: 'pre',
-    configResolved(config) { production = config.command === 'build'; },
+    configResolved(config) { production = config.command === 'build'; resolvedConfig = config; },
     resolveId(source, importer) {
       if (!importer || !source.endsWith('.css')) return;
       const path = resolve(importer.split('?')[0], '..', source).replaceAll('\\', '/');
@@ -26,7 +27,10 @@ export function featureCss(): Plugin {
       const name = basename(path);
       let url: string;
       if (production) {
-        const css = await transformWithEsbuild(readFileSync(path, 'utf8'), path, { loader: 'css', minify: true });
+        // These files skip Vite's CSS pipeline, so its PostCSS pass (hover queries) runs here.
+        const source = readFileSync(path, 'utf8');
+        const processed = resolvedConfig ? (await preprocessCSS(source, path, resolvedConfig)).code : source;
+        const css = await transformWithEsbuild(processed, path, { loader: 'css', minify: true });
         const reference = this.emitFile({ type: 'asset', name, source: css.code });
         url = `import.meta.ROLLUP_FILE_URL_${reference}`;
       } else url = JSON.stringify(`/src/components/${name}?direct`);

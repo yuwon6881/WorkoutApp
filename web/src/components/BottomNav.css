@@ -175,3 +175,26 @@
   background: var(--accent-soft);
   color: var(--accent);
 }
+
+/* An open workout: its logged share fills a line along the action's bottom edge. */
+.bottom-nav-action-progress {
+  position: absolute;
+  right: 12px;
+  bottom: 7px;
+  left: 12px;
+  height: 3px;
+  overflow: hidden;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--on-accent) 22%, transparent);
+}
+.bottom-nav-action-progress > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--on-accent);
+  transform-origin: left center;
+  transition: transform 420ms var(--motion-ease);
+}
+@media (prefers-reduced-motion: reduce) {
+  .bottom-nav-action-progress > span { transition: none; }
+}

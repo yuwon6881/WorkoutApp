@@ -9,6 +9,7 @@ import { Button } from './ui/Button';
 import { MuscleThumb } from './MuscleThumb';
 import { NextWorkoutPlan } from './NextWorkoutPlan';
 import { WorkoutElapsed } from './WorkoutElapsed';
+import { ActiveWorkoutNow } from './ActiveWorkoutNow';
 import './NextWorkoutHero.css';
 
 interface NextWorkoutHeroProps {
@@ -199,13 +200,15 @@ export function NextWorkoutHero({ data, unconfirmed = false, onStart, onResume, 
                 <strong>{doneCount}</strong> of <strong>{totalCount}</strong> sets done
               </span>
               <span className="hero-count-item">
-                <strong>{activeWorkout.exercises.length}</strong> exercises
+                <strong>{activeWorkout.exercises.length}</strong> {activeWorkout.exercises.length === 1 ? 'exercise' : 'exercises'}
               </span>
             </div>
           </div>
 
           <HeroMuscles muscles={topMuscles} />
         </div>
+
+        <ActiveWorkoutNow session={activeWorkout} />
 
         <div className="hero-footer">
           <Button variant="primary" className="hero-action-btn" aria-label={`Resume ${activeWorkout.name}`} onClick={onResume}>

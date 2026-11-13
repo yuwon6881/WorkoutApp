@@ -58,11 +58,6 @@
     min-height: 44px;
   }
 }
-/* Why Import is unavailable, kept apart from the section heading that follows it. */
-.program-week-note.programs-import-note {
-  margin: -10px 0 20px;
-}
-
 .routine-library-list {
   display: grid;
   grid-template-columns: 1fr;

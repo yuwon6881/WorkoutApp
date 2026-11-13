@@ -8,6 +8,8 @@ for (const theme of ['dark', 'light'] as const) {
     await page.emulateMedia({ colorScheme: theme, reducedMotion: 'reduce' });
     await page.route('**/api/bootstrap/launch', () => new Promise(() => undefined));
     await page.addInitScript(value => { document.documentElement.dataset.theme = value; }, theme);
+    // The skeleton is for a returning lifter (src/lib/signedInDevice.ts).
+    await page.addInitScript(() => { localStorage.setItem('workout-signed-in', '1'); });
     await page.goto('/');
     await expect(page.locator('.app-loading-shell')).toBeVisible();
     await expect(page.locator('.app-loading .overview-hero-calendar-grid')).toBeVisible();
@@ -16,3 +18,10 @@ for (const theme of ['dark', 'light'] as const) {
     await expect(page).toHaveScreenshot(`skeleton-${theme}.png`, { animations: 'disabled', threshold: 0.05, maxDiffPixelRatio: 0.01 });
   });
 }
+
+test('a device with no sign-in behind it opens on the neutral mark, not the Overview shape', async ({ page }) => {
+  await page.route('**/api/bootstrap/launch', () => new Promise(() => undefined));
+  await page.goto('/');
+  await expect(page.locator('.app-splash')).toBeVisible();
+  await expect(page.locator('.app-loading-shell')).toHaveCount(0);
+});

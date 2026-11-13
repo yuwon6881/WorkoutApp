@@ -1,6 +1,6 @@
 import { loadAdjustable } from '../lib/exerciseLoads';
 import { useDeferredValue, useEffect, useMemo, useState } from 'react';
-import { ArrowLeftRight, Link2, Plus, Search, X } from 'lucide-react';
+import { ArrowLeftRight, Check, Link2, Plus, Search, X } from 'lucide-react';
 import type { Exercise, ExerciseCategory, Unit } from '../types';
 import { lastPerformedLabel } from '../lib/lastPerformed';
 import { useLastPerformed } from './useLastPerformed';
@@ -18,6 +18,7 @@ import './RenderWindow.css';
 /// The catalog is supplied by the server and is empty until a seed file is loaded, so the
 /// empty state explains that rather than implying the user should have added something.
 const emptyIds: string[] = [];
+const RECENT_LIMIT = 6;
 
 export type ExercisePickerAction = 'add' | 'swap' | 'map';
 
@@ -47,8 +48,10 @@ function exerciseRank(candidate: Exercise, current: Exercise | undefined, prefer
   return 4;
 }
 
-export function ExerciseLibrary({ exercises, onSelect, exclude = emptyIds, onOpen, onChanged, action = 'add', currentExerciseId, preferredNames = emptyIds, disabled = false, unit }: {
+export function ExerciseLibrary({ exercises, onSelect, exclude = emptyIds, added = emptyIds, onOpen, onChanged, action = 'add', currentExerciseId, preferredNames = emptyIds, disabled = false, unit }: {
   exercises: Exercise[];
+  /** Picked during this visit to the picker: kept in place and marked Added rather than removed. */
+  added?: string[];
   /** When given (the library tab), cards add the exercise's last top set in this unit. */
   unit?: Unit;
   onSelect?: (id: string) => void;
@@ -62,7 +65,9 @@ export function ExerciseLibrary({ exercises, onSelect, exclude = emptyIds, onOpe
 }) {
   const [query, setQuery] = useState('');
   const [muscle, setMuscle] = useState('All muscles');
-  const lastPerformed = useLastPerformed(Boolean(unit) && !onSelect);
+  // The library tab labels its cards with each last top set; the add picker leads with what was
+  // trained most recently. Both read the same account-scoped cached list.
+  const lastPerformed = useLastPerformed((Boolean(unit) && !onSelect) || (Boolean(onSelect) && action === 'add'));
   const lastLabel = (exercise: Exercise) => {
     const last = lastPerformed.get(exercise.id);
     return unit && last ? lastPerformedLabel(last, unit, exercise) : null;
@@ -123,7 +128,14 @@ export function ExerciseLibrary({ exercises, onSelect, exclude = emptyIds, onOpe
   const recommendedIds = new Set(recommended.map(e => e.id));
   const unmatchedSuggestions = showRecommended ? preferredNames.filter(name => !exercises.some(e =>
     [e.name, ...e.aliases].some(alias => normalized(alias) === normalized(name)))) : [];
-  const relevantList = (showBoundary ? ordered.filter(isRelevant) : ordered).filter(e => !recommendedIds.has(e.id));
+  // Adding to a workout starts from the movements trained most recently, while nothing narrows the list.
+  const showRecent = Boolean(onSelect) && action === 'add' && !query.trim() && muscle === 'All muscles'
+    && source === 'all' && category === 'all';
+  const recent = showRecent ? ordered.filter(e => lastPerformed.has(e.id))
+    .sort((a, b) => (lastPerformed.get(b.id)?.finishedAt ?? '').localeCompare(lastPerformed.get(a.id)?.finishedAt ?? ''))
+    .slice(0, RECENT_LIMIT) : [];
+  const recentIds = new Set(recent.map(e => e.id));
+  const relevantList = (showBoundary ? ordered.filter(isRelevant) : ordered).filter(e => !recommendedIds.has(e.id) && !recentIds.has(e.id));
   const otherList = showBoundary ? ordered.filter(e => !isRelevant(e) && !recommendedIds.has(e.id)) : [];
 
   const currentMatches = current && searchScores.has(current.id)
@@ -168,16 +180,23 @@ export function ExerciseLibrary({ exercises, onSelect, exclude = emptyIds, onOpe
                       <GymAvailabilityBadge exerciseId={e.id} compact />
                     </div>
                   </div>
-                  <Button
-                    className="picker-add-btn"
-                    variant="secondary"
-                    aria-label={`${actionLabel} ${e.name}`}
-                    disabled={disabled}
-                    onClick={() => onSelect(e.id)}
-                  >
-                    <ActionIcon size={16} />
-                    <span className="picker-add-label">{actionLabel}</span>
-                  </Button>
+                  {added.includes(e.id) ? (
+                    <Button className="picker-add-btn picker-added" variant="tertiary" aria-label={`${e.name} added`} disabled>
+                      <Check size={16} />
+                      <span className="picker-add-label">Added</span>
+                    </Button>
+                  ) : (
+                    <Button
+                      className="picker-add-btn"
+                      variant="secondary"
+                      aria-label={`${actionLabel} ${e.name}`}
+                      disabled={disabled}
+                      onClick={() => onSelect(e.id)}
+                    >
+                      <ActionIcon size={16} />
+                      <span className="picker-add-label">{actionLabel}</span>
+                    </Button>
+                  )}
                 </article>
               ) : (
                 <article className="panel exercise-card exercise-card-action" key={e.id} tabIndex={0} role="button" aria-label={`View ${e.name} details`}
@@ -302,6 +321,8 @@ export function ExerciseLibrary({ exercises, onSelect, exclude = emptyIds, onOpe
         </article>
       </div>
     )}
+
+    {recent.length > 0 && renderCategoryGroups(recent, 'Recently trained')}
 
     {recommended.length > 0 && (
       <div className="picker-recommended">

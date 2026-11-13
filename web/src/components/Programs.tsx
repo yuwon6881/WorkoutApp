@@ -3,7 +3,7 @@ import { ArrowRight, Dumbbell, FileText, FolderOpen, Plus, Trash2, Zap } from 'l
 import type { AppResource, Bootstrap, Exercise, Session, Template } from '../types';
 import { api } from '../lib/api';
 import { createEmptyProgramDraft } from '../lib/importDraftWeeks';
-import { slotItemId, type SlotItem } from '../lib/activeSlot';
+import { slotItemId, slotItemName, type SlotItem } from '../lib/activeSlot';
 import { resumableImport } from '../lib/importSelection';
 import { Button } from './ui/Button';
 import { MenuButton, MenuItem } from './ui/MenuButton';
@@ -155,6 +155,9 @@ export function Programs({ data, exercises, onStart, onPreview, onImport, onChan
   }, [data.templates, slot.optimistic, holder]);
 
   const libraryCount = libraryPrograms.length + libraryTemplates.length;
+  // A lone saved workout or program can be made active with one tap instead of a drag.
+  const soleItem: SlotItem | null = libraryCount !== 1 ? null
+    : libraryPrograms[0] ? { kind: 'program', program: libraryPrograms[0] } : { kind: 'template', template: libraryTemplates[0] };
   const activeImport = resumableImport(data.imports);
   const movingId = slot.confirmation?.movingId ?? null;
   const draggingId = drag ? slotItemId(drag.item) : null;
@@ -188,11 +191,11 @@ export function Programs({ data, exercises, onStart, onPreview, onImport, onChan
           <MenuButton label="Add a workout or program" text="New" variant="primary" icon={<Plus size={17} />}>
             <MenuItem onClick={() => open()}><Dumbbell size={14} />New workout</MenuItem>
             <MenuItem onClick={() => setBuilding(true)}><Plus size={14} />New program</MenuItem>
-            <MenuItem onClick={onImport} disabled={hasActiveWorkout}><FileText size={14} />Import a program</MenuItem>
+            <MenuItem onClick={onImport}><FileText size={14} />Import a program</MenuItem>
           </MenuButton>
         </div>
       </div>
-      {hasActiveWorkout && <p className="program-week-note programs-import-note">Finish or discard the active workout before importing a program.</p>}
+      {/* While a workout is open, Import answers with a toast saying why (App.tsx openImport) rather than a standing note. */}
 
       {activeImport && !hasActiveWorkout && (
         <section className="panel ready-import-card pp-import-banner" role="status">
@@ -227,7 +230,8 @@ export function Programs({ data, exercises, onStart, onPreview, onImport, onChan
       <section className="program-section">
         <div className="section-heading"><h2>Active plan</h2></div>
         <ActiveSlotDropZone over={drag?.overZone === 'active' && drag.from === 'library'} occupied={Boolean(displayHolder)}
-          hasLibrary={libraryCount > 0} onNewWorkout={() => open()} onImport={onImport}>
+          hasLibrary={libraryCount > 0} onNewWorkout={() => open()} onImport={onImport}
+          sole={soleItem ? { name: slotItemName(soleItem), busy: slot.busy, onActivate: () => slot.activate(soleItem) } : null}>
           {displayHolder?.kind === 'program' && <ActiveProgramCard key={displayHolder.program.id} program={displayHolder.program} exercises={exercises} onStart={onStart} onPreview={onPreview} onChanged={onChanged} onSession={onSession}
             onEdit={() => setEditingProgramId(displayHolder.program.id)}
             hasActiveWorkout={hasActiveWorkout} activeTemplateId={activeTemplateId} actions={cardActions(displayHolder)} dragProps={dragProps(displayHolder, 'active')}
@@ -269,17 +273,18 @@ export function Programs({ data, exercises, onStart, onPreview, onImport, onChan
                 <div className="pp-library-empty-text">
                   <h3>{holder ? 'No other workouts' : 'Library empty'}</h3>
                   <p>
-                    {exercises.length
+                    {!holder ? 'Workouts and programs you build or import are kept here until you activate them.'
+                      : exercises.length
                       ? 'Create a workout or program, or import one. Saved routines and multi-week programs wait here until you activate them.'
                       : 'Import a program to start. Your saved programs and routines will wait here until you activate them.'}
                   </p>
                 </div>
               </div>
-              {/* The same starts as the page's New menu, where the empty state already points. */}
-              <div className="pp-library-empty-actions">
+              {/* With nothing at all saved, the first-run card above already offers these two starts. */}
+              {holder && <div className="pp-library-empty-actions">
                 {exercises.length > 0 && <Button variant="secondary" onClick={() => open()}><Dumbbell size={15} />New workout</Button>}
-                <Button variant="secondary" onClick={onImport} disabled={hasActiveWorkout}><FileText size={15} />Import a program</Button>
-              </div>
+                <Button variant="secondary" onClick={onImport}><FileText size={15} />Import a program</Button>
+              </div>}
             </section>
           )}
       </section>

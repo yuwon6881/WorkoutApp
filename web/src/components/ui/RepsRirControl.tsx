@@ -9,9 +9,13 @@ import { validateInteger } from '../../lib/validation';
 
 type Entry = { text: string; rir: number | null; replace: boolean };
 
-export function RepsRirControl({ name, label, reps, rir, trackRir, onChange }: {
+export function RepsRirControl({ name, label, hint = null, targetRir = [], reps, rir, trackRir, onChange }: {
   name: string;
   label: string;
+  /** The set's target, shown under its name in the sheet so the planned numbers stay in view. */
+  hint?: string | null;
+  /** The prescribed effort choices, marked on the chips. */
+  targetRir?: number[];
   reps: number | null;
   rir: number | null;
   trackRir: boolean;
@@ -100,13 +104,13 @@ export function RepsRirControl({ name, label, reps, rir, trackRir, onChange }: {
     </span>}
     {entry && <Modal title={trackRir ? 'Reps & RIR' : 'Reps'} onClose={close} className="reps-rir-modal">
       <div className="modal-body reps-rir-entry">
-        <p>{label}</p>
+        <p>{label}{hint && <span className="reps-entry-hint">Target {hint}</span>}</p>
         <div className="reps-entry-value" aria-live="polite"><strong>{entry.text || '—'}</strong><span>reps</span></div>
         {error && <p className="error-text" role="alert">{error}</p>}
         {trackRir && <div className="reps-entry-effort">
           <span className="muted">Reps in reserve</span>
           <div className="reps-entry-effort-rail"><RirChips value={entry.rir} ariaLabel={`${label} RIR`}
-            onChange={selectRir} /></div>
+            targets={targetRir} onChange={selectRir} /></div>
         </div>}
         {/* Digits on the left; delete, clear and a tall Done down the right edge, under the thumb. */}
         <div className="reps-entry-keypad" role="group" aria-label="Numeric keypad">

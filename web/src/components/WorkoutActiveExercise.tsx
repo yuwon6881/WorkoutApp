@@ -34,6 +34,7 @@ import { WorkoutSetRow } from './WorkoutSetRow';
 import { WorkoutRemovedSet } from './WorkoutRemovedSet';
 import { useRemovedSets } from './useRemovedSets';
 import { WorkoutWarmupButton } from './WorkoutWarmupButton';
+import { WorkoutUpNext } from './WorkoutUpNext';
 import { warmupOffer, withWarmups } from '../lib/workoutWarmups';
 import { DemoLink } from './ui/DemoLink';
 import { isTimedExercise } from '../lib/setDuration';
@@ -225,19 +226,6 @@ export function WorkoutActiveExercise({
           </Button>
         )}
 
-        {/* Swapping only works before a set is logged, so it leaves the row rather than sit greyed out. */}
-        {!hasCompletedSets && (
-          <Button
-            variant="tertiary"
-            className="action-pill"
-            aria-label={`Swap ${exercise.name}`}
-            onClick={() => setSwapOpen(true)}
-          >
-            <RefreshCw size={15} />
-            <span>Swap</span>
-          </Button>
-        )}
-
         {exercise.canRestore && (
           <Button
             variant="tertiary"
@@ -257,7 +245,12 @@ export function WorkoutActiveExercise({
           </div>
         )}
 
+        {/* Swap lives in the menu so the pill row never reflows when the first set is logged; it is
+            offered only before a set is logged, and says so once one has been. */}
         <MenuButton label={`Actions for ${exercise.name}`} variant="tertiary" portal>
+          <MenuItem disabled={hasCompletedSets} onClick={() => setSwapOpen(true)}>
+            <RefreshCw size={15} /> {hasCompletedSets ? 'Swap (before logging only)' : 'Swap exercise'}
+          </MenuItem>
           <MenuItem onClick={() => setRestTimerOpen(true)}>
             <Timer size={15} /> Rest timer
           </MenuItem>
@@ -363,6 +356,8 @@ export function WorkoutActiveExercise({
           })}
         />
       </div>
+
+      <WorkoutUpNext draft={draft} index={index} />
 
       {confirmRemove && (
         <Modal title={`Remove ${exercise.name}?`} onClose={() => setConfirmRemove(false)}>

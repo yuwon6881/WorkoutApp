@@ -393,3 +393,6 @@
     transition: none;
   }
 }
+.pp-sole-activate { margin-top: 14px; min-width: 0; max-width: 100%; }
+/* A long workout name wraps inside the card rather than widening the page. */
+.pp-sole-activate .button { min-width: 0; max-width: 100%; white-space: normal; overflow-wrap: anywhere; text-align: center; }

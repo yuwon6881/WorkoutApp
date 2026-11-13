@@ -243,3 +243,42 @@
   }
 }
 
+
+/* The open workout's next step (ActiveWorkoutNow.tsx): the exercise and set the lifter is on, and
+   a running rest draining beside it, so the card says where training stands without opening it. */
+.hero-now {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 4px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  background: var(--surface-raised);
+}
+.hero-now-text { display: grid; gap: 1px; min-width: 0; }
+.hero-now-label { color: var(--accent); font-size: var(--font-secondary); font-weight: 650; }
+.hero-now-text strong { overflow: hidden; color: var(--text); font-size: 15px; font-weight: 680; text-overflow: ellipsis; white-space: nowrap; }
+.hero-now-step { color: var(--muted); font-size: var(--font-secondary); font-variant-numeric: tabular-nums; }
+.hero-now-rest {
+  position: relative;
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 6px;
+  min-height: 40px;
+  padding: 0 12px 3px;
+  overflow: hidden;
+  border-radius: var(--radius-pill);
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 17px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.hero-now-track { position: absolute; right: 12px; bottom: 6px; left: 12px; height: 2px; border-radius: 2px; background: var(--accent-border); }
+.hero-now-track > span { display: block; height: 100%; border-radius: inherit; background: var(--accent); transform-origin: left center; transition: transform 1s linear; }
+@media (prefers-reduced-motion: reduce) {
+  .hero-now-track > span { transition: none; }
+}

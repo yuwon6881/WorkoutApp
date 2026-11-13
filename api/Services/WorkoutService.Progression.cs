@@ -52,7 +52,7 @@ public sealed partial class WorkoutService
         }
         var prescriptions = Json.Read<List<SetPrescription>>(exercise.PrescriptionJson);
         var context = ReadOptional<NutritionTrainingContext>(session.NutritionContextJson);
-        var result = new NutritionContextResult(context, NutritionContextService.Mode(context, DateTime.UtcNow), context is not null, context?.Confirmed == true, null);
+        var result = new NutritionContextResult(context, NutritionContextService.Mode(context, session.StartedAt), context is not null, context?.Confirmed == true, null);
         var bodyWeight = ReadOptional<BodyWeightSnapshot>(session.BodyWeightSnapshotJson);
         var account = await LoadRuleReader.ReadAccountContext(db, ct);
         var userUnit = account.Unit;

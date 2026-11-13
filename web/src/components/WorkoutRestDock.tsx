@@ -1,16 +1,17 @@
-import { showClock } from '../lib/training';
-import { remainingRestSeconds, type RestState } from '../lib/restTimer';
+import type { RestState } from '../lib/restTimer';
 import { restPhase, restShareLeft } from '../lib/restDisplay';
 import { useVisibleClock } from '../lib/useVisibleClock';
 import type { RestAction } from '../types';
 import { RestAdjustButtons } from './WorkoutRestBar';
 
 /// On a phone the rest's adjustments sit in the thumb zone, above the sheet's bottom edge, as large
-/// separated buttons; the header keeps only the countdown. The dock takes the bottom of the scroll
-/// area while a rest runs rather than covering it, so starting or ending a rest moves no set row.
-/// Wider layouts keep the adjustments in the header, where they have room (WorkoutRestBar.tsx).
-export function WorkoutRestDock({ rest, disabled, onRestMutate }: {
+/// separated buttons. The header already shows the countdown, so the dock names the set the rest
+/// leads into instead of repeating the clock; its top edge drains with the rest. The dock takes the
+/// bottom of the scroll area while a rest runs rather than covering it, so starting or ending a rest
+/// moves no set row. Wider layouts keep the adjustments in the header (WorkoutRestBar.tsx).
+export function WorkoutRestDock({ rest, nextUp = null, disabled, onRestMutate }: {
   rest: RestState;
+  nextUp?: string | null;
   disabled: boolean;
   onRestMutate?: (action: RestAction, seconds?: number) => void;
 }) {
@@ -21,11 +22,10 @@ export function WorkoutRestDock({ rest, disabled, onRestMutate }: {
       <span className="rest-dock-track" aria-hidden="true">
         <span style={{ transform: `scaleX(${restShareLeft(rest, now)})` }} />
       </span>
-      {/* The header's countdown is the announced timer; this one only puts it beside the buttons. */}
-      <span className="rest-dock-clock" aria-hidden="true">
-        <span className="rest-dock-label">Rest</span>
-        <span className="rest-dock-value">{showClock(remainingRestSeconds(rest, now))}</span>
-      </span>
+      <p className="rest-dock-next">
+        <span className="rest-dock-label">{nextUp ? 'Next' : 'Resting'}</span>
+        {nextUp && <span className="rest-dock-next-text">{nextUp}</span>}
+      </p>
       <RestAdjustButtons className="rest-dock-actions" variant="secondary" disabled={disabled} onRestMutate={onRestMutate} />
     </div>
   );

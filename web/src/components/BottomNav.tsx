@@ -1,4 +1,4 @@
-import { Play, Plus } from 'lucide-react';
+import { ChevronUp, Play, Plus } from 'lucide-react';
 import { Button } from './ui/Button';
 import { SelectionIndicator } from './ui/Motion';
 import { NAV, navCurrent, navSection, navView } from '../app/navigation';
@@ -20,10 +20,12 @@ interface BottomNavProps {
   action: DockAction;
   actionBusy: boolean;
   onAction: () => void;
+  /** The open workout's share of working sets logged, drawn along the action's bottom edge. */
+  actionProgress?: number | null;
 }
 
 /** The phone dock: two destinations either side of a raised round workout action. */
-export function BottomNav({ tab, onTab, action, actionBusy, onAction }: BottomNavProps) {
+export function BottomNav({ tab, onTab, action, actionBusy, onAction, actionProgress = null }: BottomNavProps) {
   const half = NAV.length / 2;
   const item = (entry: (typeof NAV)[number]) => (
     <Button
@@ -43,7 +45,10 @@ export function BottomNav({ tab, onTab, action, actionBusy, onAction }: BottomNa
       <span className="bottom-nav-label">{entry.label}</span>
     </Button>
   );
-  const ActionIcon = action === 'choose' ? Plus : Play;
+  // An open workout reads differently from one waiting to start: the action opens it back up, and
+  // its logged sets fill a line along the bottom edge, as the minimized bar's does.
+  const ActionIcon = action === 'choose' ? Plus : action === 'resume' ? ChevronUp : Play;
+  const resuming = action === 'resume' && actionProgress !== null;
 
   return (
     <nav className="bottom-nav" aria-label="Mobile navigation">
@@ -51,13 +56,16 @@ export function BottomNav({ tab, onTab, action, actionBusy, onAction }: BottomNa
         {NAV.slice(0, half).map(item)}
         <Button
           variant="primary"
-          className="bottom-nav-action"
+          className={`bottom-nav-action ${resuming ? 'resuming' : ''}`.trim()}
           aria-label={DOCK_ACTION_LABEL[action]}
           disabled={actionBusy}
           onPointerEnter={() => prefetchView(action === 'start' ? 'workoutPreview' : 'workout')}
           onClick={onAction}
         >
           <ActionIcon size={24} strokeWidth={2.4} aria-hidden="true" />
+          {resuming && <span className="bottom-nav-action-progress" aria-hidden="true">
+            <span style={{ transform: `scaleX(${Math.min(1, Math.max(0, actionProgress ?? 0))})` }} />
+          </span>}
         </Button>
         {NAV.slice(half).map(item)}
       </SelectionIndicator>

@@ -44,7 +44,8 @@ describe('NextWorkoutHero', () => {
     expect(html).toContain('In progress');
     expect(html).toContain('Push Day');
     expect(html).toContain('1</strong> of <strong>2</strong> sets done');
-    expect(html).toContain('1</strong> exercises');
+    expect(html).toContain('1</strong> exercise<');
+    expect(html).not.toContain('1</strong> exercises');
     expect(html).not.toContain('pulse-dot');
   });
 

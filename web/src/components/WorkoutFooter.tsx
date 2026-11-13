@@ -14,6 +14,7 @@ export function WorkoutFooter({
   onFinish,
   rest,
   paused,
+  nextUp = null,
   onRestMutate
 }: {
   error: string;
@@ -22,10 +23,12 @@ export function WorkoutFooter({
   onFinish: () => void;
   rest: RestState;
   paused: boolean;
+  /** The set the rest leads into, named in the phone's rest dock. */
+  nextUp?: string | null;
   onRestMutate: (action: RestAction, seconds?: number) => void;
 }) {
   // A paused workout holds its rest, so the adjustments wait for it to resume, as in the header.
-  const dock = <WorkoutRestDock rest={rest} disabled={busy || paused} onRestMutate={onRestMutate} />;
+  const dock = <WorkoutRestDock rest={rest} nextUp={nextUp} disabled={busy || paused} onRestMutate={onRestMutate} />;
   if (!error && !canFinish) return dock;
   return (
     <>

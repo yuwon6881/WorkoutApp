@@ -637,6 +637,9 @@ test('build a workout, log a set against the server, and see it in history', asy
     await editor.getByRole('button', { name: 'Add exercise', exact: true }).click();
     const builderPicker = page.getByRole('dialog', { name: 'Add exercise to workout', exact: true });
     await builderPicker.getByRole('button', { name: 'Add Barbell bench press', exact: true }).click();
+    // The picker stays open for more; the pick is marked in place until Done.
+    await expect(builderPicker.getByRole('button', { name: 'Barbell bench press added', exact: true })).toBeDisabled();
+    await builderPicker.getByRole('button', { name: 'Done', exact: true }).click();
     await expect(builderPicker).toBeHidden();
     await editor.getByRole('button', { name: 'Save workout', exact: true }).click();
     await expect(editor).toBeHidden();
@@ -688,7 +691,8 @@ test('build a workout, log a set against the server, and see it in history', asy
       expect(entryBox.width).toBe(entryBox.viewportWidth);
     }
     // Choosing the effort saves the reps with it and closes the sheet.
-    await entry.getByRole('radio', { name: '2 RIR, 2 reps in reserve', exact: true }).click();
+    // The planned effort's chip is also announced as the target.
+    await entry.getByRole('radio', { name: /^2 RIR, 2 reps in reserve(, target)?$/ }).click();
     await expect(entry).toBeHidden();
     await expect(logger.getByRole('spinbutton', { name: 'Barbell bench press set 1 reps', exact: true })).not.toBeFocused();
     await expect(logged).toHaveAttribute('aria-pressed', 'true');
@@ -908,9 +912,10 @@ test('importing is refused while a workout is in progress', async ({ page }) => 
   await openTab(page, 'Workouts');
 
   await page.getByRole('button', { name: 'New', exact: true }).filter({ visible: true }).first().click();
-  await expect(page.getByRole('menuitem', { name: 'Import a program', exact: true })).toBeDisabled();
-  await page.keyboard.press('Escape');
+  // Import stays offered and says why it cannot open yet, rather than a standing note on the page.
+  await page.getByRole('menuitem', { name: 'Import a program', exact: true }).click();
   await expect(page.getByText('Finish or discard the active workout before importing a program.')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Workouts', exact: true })).toBeVisible();
 
   await clearActiveWorkout(page);
 });
@@ -925,8 +930,10 @@ test('offline and server failures are reported instead of faked', async ({ page,
   await expect(page.getByRole('heading', { name: 'Connection paused', exact: true })).toBeVisible({ timeout: 30000 });
   expect(await page.evaluate(() => navigator.serviceWorker.controller !== null)).toBe(true);
   const localEntries = await page.evaluate(() => Object.entries(localStorage));
-  expect(localEntries.map(([key]) => key).sort()).toEqual(['workout-launch-snapshot', 'workout-theme', 'workout.push-device.v1']);
+  expect(localEntries.map(([key]) => key).sort()).toEqual(['workout-launch-snapshot', 'workout-signed-in', 'workout-theme', 'workout.push-device.v1']);
   expect(localEntries.find(([key]) => key === 'workout-theme')?.[1]).toMatch(/^(dark|light)$/);
+  // The cold-start hint is a bare flag that picks the first frame; it carries no account data.
+  expect(localEntries.find(([key]) => key === 'workout-signed-in')?.[1]).toBe('1');
   // The launch summary bridges a cold start only; it never carries a session or import drafts.
   const launch = JSON.parse(localEntries.find(([key]) => key === 'workout-launch-snapshot')![1]) as { shell: Record<string, unknown> };
   expect(launch.shell.activeWorkout).toBeNull();

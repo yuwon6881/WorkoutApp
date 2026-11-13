@@ -450,12 +450,18 @@ html[data-keyboard='open'] .resume-workout { display: none; }
 /* Floating bottom items stack instead of overlapping: a toast rises
    above the bar while it is showing. */
 .resume-workout ~ .toast { bottom: 102px; }
+/* The page ends above the bar on every layout, so its last rows can scroll clear of it. */
+.app-shell:has(.resume-workout) main { padding-bottom: 104px; }
 @media (max-width: 639px) {
   .resume-workout.button { right: 12px; bottom: calc(82px + env(safe-area-inset-bottom)); left: 12px; width: auto; max-width: none; }
   .resume-workout ~ .toast { bottom: calc(160px + env(safe-area-inset-bottom)); }
-  .app-shell:has(.resume-workout) main { padding-bottom: 104px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .resume-workout.button { animation: none; }
   .resume-progress > span { transition: none; }
 }
+
+/* The neutral first frame (AppSplash.tsx) for a device with no sign-in behind it. */
+@keyframes app-splash-in { from { opacity: 0; } }
+.app-splash { display: flex; align-items: center; justify-content: center; gap: 12px; min-height: 100dvh; color: var(--text); font-size: 24px; font-weight: 700; letter-spacing: -0.03em; animation: app-splash-in 400ms var(--motion-ease) 300ms backwards; }
+.app-splash img { width: 40px; height: 40px; border-radius: 10px; }

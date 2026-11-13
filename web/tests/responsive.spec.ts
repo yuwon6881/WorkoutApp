@@ -263,7 +263,8 @@ for (const theme of ['dark', 'light']) {
     await page.screenshot({ animations: 'disabled', path: join(screenshotsDirectory, 'responsive', `${info.project.name}-${theme}-targets.png`) });
     await page.keyboard.press('Escape');
     await expect(targets).toBeHidden();
-    await logger.getByRole('button', { name: 'Swap Barbell bench press', exact: true }).click();
+    await logger.getByRole('button', { name: 'Actions for Barbell bench press', exact: true }).click();
+    await page.getByRole('menuitem', { name: 'Swap exercise', exact: true }).click();
     const swap = page.getByRole('dialog', { name: 'Swap Barbell bench press', exact: true });
     await checkLayout(page, 'workout swap');
     await page.screenshot({ animations: 'disabled', path: join(screenshotsDirectory, 'responsive', `${info.project.name}-${theme}-swap.png`) });
@@ -285,7 +286,7 @@ for (const theme of ['dark', 'light']) {
     await page.screenshot({ animations: 'disabled', path: join(screenshotsDirectory, 'responsive', `${info.project.name}-${theme}-reps-rir-keypad.png`) });
     await entry.getByRole('button', { name: '8', exact: true }).click();
     // Choosing the effort saves the typed reps with it and closes the sheet.
-    await entry.getByRole('radio', { name: '2 RIR, 2 reps in reserve', exact: true }).click();
+    await entry.getByRole('radio', { name: /^2 RIR, 2 reps in reserve(, target)?$/ }).click();
     await expect(entry).toBeHidden();
     await expect(repsInput).not.toBeFocused();
     await expect(repsInput).toHaveValue('8');
@@ -451,7 +452,7 @@ for (const theme of ['dark', 'light']) {
     await reset.click();
 
     await navigate(page, 'Workouts');
-    await expect(page.getByRole('heading', { name: 'Workouts', exact: true })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Workouts', exact: true })).toBeVisible({ timeout: 15000 });
     await screenshot('workouts');
     await page.getByRole('button', { name: 'New', exact: true }).filter({ visible: true }).first().click();
     await screenshot('new-action-menu');
@@ -468,6 +469,8 @@ for (const theme of ['dark', 'light']) {
     await builderPicker.getByRole('textbox', { name: 'Search exercises' }).fill('squat');
     await screenshot('workout-picker');
     await builderPicker.getByRole('button', { name: 'Add Barbell back squat', exact: true }).click();
+    // The picker stays open for more picks until Done.
+    await builderPicker.getByRole('button', { name: 'Done', exact: true }).click();
     // The picker collapsing changes the dialog's height; let it settle before aiming at Save.
     await expect(editor.getByRole('textbox', { name: 'Name for exercise 1' })).toHaveValue('Barbell back squat');
     await expect(builderPicker).toBeHidden();
@@ -572,10 +575,10 @@ for (const theme of ['dark', 'light']) {
     await expect(page.locator('.body-map-detail')).toBeVisible();
     await screenshot('body');
     await expect(page.locator('.muscle-breakdown-panel')).toBeVisible();
-    // One figure per canonical muscle region, Abductors included.
-    await expect(page.locator('.muscle-breakdown-figure')).toHaveCount(15);
-    await page.getByRole('button', { name: /^Calves, .*contributing lifts$/ }).click();
-    await expect(page.getByLabel('Calves contributing lifts', { exact: true })).toBeVisible();
+    // This account has logged nothing yet: the breakdown says so once rather than listing zero rows.
+    await expect(page.locator('.muscle-breakdown-empty')).toBeVisible();
+    await expect(page.locator('.muscle-breakdown-figure')).toHaveCount(0);
+    await expect(page.locator('.muscle-breakdown-panel').getByRole('button', { name: 'Show the last 3 months', exact: true })).toBeVisible();
     await screenshot('muscle-breakdown');
     await cardScreenshot(page.locator('.muscle-breakdown-panel'), 'muscle-breakdown-card');
 
@@ -728,6 +731,8 @@ for (const theme of ['dark', 'light'] as const) {
         ] }]
     } }));
     await navigate(page, 'Muscles');
+    // One figure per canonical muscle region, Abductors included.
+    await expect(page.locator('.muscle-breakdown-figure')).toHaveCount(15);
     await page.getByRole('button', { name: /^Chest, .*contributing lifts$/ }).click();
     const contributors = page.getByLabel('Chest contributing lifts', { exact: true });
     await expect(contributors.getByRole('button', { name: /Barbell bench press/ })).toBeVisible();

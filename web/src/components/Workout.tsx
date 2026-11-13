@@ -412,7 +412,7 @@ export function Workout({
         onOpenExercise={onOpenExercise} restMode={restMode.mode} />
 
       <WorkoutFooter error={error} busy={busy || Boolean(finishIntentAt) || recoveryConflict}
-        canFinish={canFinish} onFinish={requestFinish} rest={rest} paused={paused} onRestMutate={handleRestMutate} />
+        canFinish={canFinish} onFinish={requestFinish} rest={rest} paused={paused} nextUp={nextUp} onRestMutate={handleRestMutate} />
 
       {detailsOpen && <WorkoutDetailsModal draft={draft} unit={unit} onClose={() => setDetailsOpen(false)} />}
 

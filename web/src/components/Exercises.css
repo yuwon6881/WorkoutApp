@@ -344,3 +344,9 @@
   margin: 8px 0 0;
   font-size: 0.875rem;
 }
+
+/* A movement picked during this visit keeps its place, marked Added, so the list never jumps. */
+.picker-add-btn.picker-added.button:disabled { opacity: 1; color: var(--teal); background: transparent; border-color: transparent; cursor: default; }
+/* The builder picker's footer: how many were added, then Done at the trailing edge. */
+.picker-done-actions { align-items: center; }
+.picker-added-count { margin-right: auto; color: var(--muted); font-size: var(--font-secondary); font-weight: 600; }

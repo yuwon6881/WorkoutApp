@@ -1,7 +1,7 @@
 // First-screen styles stay eager. Optional feature CSS loads before the shell stylesheet through
 // featureCss, so navigating later cannot invert the existing cascade.
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
-import { AlertTriangle, Plus, RefreshCw, Settings, Sparkles, WifiOff } from 'lucide-react';
+import { AlertTriangle, RefreshCw, Settings, Sparkles, WifiOff } from 'lucide-react';
 import type { AppResource, Bootstrap, Exercise, Session } from './types';
 import { ApiError, api } from './lib/api';
 import { useApp } from './app/useApp';
@@ -28,6 +28,9 @@ import { BottomNav, type DockAction } from './components/BottomNav';
 import { SideNav } from './components/SideNav';
 import { NAV } from './app/navigation';
 import { AppLoading } from './components/AppLoading';
+import { AppFirstFrame } from './components/AppFirstFrame';
+import { ShellToast } from './components/ShellToast';
+import { loggedWorkingShare } from './lib/workoutLogging';
 import { AuthLoading } from './components/AuthLoading';
 import { ViewSkeleton } from './components/ViewSkeleton';
 import { Auth, Dashboard, ExerciseDetailModal, ExerciseLibrary, ImportReview, MuscleBalanceView, Programs, SessionDetail, SettingsView, Workout, WorkoutSheet, WorkoutPreviewModal, ResumeWorkoutButton, ShellRestTimer, prefetchView } from './app/lazyViews';
@@ -153,7 +156,7 @@ export default function App() {
 
   if (signedOut) return <>{restTimerDriver}<Suspense fallback={<AuthLoading />}><Auth /></Suspense></>;
 
-  if (loading && !data && !recovery) return <>{restTimerDriver}<AppLoading /></>;
+  if (loading && !data && !recovery) return <>{restTimerDriver}<AppFirstFrame /></>;
 
   if ((!data || app.unconfirmed) && recovery) return <>{restTimerDriver}<div className="app-shell recovery-shell">
     <main className="recovery-main">
@@ -396,7 +399,7 @@ export default function App() {
                 onExercise={id => { void openExercise(id); }} onStart={previewWorkout} />}
             {tab === 'program' && <Programs data={data} exercises={data.exercises} onStart={start} onPreview={previewWorkout} onImport={openImport} onChanged={app.reload} onSession={setDetail}
               ensureResources={app.ensureResources}
-              onTemplateSaved={saved => app.setData(current => acknowledgeTemplate(current, saved.id, saved))}
+              onTemplateSaved={saved => { app.setData(current => acknowledgeTemplate(current, saved.id, saved)); setToast(`${saved.name} saved.`); }}
               onTemplateDeleted={id => app.setData(current => acknowledgeTemplate(current, id, null))} />}
             {tab === 'import' && <ImportReview exercises={data.exercises} imports={data.imports}
               onBack={() => setTab('program')} onChanged={app.reload} notify={setToast} />}
@@ -413,7 +416,7 @@ export default function App() {
 
     </div>
 
-    <BottomNav tab={tab} onTab={setTab} action={dockAction} actionBusy={starting} onAction={runDockAction} />
+    <BottomNav tab={tab} onTab={setTab} action={dockAction} actionBusy={starting} onAction={runDockAction} actionProgress={workoutSession?.active ? loggedWorkingShare(workoutSession) : null} />
 
     {workoutSession?.active && !training && tab !== 'overview' && restState && <Suspense fallback={null}>
       <ResumeWorkoutButton session={workoutSession} rest={restState} onResume={() => setTraining(true)} />
@@ -473,7 +476,7 @@ export default function App() {
       <Button variant="primary" onClick={appUpdate.apply}>Reload</Button>
     </div>}
     </Suspense>
-    {toast && <div className="toast" role="status"><Plus size={17} />{toast}</div>}
+    {toast && <ShellToast message={toast} />}
     {isAiOpen && <Suspense fallback={null}><AiAssistantPanel
       isOpen={isAiOpen}
       onClose={() => setIsAiOpen(false)}

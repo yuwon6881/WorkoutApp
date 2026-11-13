@@ -1,7 +1,9 @@
 /* Native browser render windowing retains DOM order, find, selection, and focus.
-   The browser keeps overscan and reveals focused offscreen content automatically. */
-.exercise-grid.render-windowed > article,
-.picker-list.render-windowed > article {
+   The browser keeps overscan and reveals focused offscreen content automatically. The first cards
+   always paint: the browser judges what is on screen a frame late, so a new search would otherwise
+   flash empty outlines where its top results belong. */
+.exercise-grid.render-windowed > article:nth-child(n + 9),
+.picker-list.render-windowed > article:nth-child(n + 9) {
   content-visibility: auto;
   contain-intrinsic-size: auto 180px;
 }

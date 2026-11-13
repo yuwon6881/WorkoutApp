@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { Dumbbell, FileText, MousePointerClick, Plus } from 'lucide-react';
+import { Dumbbell, FileText, MousePointerClick, Plus, Zap } from 'lucide-react';
 import { slotItemName } from '../lib/activeSlot';
 import { Button } from './ui/Button';
 import { Modal } from './ui/Modal';
@@ -7,13 +7,15 @@ import type { SlotDragState } from './useWorkoutSlotDrag';
 import type { SlotConfirmation } from './useWorkoutSlotActions';
 
 /// The active slot. Empty, it is a dashed target inviting a library card to be dropped in; with
-/// nothing saved yet it offers the two ways to create a first workout instead.
-export function ActiveSlotDropZone({ over, occupied, hasLibrary, onNewWorkout, onImport, children }: {
+/// nothing saved yet it offers the two ways to create a first workout instead. With exactly one
+/// workout or program in the library, dragging is not the only way in: one tap makes it active.
+export function ActiveSlotDropZone({ over, occupied, hasLibrary, onNewWorkout, onImport, sole = null, children }: {
   over: boolean;
   occupied: boolean;
   hasLibrary: boolean;
   onNewWorkout: () => void;
   onImport: () => void;
+  sole?: { name: string; busy: boolean; onActivate: () => void } | null;
   children: ReactNode;
 }) {
   if (occupied) {
@@ -49,6 +51,9 @@ export function ActiveSlotDropZone({ over, occupied, hasLibrary, onNewWorkout, o
         <p>Or choose <strong>Make active</strong> from a library card’s menu.</p>
       </div>
     </div>
+    {sole && !over && <div className="slot-card-actions pp-sole-activate">
+      <Button variant="primary" disabled={sole.busy} onClick={sole.onActivate}><Zap size={15} />Make {sole.name} active</Button>
+    </div>}
   </section>;
 }
 

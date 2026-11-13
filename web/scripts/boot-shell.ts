@@ -2,6 +2,7 @@ import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import type { Plugin } from 'vite';
 import { AppLoading } from '../src/components/AppLoading';
+import { AppSplash } from '../src/components/AppSplash';
 
 // Until the scripts have downloaded, parsed and rendered, the page has only an empty root, so a cold
 // start (the first open of the day, after Android has closed the app) paints a blank screen. The
@@ -17,7 +18,9 @@ export function bootShell(): Plugin {
       const root = '<div id="root"></div>';
       if (!html.includes(root)) throw new Error('index.html no longer has an empty #root for the boot shell.');
       const shell = renderToStaticMarkup(createElement(AppLoading));
-      return html.replace(root, `${root}<template id="boot-shell">${shell}</template><script src="/boot-shell.js"></script>`);
+      // A device with no sign-in behind it gets the neutral mark instead (public/boot-shell.js).
+      const splash = renderToStaticMarkup(createElement(AppSplash));
+      return html.replace(root, `${root}<template id="boot-shell">${shell}</template><template id="boot-splash">${splash}</template><script src="/boot-shell.js"></script>`);
     }
   };
 }

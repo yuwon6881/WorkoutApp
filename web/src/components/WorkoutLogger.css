@@ -381,3 +381,60 @@
 .warmup-choice dl > div { padding: 12px 14px; border-radius: var(--radius-control); background: var(--surface-raised); border: 1px solid var(--border); }
 .warmup-choice dt { font-weight: 650; color: var(--text); }
 .warmup-choice dd { margin: 4px 0 0; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+/* Values waiting in a set not yet logged are proposals, so they read as such: the set being worked
+   on in full, the ones after it quieter, and a logged set filled. The effort badge of an unlogged
+   set keeps its colour on the plain surface rather than its tinted fill. */
+.workout-set-rows .workout-set-row:not(.done):not(.current) .set-input-cell input:not(:focus) { color: var(--muted); }
+.workout-set-rows .workout-set-row:not(.done) .combined-reps-cell .reps-rir-badge { background: var(--surface); }
+.workout-set-rows .workout-set-row:not(.done):not(.current) .combined-reps-cell .reps-rir-badge { opacity: .72; }
+
+/* When a rest runs out, the set it was for calls once, so the eye lands on it before the dock leaves. */
+@keyframes set-row-call {
+  0%, 100% { box-shadow: inset 0 0 0 1.5px transparent; }
+  30% { box-shadow: inset 0 0 0 1.5px var(--accent-border-strong), 0 0 0 4px var(--accent-soft-glow); }
+}
+.workout-sheet:has(.workout-rest-bar.over) .workout-set-rows .workout-set-row.current { animation: set-row-call 1.4s var(--motion-ease); }
+
+/* Wide layouts: the fields keep a natural width and the target column takes the slack, reading
+   from its leading edge, so a row reads as one line instead of four islands. */
+@media (min-width: 1024px) {
+  .workout-set-table-container { --set-columns: 52px minmax(0, 1fr) 128px 148px 48px 40px; }
+  .workout-set-table-container.no-rir { --set-columns: 52px minmax(0, 1fr) 128px 120px 48px 40px; }
+  .workout-set-table-container .workout-set-table-head .col-target { text-align: left; padding-left: 4px; }
+  .workout-set-rows .workout-set-row .set-target-cell { align-items: flex-start; padding-left: 4px; text-align: left; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .workout-sheet:has(.workout-rest-bar.over) .workout-set-rows .workout-set-row.current { animation: none; }
+}
+
+/* What follows this exercise (WorkoutUpNext.tsx), quiet and passive at the end of the page. */
+.workout-up-next {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 18px 0 0;
+  padding: 14px 16px;
+  border: 1px dashed var(--border-hover);
+  border-radius: var(--radius-control);
+  color: var(--muted);
+  font-size: var(--font-secondary);
+}
+.workout-up-next-label { flex: 0 0 auto; color: var(--faint); font-weight: 600; }
+.workout-up-next-name { overflow: hidden; min-width: 0; color: var(--text); font-weight: 650; text-overflow: ellipsis; white-space: nowrap; }
+.workout-up-next-detail { flex: 0 0 auto; font-variant-numeric: tabular-nums; }
+.workout-up-next svg { align-self: center; flex: 0 0 auto; margin-left: auto; color: var(--faint); }
+
+/* The weight keypad (WorkoutLoadKeypad.tsx) shares the reps keypad's keys; the bottom row gains a
+   decimal point, and the exercise's weight steps sit either side of the readout. */
+.reps-entry-keypad.load-entry-keypad {
+  grid-template-areas:
+    "k1 k2 k3 del"
+    "k4 k5 k6 clear"
+    "k7 k8 k9 done"
+    "point zero zero done";
+}
+.reps-entry-keypad.load-entry-keypad .load-key-point { grid-area: point; }
+.load-entry-row { display: grid; grid-template-columns: 76px minmax(0, 1fr) 76px; align-items: center; gap: 8px; }
+.load-entry-row .load-step-key.button { min-height: 52px; padding: 0 8px; gap: 2px; border-radius: var(--radius-control); font-weight: 700; font-variant-numeric: tabular-nums; }

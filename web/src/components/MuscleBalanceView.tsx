@@ -11,6 +11,7 @@ import { MuscleBreakdownGroup } from './MuscleBreakdownGroup';
 import './MuscleBalance.css';
 
 type BalanceRange = typeof RANGES[number]['value'];
+const LONGEST_RANGE: BalanceRange = '3m';
 
 function dateLabel(value: string | null) {
   if (!value) return '—';
@@ -205,10 +206,19 @@ export function MuscleBalanceView({ timeZone, onExercise, refreshKey, unconfirme
                 </div>
               </div>
 
-              <div className="muscle-breakdown-groups">
-                {breakdownGroups.map(group => <MuscleBreakdownGroup key={group.title} title={group.title} muscles={group.muscles} peak={maxMuscleSets}
-                  activeMuscle={pinnedMuscle} onSelect={selectMuscle} onHover={setHoveredMuscle} onExercise={onExercise} />)}
-              </div>
+              {/* An empty window says so once, instead of a column of zero rows, and offers a longer one. */}
+              {/* A muscle the lifter has open stays in place at zero, so clearing its history never removes what they were reading. */}
+              {view.totalSets === 0 && !pinnedMuscle ? (
+                <div className="muscle-breakdown-empty" role="status">
+                  <p>No working sets logged in the {(RANGES.find(option => option.value === range)?.label ?? 'chosen period').toLowerCase()}. Each logged set credits the muscles it trains here.</p>
+                  {range !== LONGEST_RANGE && <Button variant="secondary" onClick={() => setRange(LONGEST_RANGE)}>Show the last 3 months</Button>}
+                </div>
+              ) : (
+                <div className="muscle-breakdown-groups">
+                  {breakdownGroups.map(group => <MuscleBreakdownGroup key={group.title} title={group.title} muscles={group.muscles} peak={maxMuscleSets}
+                    activeMuscle={pinnedMuscle} onSelect={selectMuscle} onHover={setHoveredMuscle} onExercise={onExercise} />)}
+                </div>
+              )}
             </section>
           </div>
         </>

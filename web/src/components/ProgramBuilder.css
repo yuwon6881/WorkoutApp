@@ -308,8 +308,10 @@
   overflow:hidden;
 }
 .day-detail-modal>header,.day-detail-modal>.modal-actions{flex:0 0 auto}
+/* The dialog keeps a fixed height, so a short day packs to the top instead of spreading its rows. */
 .day-detail-modal .day-detail-modal-body{
   flex:1 1 auto;
+  align-content:start;
   min-height:0;
   max-height:none;
   overflow-x:hidden;

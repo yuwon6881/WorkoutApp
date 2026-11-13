@@ -395,3 +395,24 @@
   .rir-chips { grid-template-columns: repeat(6, minmax(36px, 1fr)); }
   .rir-chip { min-height: 36px; min-width: 36px; }
 }
+
+/* The prescribed effort: a short bar under its chip, in the chip's own tier colour, with room kept
+   under the row so marking a target never moves the keypad. */
+.rir-chips.has-target { padding-bottom: 8px; }
+.rir-chip.target { position: relative; }
+.rir-chip.target::after {
+  content: '';
+  position: absolute;
+  bottom: -8px;
+  left: 50%;
+  width: 16px;
+  height: 3px;
+  border-radius: 2px;
+  background: currentColor;
+  transform: translateX(-50%);
+}
+/* The bar keeps the tier colour even when its chip is chosen and its text turns dark. */
+.rir-chip.target.rir-tier-0::after { background: var(--effort-max); }
+.rir-chip.target.rir-tier-1::after { background: var(--effort-hard); }
+.rir-chip.target.rir-tier-2::after { background: var(--effort-moderate); }
+.rir-chip.target.rir-tier-easy::after { background: var(--effort-easy); }

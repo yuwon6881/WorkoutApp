@@ -68,3 +68,9 @@ export function nextUpText(draft: Session, exerciseIndex: number, unit: Unit): s
   const summary = setSummary(target.exercise, target.exercise.sets[target.setIndex], unit);
   return `${target.exercise.name} · ${warmup ? `warm-up ${label.slice(1)}` : `set ${label}`}${summary ? ` · ${summary}` : ''}`;
 }
+
+/// The share of a session's working sets already logged, from 0 to 1 (0 with none planned).
+export function loggedWorkingShare(session: Session): number {
+  const working = session.exercises.flatMap(exercise => exercise.sets).filter(set => !set.warmup);
+  return working.length ? working.filter(set => set.done).length / working.length : 0;
+}

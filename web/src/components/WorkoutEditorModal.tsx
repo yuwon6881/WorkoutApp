@@ -67,6 +67,15 @@ export function WorkoutEditorModal({
 }) {
   const [draft, setDraft] = useState<WorkoutDraft>(initialDraft);
   const [pickerOpen, setPickerOpen] = useState(false);
+  // The picker stays open so several movements can be added in one visit: what the workout held
+  // when it opened is left out, and each one added since stays in place marked Added.
+  const [pickerExclude, setPickerExclude] = useState<string[]>([]);
+  const [pickerAdded, setPickerAdded] = useState<string[]>([]);
+  const openPicker = () => {
+    setPickerExclude(draft.exercises.map(e => e.exerciseId).filter((id): id is string => id !== null));
+    setPickerAdded([]);
+    setPickerOpen(true);
+  };
   const [swapIndex, setSwapIndex] = useState<number | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState('');
@@ -115,7 +124,7 @@ export function WorkoutEditorModal({
         }
       ]
     }));
-    setPickerOpen(false);
+    setPickerAdded(current => [...current, chosen.id]);
   }
 
   async function handleRestoreWorkout() {
@@ -239,7 +248,7 @@ export function WorkoutEditorModal({
               <h3>Exercises ({draft.exercises.length})</h3>
               <Button
                 variant="secondary"
-                onClick={() => setPickerOpen(true)}
+                onClick={openPicker}
               >
                 <Plus size={16} />
                 Add exercise
@@ -251,7 +260,8 @@ export function WorkoutEditorModal({
                 <Dumbbell size={28} />
                 <h4>No exercises added yet</h4>
                 <p>Add movements from the library to configure sets, reps, and RIR targets.</p>
-                <Button variant="primary" onClick={() => setPickerOpen(true)}>
+                {/* Save stays the dialog's one primary action; this starts the list. */}
+                <Button variant="secondary" onClick={openPicker}>
                   <Plus size={16} />
                   Choose from library
                 </Button>
@@ -344,14 +354,19 @@ export function WorkoutEditorModal({
           <div className="modal-body">
             <ExerciseLibrary
               exercises={exercises}
-              exclude={draft.exercises
-                .map(e => e.exerciseId)
-                .filter((id): id is string => id !== null)}
+              exclude={pickerExclude}
+              added={pickerAdded}
               onSelect={id => {
                 const chosen = exercises.find(e => e.id === id);
-                if (chosen) addExercise(chosen);
+                if (chosen && !pickerAdded.includes(id)) addExercise(chosen);
               }}
             />
+          </div>
+          <div className="modal-actions picker-done-actions">
+            {pickerAdded.length > 0 && <span className="picker-added-count" role="status">
+              {pickerAdded.length} {pickerAdded.length === 1 ? 'exercise' : 'exercises'} added
+            </span>}
+            <Button variant="primary" onClick={() => setPickerOpen(false)}>Done</Button>
           </div>
         </Modal>
       )}
