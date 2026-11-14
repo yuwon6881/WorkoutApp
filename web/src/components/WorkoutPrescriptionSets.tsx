@@ -12,7 +12,13 @@ import { toggleRepMode, usesRepRange } from '../lib/repMode';
 import { useTrackRir } from '../lib/trackRir';
 import './SetPrescriptionGrid.css';
 
-const BUILDER_SET_TYPES: SetType[] = ['normal', 'warmup', 'pause'];
+const BUILDER_SET_TYPES: SetType[] = ['normal', 'warmup', 'pause', 'tempo'];
+
+/// The builder offers only these types, so any other technique reads as a normal set there.
+const builderSetType = (set: Parameters<typeof getSetType>[0]): SetType => {
+  const kind = getSetType(set);
+  return kind === 'pause' || kind === 'tempo' ? kind : 'normal';
+};
 
 /// The builder's sets as one grid: the column labels are printed once above the rows so each
 /// set is a single line on wide screens and two short lines on a phone.
@@ -80,7 +86,7 @@ export function WorkoutPrescriptionSets({
                     <SetTypeSelect
                       name={`workout-set-type-${exercise.id}-${si}`}
                       ariaLabel={`Set type for ${exercise.name} set ${si + 1}`}
-                      type={set.warmup ? 'warmup' : getSetType(set) === 'pause' ? 'pause' : 'normal'}
+                      type={set.warmup ? 'warmup' : builderSetType(set)}
                       number={number}
                       types={BUILDER_SET_TYPES}
                       onChange={type => {

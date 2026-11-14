@@ -1,7 +1,7 @@
 import type { DraftSet } from '../types';
 import { setTechnique } from './setTechnique';
 
-export type SetType = 'normal' | 'warmup' | 'dropset' | 'amrap' | 'myoreps' | 'partials' | 'lengthenedPartials' | 'integratedPartials' | 'pause';
+export type SetType = 'normal' | 'warmup' | 'dropset' | 'amrap' | 'myoreps' | 'partials' | 'lengthenedPartials' | 'integratedPartials' | 'pause' | 'tempo';
 
 export const setTypeOptions = [
   { value: 'normal', label: 'Normal set' },
@@ -12,7 +12,8 @@ export const setTypeOptions = [
   { value: 'partials', label: 'Partial reps' },
   { value: 'lengthenedPartials', label: 'Lengthened partials' },
   { value: 'integratedPartials', label: 'Integrated partials' },
-  { value: 'pause', label: 'Pause set' }
+  { value: 'pause', label: 'Pause set' },
+  { value: 'tempo', label: 'Tempo set' }
 ];
 
 const PARTIAL_TECHNIQUE_LABELS: Partial<Record<SetType, string>> = {
@@ -50,7 +51,7 @@ export function hasOpenReps(set: DraftSet): boolean {
 export function cleanTechniqueNotes(notes: string | null): string | null {
   if (!notes) return null;
   const cleaned = notes
-    .replace(/(?:^|\s*—\s*|\s*,\s*)(?:Pause set|Dropset|Drop set|To failure \/ AMRAP|AMRAP|Failure|Myo-reps|Myoreps|(?:(?:lengthened|long[- ]length|integrated)\s+)?partials?(?:\s+reps?)?|half[- ]?rom|half\s+reps?)(?:\s*\([^)]{0,120}\))?(?:\s*—\s*|\s*,\s*|$)/gi, '')
+    .replace(/(?:^|\s*—\s*|\s*,\s*)(?:Pause set|Tempo set|Dropset|Drop set|To failure \/ AMRAP|AMRAP|Failure|Myo-reps|Myoreps|(?:(?:lengthened|long[- ]length|integrated)\s+)?partials?(?:\s+reps?)?|half[- ]?rom|half\s+reps?)(?:\s*\([^)]{0,120}\))?(?:\s*—\s*|\s*,\s*|$)/gi, '')
     .trim();
   return cleaned || null;
 }
@@ -90,6 +91,8 @@ export function applySetType(set: DraftSet, newType: SetType): Partial<DraftSet>
         notes: addTechniqueNote(set.notes, 'Myo-reps'),
         rpeSource: 'userEdited'
       };
+    case 'tempo':
+      return { warmup: false, notes: addTechniqueNote(set.notes, 'Tempo set'), rpeSource: 'userEdited' };
     case 'pause':
       return { warmup: false, notes: addTechniqueNote(set.notes, 'Pause set'), rpeSource: 'userEdited' };
     case 'partials':

@@ -119,6 +119,7 @@
 .set-type-select.set-type-dropset .custom-select-trigger,
 .set-type-select.set-type-myoreps .custom-select-trigger,
 .set-type-select.set-type-pause .custom-select-trigger,
+.set-type-select.set-type-tempo .custom-select-trigger,
 .set-type-select.set-type-partials .custom-select-trigger,
 .set-type-select.set-type-lengthenedPartials .custom-select-trigger,
 .set-type-select.set-type-integratedPartials .custom-select-trigger {
@@ -128,6 +129,7 @@
 .set-type-select.set-type-dropset .set-type-badge,
 .set-type-select.set-type-myoreps .set-type-badge,
 .set-type-select.set-type-pause .set-type-badge,
+.set-type-select.set-type-tempo .set-type-badge,
 .set-type-select.set-type-partials .set-type-badge,
 .set-type-select.set-type-lengthenedPartials .set-type-badge,
 .set-type-select.set-type-integratedPartials .set-type-badge {
@@ -137,6 +139,7 @@
 .set-type-select.set-type-dropset .custom-select-trigger:hover,
 .set-type-select.set-type-myoreps .custom-select-trigger:hover,
 .set-type-select.set-type-pause .custom-select-trigger:hover,
+.set-type-select.set-type-tempo .custom-select-trigger:hover,
 .set-type-select.set-type-partials .custom-select-trigger:hover,
 .set-type-select.set-type-lengthenedPartials .custom-select-trigger:hover,
 .set-type-select.set-type-integratedPartials .custom-select-trigger:hover {

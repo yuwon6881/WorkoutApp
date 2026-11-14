@@ -187,7 +187,8 @@ public sealed partial class ImportService
                     double.TryParse(match.Value, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var number) && number <= ExternalImportLimits.MaxRir),
                 "Use a numeric RIR or range between 0 and 10, optionally followed by +.");
         });
-        var type = ExternalImportPath.At(path + ".type", () => ExternalImportSetTypes.Canonical(set.Type));
+        var named = ExternalImportPath.At(path + ".type", () => ExternalImportSetTypes.Canonical(set.Type));
+        var type = ExternalImportSetTypes.Infer(named, set.Warmup || named == ExternalImportSetTypes.Warmup, set.RepsText, set.Notes, exerciseNotes);
         var technique = ExternalImportSetTypes.Technique(type);
         ExternalImportPath.At(path + ".warmup", () => Validation.Require(!set.Warmup || type is null or ExternalImportSetTypes.Warmup, "Use the warmup type for a warm-up set; it cannot have another set type."));
         var setNote = SetSpecificNote(set.Notes, exerciseNotes);

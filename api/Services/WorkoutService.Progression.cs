@@ -110,7 +110,7 @@ public sealed partial class WorkoutService
         BodyWeightSnapshot? bodyWeight, IReadOnlyList<double>? availableLoads, DateTime? lastTrained)
     {
         var own = OwnSuggestion(prescription, exposures, mode, step, context, resistanceMode, loadModel, bodyWeight, availableLoads, lastTrained);
-        if (SetTechniques.Of(prescription) is null or SetTechniques.Pause || own.SourceSessionId is not null || own.SourceDate is not null) return own;
+        if (SetTechniques.Of(prescription) is null or SetTechniques.Pause or SetTechniques.Tempo || own.SourceSessionId is not null || own.SourceDate is not null) return own;
         var straight = OwnSuggestion(prescription with { Notes = null }, exposures, mode, step, context, resistanceMode, loadModel,
             bodyWeight, availableLoads, lastTrained);
         return straight.SuggestedLoadKg is null && straight.SuggestedSystemLoadKg is null
@@ -233,7 +233,7 @@ public sealed partial class WorkoutService
     private static SetProgressionSuggestion FollowStraightSets(SetPrescription prescription,
         SetProgressionSuggestion? straight, SetProgressionSuggestion own)
     {
-        if (SetTechniques.Of(prescription) is null or SetTechniques.Pause || straight is null || straight.ResistanceMode != own.ResistanceMode)
+        if (SetTechniques.Of(prescription) is null or SetTechniques.Pause or SetTechniques.Tempo || straight is null || straight.ResistanceMode != own.ResistanceMode)
             return own;
         if (straight.SuggestedLoadKg is null && straight.SuggestedSystemLoadKg is null && own.SuggestedLoadKg is not null)
             return own;
