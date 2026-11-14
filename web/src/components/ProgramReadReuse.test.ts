@@ -225,30 +225,6 @@ describe('Program detail read reuse and recovery isolation', () => {
     expect(onChanged).not.toHaveBeenCalled();
   });
 
-  it('keeps saveError and Retry save intact if scope or revision changes while edits are pending', async () => {
-    vi.spyOn(api, 'getProgram').mockResolvedValue(sampleDetail);
-    vi.spyOn(api, 'updateTemplate').mockRejectedValue(new Error('Save timed out'));
-
-    let tree = renderActive();
-    await new Promise(resolve => setTimeout(resolve, 0));
-    tree = renderActive();
-
-    const checklist = findAll(tree, el => Boolean(el.props && 'onDayChange' in el.props))[0];
-    const onDayChange = checklist.props!.onDayChange as (day: unknown) => Promise<void>;
-    await expect(onDayChange({ lineId: 'day-1', id: 'day-1', week: 1, name: 'Edited Name', focus: 'Push', note: '', exercises: [] })).rejects.toThrow('Save timed out');
-
-    currentScope = '["acc-1",{"programs":2}]';
-    tree = renderActive({ ...sampleProgram, revision: 2 });
-
-    const feedback = findAll(tree, el => Boolean(el.props && 'message' in el.props && 'action' in el.props))[0];
-    expect(feedback).toBeDefined();
-    expect(feedback.props!.message).toBe('Save timed out');
-    expect((feedback.props!.action as { label: string }).label).toBe('Retry save');
-
-    const updatedChecklist = findAll(tree, el => Boolean(el.props && 'draft' in el.props))[0];
-    expect((updatedChecklist.props!.draft as { workouts: { name: string }[] }).workouts[0].name).toBe('Edited Name');
-  });
-
   it('skips fetching LibraryProgramCard until expanded, reuses cached detail on remount, and invalidates on revision change', async () => {
     const getProgram = vi.spyOn(api, 'getProgram').mockResolvedValue(sampleDetail);
 

@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState, type FormEvent, type HTMLAttributes } from 'react';
 import { ArrowRight, Library, Pencil, RotateCcw, Trash2 } from 'lucide-react';
-import type { DraftWorkout, Exercise, ImportDraft, ProgramSummary, Session } from '../types';
+import type { Exercise, ImportDraft, ProgramSummary, Session } from '../types';
 import { ApiError, api } from '../lib/api';
-import { changedDayIds, isProgramFinished, programToDraft } from '../lib/activeSlot';
+import { isProgramFinished, programToDraft } from '../lib/activeSlot';
 import { ProgramDayWrites } from '../lib/programDayWrites';
 import { Button } from './ui/Button';
 import { CardFeedback } from './ui/CardFeedback';
@@ -141,23 +141,6 @@ export function ActiveProgramCard({ program, exercises, onStart, onPreview, onCh
     } finally { setSaving(false); }
   }
 
-  async function handleDayChange(updatedDay: DraftWorkout) {
-    setDraft(prev => prev ? {
-      ...prev,
-      workouts: prev.workouts.map(w => w.lineId === updatedDay.lineId ? updatedDay : w)
-    } : null);
-    writes.enqueue([updatedDay]);
-    await savePending();
-  }
-
-  /// An edit can reach a block or the whole program; only the days it changed are saved.
-  async function handleDraftChange(updatedDraft: ImportDraft) {
-    const changed = new Set(draft ? changedDayIds(draft, updatedDraft) : updatedDraft.workouts.map(day => day.lineId));
-    setDraft(updatedDraft);
-    writes.enqueue(updatedDraft.workouts.filter(day => changed.has(day.lineId)));
-    await savePending();
-  }
-
   const meta = finished
     ? `${weekCount} ${weekCount === 1 ? 'week' : 'weeks'} completed`
     : <ProgramWeekMeter week={weekIndex} weeks={weekCount} passedDays={progress?.passedDays ?? 0} totalDays={progress?.totalDays ?? 0} />;
@@ -184,7 +167,7 @@ export function ActiveProgramCard({ program, exercises, onStart, onPreview, onCh
     {finished
       ? <SlotFinished name={program.name} description="You passed every week of this program." actions={{ ...actions, busy: actionsBlocked }} />
       : expanded && <>
-        {progress && <ProgramWeekChecklist program={{ ...program, progress }} actionsBusy={actionsBlocked || progress.runId === 'optimistic'} draft={draft} exercises={exercises} onStart={onStart} onChanged={onChanged} onSession={onSession} hasActiveWorkout={hasActiveWorkout} activeTemplateId={activeTemplateId} onDayChange={handleDayChange} onDraftChange={handleDraftChange} />}
+        {progress && <ProgramWeekChecklist program={{ ...program, progress }} actionsBusy={actionsBlocked || progress.runId === 'optimistic'} draft={draft} exercises={exercises} onStart={onStart} onChanged={onChanged} onSession={onSession} hasActiveWorkout={hasActiveWorkout} activeTemplateId={activeTemplateId} />}
         {!progress && next && <div className="slot-card-actions">
           <Button variant="primary" disabled={hasActiveWorkout && next.id !== activeTemplateId} onClick={() => onPreview(next.id)}>
             {next.id === activeTemplateId ? 'Continue' : 'Start'} {next.name}<ArrowRight size={16} />

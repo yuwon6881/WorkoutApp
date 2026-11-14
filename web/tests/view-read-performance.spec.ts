@@ -213,7 +213,7 @@ test('active and library programs reuse cached details across tab switches', asy
     const activeCard = page.locator('.slot-card.program-card').filter({ hasText: activeName }).first();
     await expect(activeCard).toBeVisible();
     await activeCard.getByRole('button', { name: 'View Cached Pull Day', exact: true }).click();
-    await expect(activeCard.locator('.iex-name').first()).toHaveText(catalog[0].name);
+    await expect(activeCard.locator('.readonly-exercise-name').first()).toHaveText(catalog[0].name);
     await activeCard.getByRole('button', { name: 'Close dialog', exact: true }).click();
     await expect.poll(() => activeReads).toBe(1);
 
@@ -229,7 +229,7 @@ test('active and library programs reuse cached details across tab switches', asy
 
     await expect(activeCard).toBeVisible();
     await activeCard.getByRole('button', { name: 'View Cached Pull Day', exact: true }).click();
-    await expect(activeCard.locator('.iex-name').first()).toHaveText(catalog[0].name);
+    await expect(activeCard.locator('.readonly-exercise-name').first()).toHaveText(catalog[0].name);
     await activeCard.getByRole('button', { name: 'Close dialog', exact: true }).click();
     await expect(libraryCard).toBeVisible();
     await libraryCard.getByRole('button', { name: `Expand ${libraryName}`, exact: true }).click();

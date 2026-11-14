@@ -1,19 +1,16 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { CheckCircle2, Circle, CirclePlay, ChevronRight, Play, SkipForward } from 'lucide-react';
-import type { DraftWorkout, Exercise, ImportDraft, ProgramProgressDay, ProgramSummary, Session } from '../types';
+import type { Exercise, ImportDraft, ProgramProgressDay, ProgramSummary, Session } from '../types';
 import { loadSessionDetail } from '../lib/sessionDetailLoad';
 import { prefetchView } from '../app/lazyViews';
 import { ApiError, api } from '../lib/api';
 import { dayTitle, isGenericDayTitle } from '../lib/dayTitle';
 import { dayRowState, inProgressDayId, nextDayId as findNextDayId, programDayActionInput } from '../lib/programDayState';
-import { applyExerciseEdit, countOccurrences, type ExerciseEditing, type UnsavedExercise } from '../lib/exerciseEditScope';
 import { Button } from './ui/Button';
 import { Modal } from './ui/Modal';
 import { MenuButton, MenuItem } from './ui/MenuButton';
-import { DayDetailContent } from './ImportDayRow';
 import { WorkoutDaySkeleton } from './WorkoutDaySkeleton';
 import { ReadOnlyDay } from './ReadOnlyDay';
-import { DayEditor } from './ImportDayEditor';
 import './ProgramWeekChecklist.css';
 
 export function ProgramWeekChecklist({
@@ -25,8 +22,6 @@ export function ProgramWeekChecklist({
   onSession,
   hasActiveWorkout,
   activeTemplateId = null,
-  onDayChange,
-  onDraftChange,
   actionsBusy = false
 }: {
   program: ProgramSummary;
@@ -39,8 +34,6 @@ export function ProgramWeekChecklist({
   hasActiveWorkout: boolean;
   /** The day the open workout came from; its dialog continues that workout. */
   activeTemplateId?: string | null;
-  onDayChange?: (day: DraftWorkout) => Promise<void>;
-  onDraftChange?: (draft: ImportDraft) => Promise<void>;
   actionsBusy?: boolean;
 }) {
   const [busyDay, setBusyDay] = useState<string | null>(null);
@@ -48,11 +41,6 @@ export function ProgramWeekChecklist({
   const [optimisticPassed, setOptimisticPassed] = useState<Set<string>>(() => new Set());
   const [openDay, setOpenDay] = useState<ProgramProgressDay | null>(null);
   const [selectedMuscle, setSelectedMuscle] = useState<string | null>(null);
-  const [localDraft, setLocalDraft] = useState<ImportDraft | null>(draft ?? null);
-
-  const repRangeMemories = useRef(new Map<string, Map<number, number>>());
-  const unsaved = useRef(new Map<string, UnsavedExercise>());
-  const [discardPrompt, setDiscardPrompt] = useState<string | null>(null);
 
   const progress = program.progress;
   const days = progress?.days ?? [];
@@ -61,10 +49,6 @@ export function ProgramWeekChecklist({
   const nextDayId = findNextDayId(days, optimisticPassed, runningDayId);
   const dayDetails = useMemo(() => new Map(program.days.map(day => [day.id, day])), [program.days]);
   const currentDays = useMemo(() => progress ? program.days.filter(day => day.week === progress.currentWeek) : program.days, [program.days, progress]);
-
-  useEffect(() => {
-    if (draft) setLocalDraft(draft);
-  }, [draft]);
 
   const opensSession = (day: ProgramProgressDay) => day.status === 'completed' && Boolean(day.sessionId) && Boolean(onSession);
 
@@ -82,71 +66,6 @@ export function ProgramWeekChecklist({
     }
     setOpenDay(day);
   }
-
-  const getRepRangeMemory = useCallback((exerciseLineId: string) => {
-    let memory = repRangeMemories.current.get(exerciseLineId);
-    if (!memory) {
-      memory = new Map<number, number>();
-      repRangeMemories.current.set(exerciseLineId, memory);
-    }
-    return memory;
-  }, []);
-
-  const handleDayChange = useCallback(async (updatedDay: DraftWorkout) => {
-    setLocalDraft(prev => prev ? {
-      ...prev,
-      workouts: prev.workouts.map(w => w.lineId === updatedDay.lineId ? updatedDay : w)
-    } : null);
-    if (onDayChange) {
-      await onDayChange(updatedDay);
-    }
-  }, [onDayChange]);
-
-  const handleDraftChange = useCallback(async (nextDraft: ImportDraft) => {
-    if (onDraftChange) {
-      await onDraftChange(nextDraft);
-    }
-    setLocalDraft(nextDraft);
-  }, [onDraftChange]);
-
-  // Days already passed, and every day of an earlier week, are history: an edit to the same
-  // movement elsewhere never reaches them.
-  const frozenDayIds = useMemo(() => {
-    const frozen = new Set(days.filter(day => day.status !== 'pending').map(day => day.templateId));
-    if (progress) for (const day of program.days) if (day.week < progress.currentWeek) frozen.add(day.id);
-    return frozen;
-  }, [days, program.days, progress]);
-
-  const editing = useMemo<ExerciseEditing>(() => ({
-    save: async (base, edited, scope) => {
-      if (!localDraft) return;
-      const nextDraft = applyExerciseEdit(localDraft, base, edited, scope, exercises, frozenDayIds);
-      await handleDraftChange(nextDraft);
-    },
-    count: base => localDraft ? countOccurrences(localDraft, base, frozenDayIds) : { block: 1, program: 1 },
-    keepWrittenName: false,
-    unsaved: unsaved.current
-  }), [exercises, frozenDayIds, handleDraftChange, localDraft]);
-
-  const closeModal = useCallback(() => {
-    if (unsaved.current.size > 0) {
-      setDiscardPrompt(openDay?.templateId ?? null);
-      return;
-    }
-    setOpenDay(null);
-    setSelectedMuscle(null);
-  }, [openDay]);
-
-  const handleKeepEditing = useCallback(() => {
-    setDiscardPrompt(null);
-  }, []);
-
-  const handleDiscardChanges = useCallback(() => {
-    unsaved.current.clear();
-    setDiscardPrompt(null);
-    setOpenDay(null);
-    setSelectedMuscle(null);
-  }, []);
 
   useEffect(() => {
     setOptimisticPassed(prev => {
@@ -190,7 +109,12 @@ export function ProgramWeekChecklist({
     } finally { setBusyDay(null); }
   }
 
-  const openDayWorkout = openDay ? localDraft?.workouts.find(w => w.lineId === openDay.templateId) : null;
+  const closeModal = useCallback(() => {
+    setOpenDay(null);
+    setSelectedMuscle(null);
+  }, []);
+
+  const openDayWorkout = openDay ? draft?.workouts.find(w => w.lineId === openDay.templateId) : null;
   const openDayIndex = openDay ? currentDays.findIndex(d => d.id === openDay.templateId) : -1;
   const openDayInfo = openDay ? dayDetails.get(openDay.templateId) : null;
   const openDayWorkoutName = openDayWorkout?.name || openDayInfo?.name || '';
@@ -302,19 +226,9 @@ export function ProgramWeekChecklist({
         }
       >
         <div className="modal-body day-detail-modal-body draft-day" data-import-day={openDay.templateId}>
-          {openDayWorkout && openDay.status !== 'pending' ? (
+          {/* A day is only previewed here; editing a program lives in its Edit program menu. */}
+          {openDayWorkout ? (
             <ReadOnlyDay day={openDayWorkout} exercises={exercises} selectedMuscle={selectedMuscle} onMuscleSelect={setSelectedMuscle} />
-          ) : openDayWorkout ? (
-            <DayDetailContent
-              day={openDayWorkout}
-              exercises={exercises}
-              onChange={handleDayChange}
-              editing={editing}
-              DayEditorComponent={DayEditor}
-              getRepRangeMemory={getRepRangeMemory}
-              selectedMuscle={selectedMuscle}
-              onMuscleSelect={setSelectedMuscle}
-            />
           ) : (
             <WorkoutDaySkeleton label="Loading workout details…" />
           )}
@@ -331,18 +245,6 @@ export function ProgramWeekChecklist({
           ) : (
             <Button variant="primary" onClick={closeModal}>Done</Button>
           )}
-        </div>
-      </Modal>
-    )}
-
-    {discardPrompt && (
-      <Modal title="Discard unsaved changes?" onClose={handleKeepEditing}>
-        <div className="modal-body">
-          <p>{unsaved.current.size === 1 ? 'An exercise on this day has' : `${unsaved.current.size} exercises have`} changes that were not saved.</p>
-        </div>
-        <div className="modal-actions">
-          <Button variant="destructive" onClick={handleDiscardChanges}>Discard changes</Button>
-          <Button variant="primary" onClick={handleKeepEditing}>Keep editing</Button>
         </div>
       </Modal>
     )}
