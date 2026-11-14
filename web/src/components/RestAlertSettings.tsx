@@ -170,9 +170,9 @@ export function RestAlertSettings({ accountId, preferences, devicePreferences, o
           <div className="setting-inline-controls">
             <Button
               variant="secondary"
-              onClick={() =>
+              onClick={async () =>
                 notify(
-                  testAlarmSound()
+                  (await testAlarmSound())
                     ? 'Sound test played.'
                     : 'Could not play sound. Check device media/alarm volume.'
                 )
@@ -275,9 +275,9 @@ export function RestAlertSettings({ accountId, preferences, devicePreferences, o
         <div className="setting-inline-controls">
           <Button
             variant="secondary"
-            onClick={() =>
+            onClick={async () =>
               notify(
-                testAlarmSound()
+                (await testAlarmSound())
                   ? 'Sound test played.'
                   : 'This browser could not start audio. Tap Test sound again or check device volume.'
               )

@@ -1,7 +1,6 @@
 .progress-page-heading>div{min-width:0;flex:1}
 .progress-page-heading>div p{max-width:600px;margin-top:6px;font-size:14px}
 .progress-page-heading .progress-muscles-link{min-height:44px}
-.progress-record-panel+.progress-record-panel{margin-top:0}
 
 /* Compact unboxed three-metric strip */
 .stats-grid.progress-stats {
@@ -85,33 +84,6 @@
   min-width: 0;
 }
 
-.panel.progress-record-panel {
-  background: var(--surface);
-  border: 1px solid var(--card-border);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow);
-  padding: 22px 24px;
-  margin-bottom: 24px;
-}
-
-.progress-record-panel .best-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 12px;
-  padding: 12px 0;
-  border-bottom: 1px solid var(--border);
-  font-size: var(--font-secondary);
-  color: var(--text);
-}
-.progress-record-panel .best-row:last-child {
-  border-bottom: none;
-}
-.progress-record-panel .best-row strong {
-  font-weight: 680;
-  font-variant-numeric: tabular-nums;
-}
-
 @media (max-width: 639px) {
   .progress-page-heading { align-items: stretch; }
   .progress-page-heading>div { flex-basis: 100%; }
@@ -131,10 +103,6 @@
   .progress-stat-card strong,
   .stat-card-value > strong {
     font-size: 20px;
-  }
-  .panel.progress-record-panel {
-    padding: 18px 16px;
-    margin-bottom: 16px;
   }
 }
 

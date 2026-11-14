@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from 'react';
 import type { Unit } from '../types';
 import { api, ApiError } from '../lib/api';
 import { describeLoad, describeSource, type ExerciseLoadSettings as Settings, type LoadRule } from '../lib/exerciseLoads';
-import { equipmentGroupInfo } from '../lib/equipmentGroups';
 import { Button } from './ui/Button';
 import { Modal } from './ui/Modal';
 import { SettingRow } from './ui/SettingRow';
@@ -73,7 +72,6 @@ export function ExerciseLoadSettings({ exerciseId, exerciseName, unit, perSide =
     {!settings && !error && <p className="muted" role="status">Loading weight settings…</p>}
     {settings && <LoadRuleEditor key={unit} unit={unit} name="exercise-load" busy={busy} perSide={perSide}
       rule={{ loadStepKg: settings.ownStepKg ?? null, availableLoadsKg: settings.ownAvailableLoadsKg ?? null }}
-      preferList={group ? equipmentGroupInfo(group).preferList : false}
       inheritText={inherited
         ? `${describeSource(inherited.source, group)}: ${describeLoad(inherited.stepKg, inherited.availableLoadsKg, unit)}.`
         : undefined}

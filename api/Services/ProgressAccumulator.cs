@@ -78,8 +78,7 @@ internal sealed class ProgressAccumulator(IReadOnlyList<ExerciseProgress> states
         private int externalCount, bodyweightCount;
         private double externalVolume;
         private double? heaviest, added, assistance, system, estimate, latestEstimate, relative;
-        private int? heaviestReps, repPr, bodyweightReps;
-        private double? bodyweightKg;
+        private int? heaviestReps, repPr;
         private DateTime? latestEstimateAt;
 
         public void AddVolume(SessionExercise exercise, CompletedSet set)
@@ -116,9 +115,6 @@ internal sealed class ProgressAccumulator(IReadOnlyList<ExerciseProgress> states
                         relative = Math.Max(relative ?? strength / reference, strength / reference);
                 }
             }
-            if (exercise.LoadModel == LoadModels.BodyweightContextOnly && set.Reps is { } count && snapshot?.ReferenceKg is { } kg
-                && (bodyweightReps == null || count > bodyweightReps || count == bodyweightReps && kg > bodyweightKg))
-            { bodyweightReps = count; bodyweightKg = kg; }
         }
 
         public object Result(IReadOnlyList<ExerciseProgress> states)
@@ -132,8 +128,7 @@ internal sealed class ProgressAccumulator(IReadOnlyList<ExerciseProgress> states
                 estimatedMaxKg = bodyweightCount > 0 ? estimate : externalCount > 0 ? state?.TrendE1rmKg : null,
                 lastEstimatedMaxKg = bodyweightCount > 0 ? latestEstimate : externalCount > 0 ? state?.LastE1rmKg : null,
                 externalLoadPrKg = heaviest, addedLoadPrKg = added, assistanceReductionPrKg = assistance, systemLoadPrKg = system,
-                repPr, estimatedSystemLoadMaxKg = estimate, relativeStrength = relative,
-                bodyweightRepRecord = bodyweightReps == null ? null : new { reps = bodyweightReps, bodyweightKg }
+                repPr, estimatedSystemLoadMaxKg = estimate, relativeStrength = relative
             };
         }
     }

@@ -69,10 +69,6 @@ internal static class ProgressReference
                 return (double?)(value / reference);
             }).OfType<double>().ToList();
             var repRows = logged.Where(row => row.Set.Reps is not null).ToList();
-            var bodyweightRep = logged.Where(row => row.Exercise.LoadModel == LoadModels.BodyweightContextOnly && row.Set.Reps is not null)
-                .Select(row => new { row.Set.Reps, Snapshot = ReadBodyWeight(row.Session) })
-                .Where(row => row.Snapshot?.ReferenceKg is not null)
-                .OrderByDescending(row => row.Reps).ThenByDescending(row => row.Snapshot!.ReferenceKg).FirstOrDefault();
             var key = ProgressionService.Key(group.Key.ExerciseId, group.Key.NameSnapshot);
             var state = states.FirstOrDefault(s => s.ExerciseId == key.ExerciseId && s.NameKey == key.NameKey);
             return new
@@ -93,8 +89,7 @@ internal static class ProgressReference
                 systemLoadPrKg = systemLoads.Count == 0 ? (double?)null : systemLoads.Max(),
                 repPr = repRows.Count == 0 ? (int?)null : repRows.Max(row => row.Set.Reps!.Value),
                 estimatedSystemLoadMaxKg = systemEstimates.Count == 0 ? (double?)null : systemEstimates.Max(),
-                relativeStrength = relativeEstimates.Count == 0 ? (double?)null : relativeEstimates.Max(),
-                bodyweightRepRecord = bodyweightRep is null ? null : new { reps = bodyweightRep.Reps, bodyweightKg = bodyweightRep.Snapshot!.ReferenceKg }
+                relativeStrength = relativeEstimates.Count == 0 ? (double?)null : relativeEstimates.Max()
             };
         }).OrderByDescending(x => x.sessions).ToList();
         var result = new

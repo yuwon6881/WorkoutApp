@@ -6,7 +6,7 @@ const lift = (over: Partial<ProgressExercise>): ProgressExercise => ({
   exerciseId: 'id', exercise: 'Squat', sessions: 1, heaviestKg: null, heaviestReps: null, volumeKg: null,
   estimatedMaxKg: 100, lastEstimatedMaxKg: null, externalLoadPrKg: null, addedLoadPrKg: null,
   assistanceReductionPrKg: null, systemLoadPrKg: null, repPr: null, estimatedSystemLoadMaxKg: null,
-  relativeStrength: null, bodyweightRepRecord: null, ...over
+  relativeStrength: null, ...over
 });
 
 describe('mostTrainedLift', () => {

@@ -456,6 +456,7 @@ for (const theme of ['dark', 'light']) {
     const plateWeights = page.getByRole('button', { name: 'Edit Plate-loaded weights', exact: true });
     await plateWeights.click();
     const plateEditor = page.getByRole('dialog', { name: 'Plate-loaded weights', exact: true });
+    await plateEditor.getByRole('button', { name: 'Custom', exact: true }).click();
     await plateEditor.getByRole('button', { name: 'Per side', exact: true }).click();
     await plateEditor.getByRole('spinbutton', { name: 'Smallest plate per side (kg)', exact: true }).fill('1.25');
     await screenshot('plate-loaded-weights');

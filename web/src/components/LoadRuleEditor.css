@@ -74,3 +74,9 @@
 .load-rule-editor .load-rule-reset {
   margin-right: auto;
 }
+
+.load-rule-presets { border: 0; padding: 0; margin: 0; min-width: 0; display: grid; gap: 10px; }
+.load-rule-presets legend { font-weight: 650; padding: 0; }
+.load-rule-preset-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.load-rule-preset-grid .button[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
+@media (max-width: 400px) { .load-rule-preset-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }

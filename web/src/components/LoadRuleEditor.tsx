@@ -14,19 +14,17 @@ import './LoadRuleEditor.css';
 type Mode = 'increment' | 'weights';
 type Entry = 'total' | 'side';
 
-const modeLabels: Record<Mode, string> = { increment: 'Increment', weights: 'Weight list' };
-
-function initialMode(rule: LoadRule, preferList: boolean): Mode {
+function initialMode(rule: LoadRule): Mode {
   if (rule.availableLoadsKg) return 'weights';
   if (rule.loadStepKg !== null) return 'increment';
-  return preferList ? 'weights' : 'increment';
+  return 'increment';
 }
 
 /// Edits one load rule as one of two choices: a fixed increment (entered as a total or per side) or
 /// a list of the weights that exist (typed or filled evenly). "Use default" clears the rule.
 /// Values are entered in the lifter's unit and saved in kilograms at full precision.
 export function LoadRuleEditor({
-  unit, rule, name, inheritText, perSide = false, preferList = false,
+  unit, rule, name, inheritText, perSide = false,
   busy, onSubmit, onCancel
 }: {
   unit: Unit;
@@ -34,23 +32,23 @@ export function LoadRuleEditor({
   name: string;
   inheritText?: string;
   perSide?: boolean;
-  preferList?: boolean;
   busy: boolean;
   onSubmit: (rule: LoadRule) => void;
   onCancel: () => void;
 }) {
-  const [mode, setMode] = useState<Mode>(() => initialMode(rule, preferList));
+  const [mode, setMode] = useState<Mode>(() => initialMode(rule));
   const [entry, setEntry] = useState<Entry>('total');
   const initialStep = rule.loadStepKg === null ? '' : displayLoadSetting(rule.loadStepKg, unit);
   const initialList = rule.availableLoadsKg ? formatAvailableLoads(rule.availableLoadsKg, unit) : '';
   const [step, setStep] = useState(initialStep);
   const [list, setList] = useState(initialList);
+  const presets = unit === 'kg' ? ['0.5', '1', '1.25', '2', '2.5', '5'] : ['1', '2.5', '5', '10', '15', '20'];
+  const [custom, setCustom] = useState(initialStep !== '' && initialStep !== '0' && !presets.includes(initialStep));
   const [sequenceOpen, setSequenceOpen] = useState(false);
   const [fieldError, setFieldError] = useState('');
   const stepField = useRef<HTMLInputElement | null>(null);
   const listField = useRef<HTMLTextAreaElement | null>(null);
 
-  const modes: Mode[] = ['increment', 'weights'];
   const hasOwnRule = rule.loadStepKg !== null || rule.availableLoadsKg !== null;
 
   function submit() {
@@ -76,22 +74,35 @@ export function LoadRuleEditor({
 
   return <form className="load-rule-editor" noValidate onSubmit={event => { event.preventDefault(); submit(); }}>
     {!hasOwnRule && inheritText && <p className="muted">{inheritText}</p>}
-    <SegmentedControl<Mode> label="Weights change by" value={mode} disabled={busy} onChange={chooseMode}
-      options={modes.map(value => ({ value, label: modeLabels[value] }))} />
-
     {mode === 'increment' && <>
-      {perSide && <SegmentedControl<Entry> label="Enter the increment as" value={entry} disabled={busy}
-        onChange={next => { setEntry(next); setFieldError(''); }}
-        options={[{ value: 'total', label: 'Total' }, { value: 'side', label: 'Per side' }]} />}
-      <Field ref={stepField} name={`${name}-increment`} type="number" step="any" min="0" inputMode="decimal"
-        label={entry === 'side' ? `Smallest plate per side (${unit})` : `Weight increment (${unit})`}
-        value={step} error={fieldError} disabled={busy} onChange={event => { setStep(event.target.value); setFieldError(''); }} />
-      <p className="muted">{entry === 'side'
-        ? (unit === 'lb' ? '2.5 per side = a 5 total step.' : '1.25 per side = a 2.5 total step.')
-        : 'Use 0 to progress through reps only.'}</p>
+      <fieldset className="load-rule-presets" disabled={busy}>
+        <legend>How much does the weight go up?</legend>
+        <p>Choose the total change you can make in one step.</p>
+        <div className="load-rule-preset-grid">
+          {presets.map(value => <Button key={value} variant="secondary" aria-pressed={!custom && step === value}
+            onClick={() => { setStep(value); setEntry('total'); setCustom(false); setFieldError(''); }}>{value} {unit}</Button>)}
+          <Button variant="secondary" aria-pressed={!custom && step === '0'}
+            onClick={() => { setStep('0'); setEntry('total'); setCustom(false); setFieldError(''); }}>Reps only</Button>
+          <Button variant="secondary" aria-pressed={custom}
+            onClick={() => { setCustom(true); setFieldError(''); }}>Custom</Button>
+        </div>
+      </fieldset>
+      {custom && <>
+        {perSide && <SegmentedControl<Entry> label="Enter the increment as" value={entry} disabled={busy}
+          onChange={next => { setEntry(next); setFieldError(''); }}
+          options={[{ value: 'total', label: 'Total' }, { value: 'side', label: 'Per side' }]} />}
+        <Field ref={stepField} name={`${name}-increment`} type="number" step="any" min="0" inputMode="decimal"
+          label={entry === 'side' ? `Smallest plate per side (${unit})` : `Weight increment (${unit})`}
+          value={step} error={fieldError} disabled={busy} onChange={event => { setStep(event.target.value); setFieldError(''); }} />
+        {entry === 'side' && <p className="muted">{unit === 'lb' ? '2.5 per side = a 5 total step.' : '1.25 per side = a 2.5 total step.'}</p>}
+      </>}
+      {!custom && fieldError && <p role="alert">{fieldError}</p>}
+      <Button variant="tertiary" className="load-rule-sequence-toggle" disabled={busy} onClick={() => chooseMode('weights')}>Weight list</Button>
     </>}
 
     {mode === 'weights' && <>
+      <p>For equipment with uneven weight jumps, list the weights available.</p>
+      <Button variant="tertiary" className="load-rule-sequence-toggle" disabled={busy} onClick={() => chooseMode('increment')}>Increment</Button>
       <TextAreaField ref={listField} name={`${name}-weights`} label={`Available weights (${unit})`} rows={2}
         value={list} error={fieldError} disabled={busy}
         placeholder={unit === 'lb' ? '5, 10, 15, 20, 25, 30' : '2.5, 5, 7.5, 10, 15, 20'}

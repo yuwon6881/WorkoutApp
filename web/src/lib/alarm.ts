@@ -24,6 +24,8 @@ const CHIME: readonly ToneSpec[] = [
   { frequency: 1318.5, offset: 0.18, duration: 0.32, gain: 0.025 }
 ] as const;
 
+const TEST_CHIME_LEAD_SECONDS = 0.15;
+
 /// Call from a user gesture because browsers block audio-context startup outside user input.
 export function primeAlarm(): boolean {
   if (audio) { void audio.context.resume(); return audio.context.state !== 'closed'; }
@@ -79,6 +81,17 @@ export function releaseAlarm(): void {
   audio = null;
 }
 
+/// A context created a moment ago is still starting: its clock has not begun and the output device
+/// has not woken, so a chime scheduled onto it right away is swallowed. Waits for it to run.
+async function runningContext(): Promise<AudioContext | null> {
+  if (!primeAlarm() || !audio) return null;
+  const { context } = audio;
+  if (context.state !== 'running') {
+    try { await context.resume(); } catch { return null; }
+  }
+  return context.state === 'running' ? context : null;
+}
+
 export function soundNow(): boolean {
   if (!primeAlarm() || !audio) return false;
   const { context } = audio;
@@ -87,7 +100,12 @@ export function soundNow(): boolean {
   return true;
 }
 
-export function testAlarmSound(): boolean {
-  primeAlarm();
-  return soundNow();
+/// The first press of Test sound creates the audio context, so the chime waits until it is running
+/// and starts a little later than a rest alert does, to give the output device time to wake.
+export async function testAlarmSound(): Promise<boolean> {
+  const context = await runningContext();
+  if (!context) return false;
+  const start = context.currentTime + TEST_CHIME_LEAD_SECONDS;
+  for (const tone of CHIME) scheduled.push(playChimeTone(context, start + tone.offset, tone.frequency, tone.duration, tone.gain));
+  return true;
 }

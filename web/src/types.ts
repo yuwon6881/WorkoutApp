@@ -105,7 +105,7 @@ export type ProgressExercise = {
   exerciseId: string | null; exercise: string; sessions: number; heaviestKg: number | null; heaviestReps: number | null; volumeKg: number | null;
   estimatedMaxKg: number | null; lastEstimatedMaxKg: number | null; externalLoadPrKg: number | null; addedLoadPrKg: number | null;
   assistanceReductionPrKg: number | null; systemLoadPrKg: number | null; repPr: number | null; estimatedSystemLoadMaxKg: number | null;
-  relativeStrength: number | null; bodyweightRepRecord: { reps: number; bodyweightKg: number } | null;
+  relativeStrength: number | null;
 };
 export type ProgressSummary = { sessions: number; exercises: ProgressExercise[]; totalVolumeKg?: number | null; workingSets?: number; trainingMinutes?: number; weekSessions?: number; weekVolumeKg?: number | null; weekWorkingSets?: number };
 export type MuscleBalanceRange = '1w' | '1m' | '3m';

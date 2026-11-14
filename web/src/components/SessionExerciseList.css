@@ -21,9 +21,12 @@
 .session-exercise:hover { border-color: var(--border-hover); }
 
 .session-exercise.session-exercise-action { cursor: pointer; outline: none; }
-.session-exercise.session-exercise-action:hover { border-color: var(--border-hover); background: var(--surface-hover); }
+/* The card keeps its own fill on hover: the sets table inside it is a raised surface, and a card
+   that took the row's hover colour made the two read as one. The card announces itself with its
+   border, a soft lift and the accent title instead. */
+.session-exercise.session-exercise-action:hover { border-color: var(--border-hover); box-shadow: var(--shadow-raised); }
 .session-exercise.session-exercise-action:hover .session-exercise-title h4 { color: var(--accent); }
-.session-exercise.session-exercise-action:focus-visible { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft-glow); background: var(--surface-hover); }
+.session-exercise.session-exercise-action:focus-visible { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft-glow); }
 .session-exercise.session-exercise-action:active { transform: scale(0.995); }
 
 .session-exercise-skeleton {
@@ -101,11 +104,16 @@
   padding: 8px 14px;
   border-bottom: 1px solid var(--border);
   font-variant-numeric: tabular-nums;
-  transition: background-color var(--motion-control) var(--motion-ease);
+  box-shadow: inset 2px 0 0 transparent;
+  transition: background-color var(--motion-control) var(--motion-ease), box-shadow var(--motion-control) var(--motion-ease);
 }
 .session-summary-sets > li:last-child { border-bottom: none; }
-.session-summary-sets > li:hover { background: var(--surface-hover); }
+/* A hovered set row is marked by its own tint and an accent edge, so it stands apart from the card
+   around it; a record row deepens its tint rather than swapping to the plain hover colour. */
+.session-summary-sets > li:hover { background: var(--surface-hover); box-shadow: inset 2px 0 0 var(--accent); }
+.session-summary-sets > li:hover .session-set-label { color: var(--text); }
 .session-summary-sets > li.pr-set-row { background: var(--accent-soft); }
+.session-summary-sets > li.pr-set-row:hover { background: color-mix(in srgb, var(--accent) 16%, var(--accent-soft)); }
 .session-summary-sets > li.is-warmup .session-set-target strong { color: var(--muted); font-weight: 550; }
 
 .session-set-label {

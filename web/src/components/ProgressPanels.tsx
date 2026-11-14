@@ -1,5 +1,3 @@
-import type { ProgressSummary, Unit } from '../types';
-import { toDisplay } from '../lib/training';
 import type { LucideIcon } from 'lucide-react';
 import { Clock3, Dumbbell, Layers } from 'lucide-react';
 import { CountUp } from './ui/CountUp';
@@ -46,14 +44,4 @@ export function ProgressStats({ week }: { week: CalendarWeekSummary | null }) {
       </small>
     </div>
   );
-}
-
-export function BodyweightRecords({ progress, unit }: { progress: ProgressSummary | null; unit: Unit }) {
-  const records = progress?.exercises.filter(exercise => exercise.bodyweightRepRecord !== null) ?? [];
-  if (!records.length) return null;
-
-  return <section className="panel progress-record-panel">
-    <div className="section-heading"><h2>Bodyweight records</h2></div>
-    {records.map(record => <div className="best-row" key={record.exercise}><span>{record.exercise}</span><strong>{record.bodyweightRepRecord!.reps} reps at {toDisplay(record.bodyweightRepRecord!.bodyweightKg, unit)} {unit} bodyweight</strong></div>)}
-  </section>;
 }

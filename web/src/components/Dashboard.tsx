@@ -1,11 +1,7 @@
-import { lazy, Suspense, useEffect, useState } from 'react';
-import type { Bootstrap, ProgressSummary, Session } from '../types';
-import { ApiError, api } from '../lib/api';
-import { Button } from './ui/Button';
+import { lazy, Suspense, useState } from 'react';
+import type { Bootstrap, Session } from '../types';
 import { NextWorkoutHero } from './NextWorkoutHero';
-import { viewReadCache } from '../lib/viewReadCache';
 const TrainingCalendar = lazy(() => import('./TrainingCalendar').then(module => ({ default: module.TrainingCalendar })));
-const BodyweightRecords = lazy(() => import('./ProgressPanels').then(module => ({ default: module.BodyweightRecords })));
 const WorkoutHistory = lazy(() => import('./WorkoutHistory').then(module => ({ default: module.WorkoutHistory })));
 import './Dashboard.css';
 import { CalendarSkeleton } from './DashboardTrainingSkeleton';
@@ -36,39 +32,8 @@ export function Dashboard({
   onChanged,
   onStart
 }: DashboardProps) {
-  const readKey = `${data.account.id}:progress`;
   const readVersion = data.resourceVersions?.history ?? data.history;
-  const [progress, setProgress] = useState<ProgressSummary | null>(
-    unconfirmed ? null : (data.progress ?? viewReadCache.get(readKey, readVersion) ?? null)
-  );
-  const [progressError, setProgressError] = useState('');
-  const [progressRetry, setProgressRetry] = useState(0);
   const [allHistory, setAllHistory] = useState(false);
-
-  useEffect(() => {
-    if (unconfirmed) { setProgress(null); setProgressError(''); return; }
-    if (data.progress && progressRetry === 0) { setProgress(data.progress); return; }
-    const cached = viewReadCache.get<ProgressSummary>(readKey, readVersion);
-    setProgress(cached ?? null);
-    if (progressRetry === 0 && viewReadCache.fresh(readKey, readVersion)) return;
-    let cancelled = false;
-    const controller = new AbortController();
-    setProgressError('');
-    api
-      .progress(controller.signal)
-      .then(next => {
-        if (!cancelled) { viewReadCache.set(readKey, readVersion, next); setProgress(next); }
-      })
-      .catch(failure => {
-        if (!cancelled) {
-          setProgressError(failure instanceof ApiError ? failure.message : 'Progress records could not be loaded.');
-        }
-      });
-    return () => {
-      cancelled = true;
-      controller.abort();
-    };
-  }, [unconfirmed, progressRetry, data.progress, data.account.id, data.resourceVersions?.history ?? data.history]);
 
   const program = data.activeProgram;
   const unit = data.preferences.unit;
@@ -94,14 +59,6 @@ export function Dashboard({
             onProgram={onProgram}
             onChanged={onChanged}
           />
-          {progressError && (
-            <div className="error-banner" role="alert">
-              <span>{progressError}</span>
-              <Button variant="tertiary" onClick={() => setProgressRetry(val => val + 1)}>
-                Retry
-              </Button>
-            </div>
-          )}
         </div>
         <div className="overview-calendar-column">
           <Suspense fallback={<CalendarSkeleton />}>
@@ -130,10 +87,6 @@ export function Dashboard({
           onDeleted={onChanged}
           recent={{ count: RECENT_WORKOUTS, onShowAll: () => setAllHistory(true) }}
         />
-      </Suspense>
-
-      <Suspense fallback={<div className="panel skeleton" aria-label="Loading bodyweight records" />}>
-        <BodyweightRecords progress={progress} unit={unit} />
       </Suspense>
 
       {allHistory && (
