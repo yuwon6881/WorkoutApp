@@ -75,6 +75,9 @@
 .workout-action-pills .action-pill.button:focus-visible { border-color: var(--accent); }
 .workout-action-pills .action-pill svg { color: var(--muted); }
 .workout-action-pills .action-pill.pill-static { color: var(--muted); cursor: default; }
+/* A long partner list truncates instead of pushing the other pills off the row. */
+.workout-action-pills .action-pill.superset-pill { min-width: 0; max-width: 100%; }
+.workout-action-pills .action-pill.superset-pill span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .workout-active-exercise .workout-action-pills .ui-menu-trigger { width: 40px; min-width: 40px; height: 40px; min-height: 40px; border: 1px solid var(--control-border); border-radius: var(--radius-pill); background: var(--surface-raised); }
 .workout-active-exercise .workout-action-pills .ui-menu-trigger:focus-visible { border-color: var(--accent); }
 @media (max-width: 639px) {
@@ -234,6 +237,12 @@
 .workout-set-rows .workout-set-row .load-cell.load-assistance input:not(:focus) { outline: 1.5px dashed var(--accent-border-strong); outline-offset: -1.5px; }
 /* Bodyweight has no load to enter: an empty, dashed field marks the column as not applicable. */
 .workout-set-rows .workout-set-row .load-cell.load-bodyweight input:disabled { background: transparent; outline: 1.5px dashed var(--border-hover); outline-offset: -1.5px; opacity: 1; cursor: not-allowed; }
+/* A load that does not apply (bodyweight, reps-only) takes no touch, so it never grabs focus or shows a caret. */
+.workout-set-rows .workout-set-row .set-input-cell input:disabled { pointer-events: none; caret-color: transparent; user-select: none; }
+.workout-set-rows .workout-set-row .load-cell.load-bodyweight,
+.workout-set-rows .workout-set-row .load-cell.load-none { cursor: not-allowed; }
+/* On touch, reps and load are typed on the keypad sheet, so the field itself needs no blinking caret. */
+@media (pointer: coarse) { .workout-set-rows .workout-set-row .set-input-cell input { caret-color: transparent; } }
 
 /* Reps and effort share one field; the effort badge sits on its lower trailing corner. */
 .workout-set-rows .combined-reps-cell { position: relative; min-width: 0; border: 0; border-radius: 12px; background: transparent; }

@@ -168,6 +168,30 @@
 }
 .workout-strip-item.active .workout-strip-count { color: var(--accent); opacity: 0.85; }
 
+/* Paired exercises read as one joined unit: tabs of a superset touch, share a tinted outline and carry
+   their group letter and place (A1, A2). Neighbouring supersets alternate tone, and the letter tells
+   them apart without colour. */
+.workout-strip-item.superset-tone-0 { --superset-tone: var(--accent); }
+.workout-strip-item.superset-tone-1 { --superset-tone: var(--blue); }
+.workout-strip-item.in-superset:not(.active) {
+  border-color: color-mix(in srgb, var(--superset-tone) 45%, transparent);
+  background: color-mix(in srgb, var(--superset-tone) 8%, var(--surface-raised));
+}
+.workout-strip-item.in-superset.active { box-shadow: inset 0 -3px 0 var(--superset-tone); }
+.workout-strip-item.joins-prev { margin-inline-start: -4px; border-start-start-radius: 0; border-end-start-radius: 0; }
+.workout-strip-item.joins-next { border-start-end-radius: 0; border-end-end-radius: 0; }
+.workout-strip-superset {
+  display: inline-block;
+  margin-inline-end: 6px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--superset-tone) 18%, var(--surface));
+  color: var(--superset-tone);
+  font-size: var(--font-secondary);
+  font-weight: 700;
+  line-height: 1.4;
+}
+
 /* The add tile stretches with the strip so it matches the exercise tabs' height and edges. */
 .workout-exercise-strip .workout-strip-add-item.button {
   flex: 0 0 auto;

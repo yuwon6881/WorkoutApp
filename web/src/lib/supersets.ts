@@ -93,3 +93,30 @@ export function unlinkExercise<T extends ExerciseWithGroup>(
     return e;
   });
 }
+
+export interface SupersetSlot {
+  group: string;
+  /** 1-based place within the group, in workout order. */
+  position: number;
+  size: number;
+  /** Alternates between groups so two supersets side by side never share a colour. */
+  tone: 0 | 1;
+}
+
+/// Where each paired exercise sits in its superset, for the markers that show which exercises belong
+/// together. An exercise alone in its group is not paired, so it has no entry.
+export function supersetLayout<T extends ExerciseWithGroup>(exercises: T[]): Map<string, SupersetSlot> {
+  const members = new Map<string, string[]>();
+  for (const exercise of exercises) {
+    const group = getSupersetGroup(exercise.sequenceGroup);
+    if (group) members.set(group, [...(members.get(group) ?? []), exercise.id]);
+  }
+  const layout = new Map<string, SupersetSlot>();
+  let tone = 0;
+  for (const [group, ids] of members) {
+    if (ids.length < 2) continue;
+    ids.forEach((id, index) => layout.set(id, { group, position: index + 1, size: ids.length, tone: (tone % 2) as 0 | 1 }));
+    tone++;
+  }
+  return layout;
+}

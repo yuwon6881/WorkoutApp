@@ -31,6 +31,10 @@ export function useHorizontalSwipe({ onPrevious, onNext, enabled = true, onDrag,
   const swallowClickUntil = useRef(0);
 
   function onPointerDown(event: ReactPointerEvent<HTMLElement>) {
+    // The click a swipe ends on arrives before any new touch, so a new touch means that window is
+    // over. Clearing it here, ahead of the early returns below, keeps a swipe whose click never came
+    // (the app was backgrounded mid-gesture) from swallowing every later tap on a field.
+    swallowClickUntil.current = 0;
     const target = event.target as HTMLElement;
     if (!enabled || event.pointerType === 'mouse' || target.closest(TEXT_ENTRY) || target.closest(OWN_SCROLL)) return;
     // React bubbles events out of portals, so a dialog opened from the surface is not part of it.

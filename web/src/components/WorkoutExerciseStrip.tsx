@@ -4,6 +4,7 @@ import type { SessionExercise } from '../types';
 import { Button } from './ui/Button';
 import { useReducedMotion } from './ui/Motion';
 import { useWindowTier } from '../lib/breakpoints';
+import { supersetLayout } from '../lib/supersets';
 import { previewOrder, useStripReorder } from './useStripReorder';
 
 const RING = 2 * Math.PI * 11;
@@ -43,6 +44,7 @@ export function WorkoutExerciseStrip({
   // is on screen keeps a mark that plays its pop once, until it is no longer complete.
   const completedBefore = useRef<Set<string> | null>(null);
   const popped = useRef(new Set<string>());
+  const layout = supersetLayout(exercises);
   const completedNow = new Set(exercises.filter(isComplete).map(exercise => exercise.id));
   for (const id of completedNow) if (completedBefore.current && !completedBefore.current.has(id)) popped.current.add(id);
   for (const id of popped.current) if (!completedNow.has(id)) popped.current.delete(id);
@@ -97,8 +99,12 @@ export function WorkoutExerciseStrip({
       )}
       <span id="workout-strip-reorder-hint" className="sr-only">Press and hold, then drag to reorder, or use Alt with the arrow keys.</span>
       <div className={`workout-exercise-strip ${drag ? 'reordering' : ''}`.trim()} role="tablist" ref={scrollerRef} onScroll={arrows ? measure : undefined} {...stripProps}>
-        {previewOrder(exercises.length, drag).map((index, shownAt) => {
+        {(shown => shown.map((index, shownAt) => {
           const exercise = exercises[index];
+          // Neighbours in the order shown (a held tab is mid-move) decide where a superset joins.
+          const slot = layout.get(exercise.id);
+          const joinsPrev = !!slot && layout.get(exercises[shown[shownAt - 1]]?.id)?.group === slot.group;
+          const joinsNext = !!slot && layout.get(exercises[shown[shownAt + 1]]?.id)?.group === slot.group;
           const isSelected = index === activeIndex;
           const counted = countedSets(exercise);
           const doneCount = counted.filter(s => s.done).length;
@@ -114,9 +120,9 @@ export function WorkoutExerciseStrip({
               presentation="plain"
               role="tab"
               aria-selected={isSelected}
-              aria-label={`${exercise.name}, ${doneCount} of ${counted.length} sets completed`}
+              aria-label={`${exercise.name}, ${doneCount} of ${counted.length} sets completed${slot ? `, superset ${slot.group}${slot.position} of ${slot.size}` : ''}`}
               aria-describedby={exercises.length > 1 ? 'workout-strip-reorder-hint' : undefined}
-              className={`workout-strip-item ${isSelected ? 'active' : ''} ${completed ? 'completed' : ''} ${justCompleted ? 'just-completed' : ''} ${isHeld ? 'held' : ''} ${isPressing ? 'pressing' : ''}`.replace(/\s+/g, ' ').trim()}
+              className={`workout-strip-item ${isSelected ? 'active' : ''} ${completed ? 'completed' : ''} ${justCompleted ? 'just-completed' : ''} ${slot ? `in-superset superset-tone-${slot.tone}` : ''} ${joinsPrev ? 'joins-prev' : ''} ${joinsNext ? 'joins-next' : ''} ${isHeld ? 'held' : ''} ${isPressing ? 'pressing' : ''}`.replace(/\s+/g, ' ').trim()}
               {...itemProps(index)}
               onClick={() => onSelect(index)}
             >
@@ -136,11 +142,14 @@ export function WorkoutExerciseStrip({
               </span>
               <span className="workout-strip-text">
                 <span className="workout-strip-name">{exercise.name}</span>
-                <span className="workout-strip-count">{doneCount}/{counted.length} sets</span>
+                <span className="workout-strip-count">
+                  {slot && <span className="workout-strip-superset" aria-hidden="true">{slot.group}{slot.position}</span>}
+                  {doneCount}/{counted.length} sets
+                </span>
               </span>
             </Button>
           );
-        })}
+        }))(previewOrder(exercises.length, drag))}
 
         <Button
           variant="tertiary"

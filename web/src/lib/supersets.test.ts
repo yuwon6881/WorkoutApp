@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { getSupersetGroup, isSuperset, getSupersetPartners, pairExercises, unlinkExercise } from './supersets';
+import { getSupersetGroup, isSuperset, getSupersetPartners, pairExercises, supersetLayout, unlinkExercise } from './supersets';
 
 describe('supersets logic', () => {
   it('extracts superset group correctly', () => {
@@ -92,5 +92,28 @@ describe('supersets logic', () => {
     expect(result[0].sequenceGroup).toBe('');
     expect(result[1].sequenceGroup).toBe('A1');
     expect(result[2].sequenceGroup).toBe('A2');
+  });
+});
+
+describe('supersetLayout', () => {
+  const rows = (...groups: string[]) => groups.map((sequenceGroup, index) => ({ id: `e${index}`, sequenceGroup }));
+
+  it('numbers each exercise within its group and sizes the group', () => {
+    const layout = supersetLayout(rows('A1', 'A2', '', 'B1', 'B2', 'B3'));
+    expect(layout.get('e0')).toMatchObject({ group: 'A', position: 1, size: 2 });
+    expect(layout.get('e1')).toMatchObject({ group: 'A', position: 2, size: 2 });
+    expect(layout.has('e2')).toBe(false);
+    expect(layout.get('e5')).toMatchObject({ group: 'B', position: 3, size: 3 });
+  });
+
+  it('alternates the tone between groups so neighbouring supersets read as different', () => {
+    const layout = supersetLayout(rows('A1', 'A2', 'B1', 'B2', 'C1', 'C2'));
+    expect(layout.get('e0')!.tone).toBe(0);
+    expect(layout.get('e2')!.tone).toBe(1);
+    expect(layout.get('e4')!.tone).toBe(0);
+  });
+
+  it('ignores a group with a single exercise', () => {
+    expect(supersetLayout(rows('A1', '', 'B1')).size).toBe(0);
   });
 });

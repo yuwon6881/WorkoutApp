@@ -22,7 +22,8 @@ import { api } from '../lib/api';
 import { restOptions } from '../lib/training';
 import { showExerciseWeight } from '../lib/weightBasis';
 import { ProgressionChangeBadge } from './ProgressionChangeBadge';
-import { earlierPendingSet, setNumberLabel, setOrderProblem, withSetAdded, withSetRemoved } from '../lib/workoutDraft';
+import { getSupersetPartners, supersetLayout } from '../lib/supersets';
+import { earlierPendingSet,setNumberLabel, setOrderProblem, withSetAdded, withSetRemoved } from '../lib/workoutDraft';
 import { allowedSetTypes, withSetType } from '../lib/workoutSetTypes';
 import { Button } from './ui/Button';
 import { CardFeedback } from './ui/CardFeedback';
@@ -178,6 +179,12 @@ export function WorkoutActiveExercise({
     }
   }), []);
   const warmups = warmupOffer(draft, index, exercises, unit);
+  // Which exercises this one alternates with, so two supersets in one workout are never confused.
+  const superset = supersetLayout(draft.exercises).get(exercise.id);
+  const partnerNames = getSupersetPartners(exercise.id, draft.exercises).map(partner => partner.name).join(', ');
+  const supersetLabel = superset
+    ? `Superset ${superset.group}${superset.position} of ${superset.size}${partnerNames ? ` with ${partnerNames}` : ''}`
+    : `Superset ${exercise.sequenceGroup}`;
   const nextUnloggedWorkingIndex = workingSets.findIndex(s => !s.done);
   // The row the lifter is on: the first set, warm-up or working, still to log.
   const nextSetIndex = exercise.sets.findIndex(s => !s.done);
@@ -251,9 +258,9 @@ export function WorkoutActiveExercise({
         )}
 
         {exercise.sequenceGroup && (
-          <div className="action-pill pill-static" title="Superset group">
+          <div className="action-pill pill-static superset-pill" title={supersetLabel}>
             <Layers size={15} />
-            <span>Superset {exercise.sequenceGroup}</span>
+            <span>{supersetLabel}</span>
           </div>
         )}
 
