@@ -99,18 +99,23 @@ public static class CatalogSeed
 
     /// The shipped catalog predates the movement-pattern column. Keep its metadata useful on the
     /// first additive seed while allowing a curator to override any row explicitly in JSON.
-    private static string CuratedMovementPattern(string slug)
+    internal static string CuratedMovementPattern(string slug)
     {
         var key = slug.ToLowerInvariant();
+        // The joint a movement works decides its pattern, so the most specific names come first: a calf
+        // press is not a leg press, a leg curl is not an elbow curl, and a leg raise is not a shoulder raise.
+        if (key.Contains("calf") || key.Contains("toe-press")) return "calf_raise";
+        if (key.Contains("leg-curl") || key.Contains("hamstring-curl") || key.Contains("nordic")) return "knee_flexion";
+        if (key.Contains("leg-extension")) return "knee_extension";
         if (key.Contains("squat") || key.Contains("leg-press") || key.Contains("hack-squat") || key.Contains("lunge")) return "knee_dominant";
         if (key.Contains("deadlift") || key.Contains("good-morning") || key.Contains("hip-thrust") || key.Contains("back-extension")) return "hip_dominant";
         if (key.Contains("bench") || key.Contains("push-up") || key.Contains("pushup") || key.Contains("chest-press") || key.Contains("overhead-press")) return "horizontal_or_vertical_push";
         if (key.Contains("row") || key.Contains("pull-up") || key.Contains("pullup") || key.Contains("lat-pulldown") || key.Contains("pulldown")) return "horizontal_or_vertical_pull";
+        if (key.Contains("crunch") || key.Contains("plank") || key.Contains("leg-raise") || key.Contains("dragon-flag")) return "trunk_flexion_or_anti_extension";
         if (key.Contains("curl")) return "elbow_flexion";
         if (key.Contains("extension") || key.Contains("pushdown")) return "elbow_extension";
         if (key.Contains("raise") || key.Contains("fly") || key.Contains("flye")) return "shoulder_isolation";
         if (key.Contains("carry")) return "loaded_carry";
-        if (key.Contains("crunch") || key.Contains("plank") || key.Contains("leg-raise") || key.Contains("dragon-flag")) return "trunk_flexion_or_anti_extension";
         return "";
     }
 }

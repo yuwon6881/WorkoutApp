@@ -267,9 +267,7 @@
     "name": "Goblet Squat",
     "muscle": "Quads",
     "equipment": "Dumbbell",
-    "requires": [
-      "dumbbells"
-    ],
+    "requires": ["dumbbells"],
     "category": "Free Weights",
     "aliases": []
   },
@@ -2751,7 +2749,9 @@
     "name": "Pinch Grip Dumbbell Curl",
     "muscle": "Biceps and forearms",
     "equipment": "Dumbbell",
-    "requires": ["dumbbells"],
+    "requires": [
+      "dumbbells"
+    ],
     "category": "Free Weights",
     "aliases": ["Pinch Grip Curl"]
   },
@@ -3772,7 +3772,7 @@
     "slug": "standing-calf-raise",
     "weightBasis": "total",
     "name": "Plate-Loaded Standing Calf Raise",
-    "muscle": "Traps, calves, and hips",
+    "muscle": "Calves",
     "equipment": "Machine",
     "requires": [
       "standing-calf.plate"
@@ -3787,7 +3787,7 @@
     "slug": "weight-stack-standing-calf-raise",
     "weightBasis": "total",
     "name": "Weight-Stack Standing Calf Raise",
-    "muscle": "Traps, calves, and hips",
+    "muscle": "Calves",
     "equipment": "Machine",
     "requires": [
       "standing-calf.stack"
@@ -3802,7 +3802,7 @@
     "slug": "seated-calf-raise",
     "weightBasis": "total",
     "name": "Plate-Loaded Seated Calf Raise",
-    "muscle": "Traps, calves, and hips",
+    "muscle": "Calves",
     "equipment": "Machine",
     "requires": [
       "seated-calf.plate"
@@ -3816,7 +3816,7 @@
     "slug": "weight-stack-seated-calf-raise",
     "weightBasis": "total",
     "name": "Weight-Stack Seated Calf Raise",
-    "muscle": "Traps, calves, and hips",
+    "muscle": "Calves",
     "equipment": "Machine",
     "requires": [
       "seated-calf.stack"
@@ -3831,7 +3831,7 @@
     "slug": "leg-press-toe-press",
     "weightBasis": "total",
     "name": "Plate-Loaded Leg Press Toe Press",
-    "muscle": "Traps, calves, and hips",
+    "muscle": "Calves",
     "equipment": "Machine",
     "requires": [
       "leg-press.plate"
@@ -3845,7 +3845,7 @@
     "slug": "weight-stack-leg-press-toe-press",
     "weightBasis": "total",
     "name": "Weight-Stack Leg Press Toe Press",
-    "muscle": "Traps, calves, and hips",
+    "muscle": "Calves",
     "equipment": "Machine",
     "requires": [
       "leg-press.stack"
@@ -3860,7 +3860,7 @@
     "slug": "leg-press-calf-press",
     "weightBasis": "total",
     "name": "Plate-Loaded Leg Press Calf Press",
-    "muscle": "Traps, calves, and hips",
+    "muscle": "Calves",
     "equipment": "Machine",
     "requires": [
       "leg-press.plate"
@@ -3874,7 +3874,7 @@
     "slug": "weight-stack-leg-press-calf-press",
     "weightBasis": "total",
     "name": "Weight-Stack Leg Press Calf Press",
-    "muscle": "Traps, calves, and hips",
+    "muscle": "Calves",
     "equipment": "Machine",
     "requires": [
       "leg-press.stack"
@@ -3889,7 +3889,7 @@
     "slug": "leg-press-calf-jumps",
     "weightBasis": "total",
     "name": "Plate-Loaded Leg Press Calf Jumps",
-    "muscle": "Traps, calves, and hips",
+    "muscle": "Calves",
     "equipment": "Machine",
     "requires": [
       "leg-press.plate"
@@ -3903,7 +3903,7 @@
     "slug": "weight-stack-leg-press-calf-jumps",
     "weightBasis": "total",
     "name": "Weight-Stack Leg Press Calf Jumps",
-    "muscle": "Traps, calves, and hips",
+    "muscle": "Calves",
     "equipment": "Machine",
     "requires": [
       "leg-press.stack"
@@ -3918,7 +3918,7 @@
     "slug": "db-calf-jumps",
     "weightBasis": "per_side",
     "name": "DB Calf Jumps",
-    "muscle": "Traps, calves, and hips",
+    "muscle": "Calves",
     "equipment": "Dumbbell",
     "requires": [
       "dumbbells"
@@ -3932,7 +3932,7 @@
     "slug": "donkey-calf-raise",
     "weightBasis": "total",
     "name": "Donkey Calf Raise",
-    "muscle": "Traps, calves, and hips",
+    "muscle": "Calves",
     "equipment": "Machine",
     "category": "Machine",
     "aliases": []
@@ -3941,7 +3941,7 @@
     "slug": "single-leg-db-calf-raise",
     "weightBasis": "per_side",
     "name": "Single-Leg DB Calf Raise",
-    "muscle": "Traps, calves, and hips",
+    "muscle": "Calves",
     "equipment": "Dumbbell",
     "requires": [
       "dumbbells"
@@ -3953,7 +3953,7 @@
     "slug": "calf-raise-machine",
     "weightBasis": "total",
     "name": "Plate-Loaded Calf Raise Machine",
-    "muscle": "Traps, calves, and hips",
+    "muscle": "Calves",
     "equipment": "Machine",
     "requires": [
       "standing-calf.plate|seated-calf.plate"
@@ -3967,7 +3967,7 @@
     "slug": "weight-stack-calf-raise-machine",
     "weightBasis": "total",
     "name": "Weight-Stack Calf Raise Machine",
-    "muscle": "Traps, calves, and hips",
+    "muscle": "Calves",
     "equipment": "Machine",
     "requires": [
       "standing-calf.stack|seated-calf.stack"
@@ -4428,7 +4428,7 @@
     "slug": "copenhagen-hip-adduction",
     "weightBasis": "total",
     "name": "Copenhagen Hip Adduction",
-    "muscle": "Adductors and neck",
+    "muscle": "Adductors",
     "equipment": "Bodyweight",
     "category": "Body Weight",
     "loadModel": "reps_only",
@@ -4438,7 +4438,7 @@
     "slug": "cable-hip-adduction",
     "weightBasis": "total",
     "name": "Cable Hip Adduction",
-    "muscle": "Adductors and neck",
+    "muscle": "Adductors",
     "equipment": "Cable",
     "requires": [
       "cable-station"
@@ -4450,7 +4450,7 @@
     "slug": "machine-hip-adduction",
     "weightBasis": "total",
     "name": "Machine Hip Adduction",
-    "muscle": "Adductors and neck",
+    "muscle": "Adductors",
     "equipment": "Machine",
     "requires": [
       "hip-adduction"
@@ -4464,7 +4464,7 @@
     "slug": "head-harness-neck-curl",
     "weightBasis": "total",
     "name": "Head Harness Neck Curl",
-    "muscle": "Adductors and neck",
+    "muscle": "Neck",
     "equipment": "Plate",
     "requires": [
       "plates"
@@ -4476,7 +4476,7 @@
     "slug": "head-harness-neck-extension",
     "weightBasis": "total",
     "name": "Head Harness Neck Extension",
-    "muscle": "Adductors and neck",
+    "muscle": "Neck",
     "equipment": "Plate",
     "requires": [
       "plates"
@@ -4491,7 +4491,7 @@
     "slug": "plate-loaded-neck-curl",
     "weightBasis": "total",
     "name": "Plate-Loaded Neck Curl",
-    "muscle": "Adductors and neck",
+    "muscle": "Neck",
     "equipment": "Plate",
     "requires": [
       "plates"
@@ -4506,7 +4506,7 @@
     "slug": "plate-loaded-neck-extension",
     "weightBasis": "total",
     "name": "Plate-Loaded Neck Extension",
-    "muscle": "Adductors and neck",
+    "muscle": "Neck",
     "equipment": "Plate",
     "requires": [
       "plates"
@@ -5402,7 +5402,7 @@
     "slug": "neck-flexion-extension",
     "weightBasis": "total",
     "name": "Neck Flexion/Extension",
-    "muscle": "Adductors and neck",
+    "muscle": "Neck",
     "equipment": "Plate",
     "requires": [
       "plates"
@@ -5628,7 +5628,7 @@
     "slug": "plate-loaded-lateral-neck-curl",
     "weightBasis": "total",
     "name": "Plate-Loaded Lateral Neck Curl",
-    "muscle": "Adductors and neck",
+    "muscle": "Neck",
     "equipment": "Plate",
     "requires": [
       "plates"
