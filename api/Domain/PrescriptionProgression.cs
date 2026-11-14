@@ -251,7 +251,18 @@ internal static class PrescriptionProgression
         }
 
         if (!loads.Adjustable || repsOnly || load is null)
-            return Result(load, upper, "Top of the range with no adjustable load. Keep building reps or control the tempo.");
+        {
+            // Reps past the top of the range are real capacity, and with no load to add they are all
+            // there is to progress: never ask for fewer than the last set achieved. Reserve beyond the
+            // target effort carries forward as extra reps, a step at a time, as a heavier load would.
+            var held = Math.Max(upper, actual);
+            var spare = !open && mode == ProgressionModes.Normal && !source.IsRepRangeTransition &&
+                goal is { } aim && reserve is { } logged && logged >= aim + 2
+                ? ProgressionCalibration.RepGain(logged, aim) : 0;
+            return Result(load, held + spare, spare > 0
+                ? $"The last set left {reserve:0.#} in reserve against a target of {goal:0.#}: aim for {held + spare} reps, since there is no load to add."
+                : "Top of the range with no adjustable load. Keep building reps or control the tempo.");
+        }
         if (!open && qualified < required)
             return Result(load, upper, $"Top of the range reached. Earn {required - qualified} more qualified exposures at this load before increasing it.");
 

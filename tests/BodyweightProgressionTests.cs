@@ -130,4 +130,34 @@ public sealed class BodyweightProgressionTests
         Assert.Equal(8, result.SuggestedReps);
         Assert.Contains("harder than the target", result.Reason);
     }
+
+    // Plain bodyweight has no load to add, so beating the top of the range must never ask for fewer
+    // reps than were just done: the target stays at what the lifter achieved.
+    [Theory]
+    [InlineData(null)]
+    [InlineData(80.0)]
+    public void Beating_the_top_of_the_range_never_asks_for_fewer_reps(double? lastSystemLoad)
+    {
+        var last = new SetExposure(Guid.NewGuid(), DateTime.UtcNow.AddDays(-4), null, 8, null, lastSystemLoad,
+            ResistanceModes.Bodyweight, "3", 4, 6, null, "3", false, true);
+        var result = BodyweightProgression.Suggest(new SetPrescription(4, 6, null, 90, null, null, null, Rir: "3"),
+            [last], ProgressionModes.Normal, 0, null, ResistanceModes.Bodyweight, 80);
+        Assert.True(result.SuggestedReps >= 8, $"suggested {result.SuggestedReps}: {result.Reason}");
+    }
+
+    // A loadless set can only progress in reps, so reps done with reserve to spare past the target
+    // effort carry forward: 15 reps with 4 in reserve against a 1 RIR target is not asked for again.
+    [Theory]
+    [InlineData("4", 18)]
+    [InlineData("3", 17)]
+    [InlineData("2", 15)]
+    [InlineData("1", 15)]
+    public void Spare_reserve_on_a_loadless_set_moves_the_reps_forward(string loggedRir, int expected)
+    {
+        var last = new SetExposure(Guid.NewGuid(), DateTime.UtcNow.AddDays(-4), null, 15, null, 80,
+            ResistanceModes.Bodyweight, loggedRir, 12, 15, null, "1", false, true);
+        var result = BodyweightProgression.Suggest(new SetPrescription(12, 15, null, 90, null, null, null, Rir: "1"),
+            [last], ProgressionModes.Normal, 0, null, ResistanceModes.Bodyweight, 80);
+        Assert.Equal(expected, result.SuggestedReps);
+    }
 }

@@ -57,7 +57,7 @@ public sealed class ProgressionGapTests
     [Fact]
     public void A_different_rep_target_after_a_layoff_does_not_inherit_the_old_rep_count()
     {
-        var result = Suggest(8, 8, "2", [Exposure(100, 2, "2", daysAgo: 21, min: 2, max: 2)]);
+        var result = Suggest(8, 8, "2", [Exposure(100, 2, "2", daysAgo: 24, min: 2, max: 2)]);
         Assert.Equal(8, result.SuggestedReps);
     }
 
@@ -112,7 +112,8 @@ public sealed class ProgressionGapTests
     // Gap 3: strength decays after time off, so the suggestion must too.
     [Theory]
     [InlineData(10, 62.5)]
-    [InlineData(20, 60)]
+    [InlineData(20, 62.5)]
+    [InlineData(24, 60)]
     [InlineData(35, 52.5)]
     [InlineData(70, 47.5)]
     public void Time_off_holds_or_reduces_the_load(int daysAgo, double expectedLoad)
@@ -127,13 +128,13 @@ public sealed class ProgressionGapTests
     [InlineData(10, 12, 5)]
     public void A_layoff_hold_repeats_the_reps_last_achieved_not_the_range_minimum(int min, int max, int reps)
     {
-        // 25 kg for 6 (or 5) against a 10-rep target, three weeks ago with no effort logged: "repeat
+        // 25 kg for 6 (or 5) against a 10-rep target, 24 days ago with no effort logged: "repeat
         // your last session" must ask for those reps again, not 25 kg for the full 10.
-        var result = Suggest(min, max, null, [Exposure(25, reps, null, daysAgo: 21, min: min, max: max, targetRir: null)]);
+        var result = Suggest(min, max, null, [Exposure(25, reps, null, daysAgo: 24, min: min, max: max, targetRir: null)]);
 
         Assert.Equal(25, result.SuggestedLoadKg);
         Assert.Equal(reps, result.SuggestedReps);
-        Assert.Contains("21 days", result.Reason);
+        Assert.Contains("24 days", result.Reason);
     }
 
     [Fact]
@@ -141,14 +142,14 @@ public sealed class ProgressionGapTests
     {
         // A far miss with its effort logged is re-aimed lighter when trained through; a break must
         // not instead hold the heavier load.
-        var history = new List<SetExposure> { Exposure(25, 6, "0", daysAgo: 21, min: 10, max: 10) };
+        var history = new List<SetExposure> { Exposure(25, 6, "0", daysAgo: 24, min: 10, max: 10) };
         var through = Suggest(10, 10, "2", [history[0] with { CompletedAt = Now.AddDays(-3) }]);
         var away = Suggest(10, 10, "2", history);
 
         Assert.True(through.SuggestedLoadKg < 25);
         Assert.Equal(through.SuggestedLoadKg, away.SuggestedLoadKg);
         Assert.Equal(through.SuggestedReps, away.SuggestedReps);
-        Assert.Contains("21 days", away.Reason);
+        Assert.Contains("24 days", away.Reason);
     }
 
     [Fact]

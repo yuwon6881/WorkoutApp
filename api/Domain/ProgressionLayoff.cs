@@ -5,7 +5,9 @@ namespace Workout.Api.Domain;
 /// Any session of the movement counts as training: partials or myo-reps in the slot are not time away.
 internal static class ProgressionLayoff
 {
-    public const int HoldDays = 15;
+    /// A program that rotates a movement every two weeks, or a missed week, is not detraining: the hold
+    /// starts once a full three weeks have passed.
+    public const int HoldDays = 22;
     public const int ReduceDays = 28;
     public const int LongDays = 56;
 
