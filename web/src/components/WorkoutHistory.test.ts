@@ -36,8 +36,8 @@ describe('WorkoutHistory unconfirmed state', () => {
     }));
 
     // Overview's list is drawn as the cards it will become, three of them, with no real rows.
-    expect(html).toContain('history-recent-loading');
-    expect(html.match(/history-card-skeleton/g)).toHaveLength(3);
+    expect(html).toContain('recent-skeleton');
+    expect(html.match(/recent-skeleton-card/g)).toHaveLength(3);
     expect(html).not.toContain('Upper A');
     expect(html).not.toContain('All history');
   });

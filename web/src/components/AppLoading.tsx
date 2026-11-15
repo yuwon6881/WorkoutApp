@@ -1,9 +1,7 @@
 import { Skeleton } from './ui/Skeleton';
-import { RecentWorkoutsSkeleton } from './RecentWorkoutsSkeleton';
+import { OverviewLoadingContent } from './OverviewLoadingContent';
 
 const NAV_ITEMS = 4;
-const WEEK_DAYS = 7;
-const STATS = 3;
 
 /// The first load draws the real shell (navigation, top bar) around the shape of the Overview it
 /// is about to show, reserving its columns and controls before the account state is known.
@@ -42,42 +40,7 @@ export function AppLoading() {
 
         <main className="app-loading" role="status">
           <span className="sr-only">Loading your training. Your workouts live on the server, so this needs a connection.</span>
-          <div className="page-heading dashboard-heading" aria-hidden="true">
-            <div>
-              <Skeleton className="skeleton-title" />
-              <Skeleton className="skeleton-subtitle" />
-            </div>
-          </div>
-
-          <div className="overview-hero-calendar-grid">
-            <div className="overview-main-column">
-              <section className="panel app-loading-quick-start" aria-hidden="true">
-                <div>
-                  <Skeleton className="skeleton-pill" />
-                  <Skeleton className="skeleton-hero-title" />
-                  <Skeleton className="skeleton-hero-line" />
-                </div>
-                <Skeleton className="skeleton-hero-button" />
-              </section>
-            </div>
-
-            <div className="overview-calendar-column">
-              <section className="panel training-calendar-card" aria-hidden="true">
-                <div className="app-loading-week-summary">
-                  <Skeleton className="skeleton-week-ring" />
-                  <div><Skeleton className="skeleton-section-title" /><Skeleton className="skeleton-subtitle" /></div>
-                </div>
-                <div className="calendar-days-grid app-loading-week">
-                  {Array.from({ length: WEEK_DAYS }, (_, index) => <Skeleton key={index} className="skeleton-day" />)}
-                </div>
-                <div className="stats-grid progress-stats" aria-hidden="true">
-                  {Array.from({ length: STATS }, (_, index) => <Skeleton key={index} className="skeleton-stat" />)}
-                </div>
-              </section>
-            </div>
-          </div>
-
-          <RecentWorkoutsSkeleton />
+          <OverviewLoadingContent />
         </main>
       </div>
 

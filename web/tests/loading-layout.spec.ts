@@ -117,20 +117,27 @@ async function shoot(page: Page, selector: string, path: string) {
   if (box) await page.screenshot({ path, fullPage: true, clip: box });
 }
 
-test('recent workouts loading reserves the cards and heading the workouts then fill', async ({ page }, info) => {
+/// Three finished workouts for the Overview's Recent workouts, so the loaded page has cards to compare with.
+function historySummary(index: number) {
   const when = '2026-11-10T08:00:00.000Z';
-  const summary = (index: number) => ({
+  return {
     id: `skeleton-fit-${index}`, templateId: null, programId: null, name: `Skeleton fit ${index}`, note: '', active: false,
     startedAt: when, finishedAt: '2026-11-10T09:00:00.000Z', revision: 1, exercises: [], volumeKg: 2400,
     completedSets: 12, warmupSets: 0, prCount: 0, pausedSeconds: 0
-  });
+  };
+}
+
+const historyPage = { total: 5, sessions: [0, 1, 2].map(historySummary), nextBeforeAt: null, nextBeforeId: null, summaryOnly: true };
+
+test('recent workouts loading reserves the cards and heading the workouts then fill', async ({ page }, info) => {
   const measure = (section: string, card: string) => page.evaluate(([sectionSelector, cardSelector]) => {
     const cards = [...document.querySelectorAll(`${sectionSelector} ${cardSelector}`)].map(element => element.getBoundingClientRect());
     return {
       count: cards.length,
       width: Math.round(cards[0]?.width ?? 0),
       height: Math.round(cards[0]?.height ?? 0),
-      top: Math.round((cards[0]?.top ?? 0) + scrollY),
+      // Inside the section, since what sits above it depends on the account's data.
+      top: Math.round((cards[0]?.top ?? 0) - (document.querySelector(sectionSelector)?.getBoundingClientRect().top ?? 0)),
       columns: new Set(cards.map(rect => Math.round(rect.left))).size
     };
   }, [section, card] as const);
@@ -142,15 +149,15 @@ test('recent workouts loading reserves the cards and heading the workouts then f
     const ready = new Promise<void>(resolve => { release = resolve; });
     await page.route('**/api/history/summaries?*', async route => {
       await ready;
-      await route.fulfill({ json: { total: 5, sessions: [0, 1, 2].map(summary), nextBeforeAt: null, nextBeforeId: null, summaryOnly: true } });
+      await route.fulfill({ json: historyPage });
     });
     try {
       await page.goto('/', { waitUntil: 'domcontentloaded' });
       // The boot shell carries a copy of the skeleton too; measure the one the Overview itself draws.
       await expect(page.getByRole('heading', { name: 'Overview', exact: true })).toBeVisible();
-      await expect(page.locator('.history-recent-loading')).toBeVisible();
-      const loading = await measure('.history-recent-loading', '.history-card-skeleton');
-      await shoot(page, '.history-recent-loading', info.outputPath(`recent-loading-${width}.png`));
+      await expect(page.locator('.recent-skeleton')).toBeVisible();
+      const loading = await measure('.recent-skeleton', '.recent-skeleton-card');
+      await shoot(page, '.recent-skeleton', info.outputPath(`recent-loading-${width}.png`));
       release();
       await expect(page.getByRole('region', { name: 'Recent workouts' }).locator('.history-row')).toHaveCount(3);
       const loaded = await measure('.history-recent', '.history-item-wrap');
@@ -163,10 +170,59 @@ test('recent workouts loading reserves the cards and heading the workouts then f
       // pixel at the medium widths, which a placeholder cannot know: one line of difference is allowed
       // there, while a phone must match exactly.
       expect(Math.abs(loading.height - loaded.height), `${width}px card height`).toBeLessThanOrEqual(width < 640 ? 6 : 28);
-      expect(Math.abs(loading.top - loaded.top), `${width}px first card position`).toBeLessThanOrEqual(4);
+      expect(Math.abs(loading.top - loaded.top), `${width}px first card offset in its section`).toBeLessThanOrEqual(4);
     } finally {
       release();
       await page.unroute('**/api/history/summaries?*');
+    }
+  }
+});
+
+/// What the Overview's placeholders can honestly match: where the grid starts under the heading, how tall the
+/// calendar card is, and the Recent workouts' own shape. The next-workout card's height follows the account's
+/// program and plan, which no placeholder can know, so it is not compared.
+async function overviewGeometry(page: Page, calendar: string) {
+  return page.evaluate(selector => {
+    const box = (query: string) => document.querySelector(query)?.getBoundingClientRect();
+    return { gridTop: Math.round((box('.overview-hero-calendar-grid')?.top ?? 0) + scrollY), calendarHeight: Math.round(box(selector)?.height ?? 0) };
+  }, calendar);
+}
+
+test('the Overview placeholders sit where the loaded page does, so nothing jumps as a load proceeds', async ({ page }) => {
+  await signIn(page);
+  await page.route('**/api/history/summaries?*', route => route.fulfill({ json: historyPage }));
+  for (const width of [390, 768, 1440]) {
+    await page.setViewportSize({ width, height: 1000 });
+    await page.goto('/');
+    await expect(page.getByRole('region', { name: 'Recent workouts' }).locator('.history-row').first()).toBeVisible();
+    const loaded = await overviewGeometry(page, '.training-calendar-card');
+
+    // The boot shell: the page's own HTML, painted before the app's code has run. Blocking the app
+    // bundle leaves exactly that frame on screen.
+    const appBundle = /\/assets\/index-[^/]+\.js$/;
+    await page.route(appBundle, route => route.abort());
+    try {
+      await page.goto('/', { waitUntil: 'domcontentloaded' });
+      await expect(page.locator('.app-loading-shell .recent-skeleton')).toBeVisible();
+      const shell = await overviewGeometry(page, '.training-calendar-card');
+      expect(Math.abs(shell.gridTop - loaded.gridTop), `${width}px boot grid top`).toBeLessThanOrEqual(3);
+      // Stacked, the calendar is its own height; side by side it stretches to the next-workout card.
+      if (width < 1024) expect(Math.abs(shell.calendarHeight - loaded.calendarHeight), `${width}px boot calendar height`).toBeLessThanOrEqual(6);
+    } finally { await page.unroute(appBundle); }
+
+    // The view's own placeholder, drawn while the lazy Overview code arrives, is the same frame.
+    let release!: () => void;
+    const ready = new Promise<void>(resolve => { release = resolve; });
+    await page.route(/\/assets\/Dashboard-[^/]+\.js$/, async route => { await ready; await route.continue(); });
+    try {
+      await page.goto('/', { waitUntil: 'domcontentloaded' });
+      await expect(page.locator('.view-skeleton-overview .recent-skeleton')).toBeVisible();
+      const view = await overviewGeometry(page, '.training-calendar-card');
+      expect(Math.abs(view.gridTop - loaded.gridTop), `${width}px placeholder grid top`).toBeLessThanOrEqual(3);
+      if (width < 1024) expect(Math.abs(view.calendarHeight - loaded.calendarHeight), `${width}px placeholder calendar height`).toBeLessThanOrEqual(6);
+    } finally {
+      release();
+      await page.unroute(/\/assets\/Dashboard-[^/]+\.js$/);
     }
   }
 });

@@ -74,19 +74,20 @@
 
 /* A page's cards settle into place one after another when the page opens. Each card stays readable
    throughout (it never starts invisible), and the cascade ends within a third of a second, so ready
-   content is never held back. Loading placeholders do not take part: a card that replaces its
-   placeholder rises once, as content arriving. */
+   content is never held back. Loading placeholders (the .skeleton blocks and any card marked
+   aria-busy) do not take part, so a placeholder that is swapped for its twin during a load never
+   replays the rise: a card that replaces its placeholder rises once, as content arriving. */
 @keyframes card-settle {
   from { opacity: .35; transform: translateY(14px) scale(.992); }
 }
 
-.motion-scene .panel:not(.skeleton) {
+.motion-scene .panel:not(.skeleton):not([aria-busy="true"]) {
   animation: card-settle 420ms var(--motion-ease) backwards;
 }
 
-.motion-scene .panel:not(.skeleton):nth-of-type(2) { animation-delay: 45ms; }
-.motion-scene .panel:not(.skeleton):nth-of-type(3) { animation-delay: 90ms; }
-.motion-scene .panel:not(.skeleton):nth-of-type(n+4) { animation-delay: 135ms; }
+.motion-scene .panel:not(.skeleton):not([aria-busy="true"]):nth-of-type(2) { animation-delay: 45ms; }
+.motion-scene .panel:not(.skeleton):not([aria-busy="true"]):nth-of-type(3) { animation-delay: 90ms; }
+.motion-scene .panel:not(.skeleton):not([aria-busy="true"]):nth-of-type(n+4) { animation-delay: 135ms; }
 
 /* A card inside a card (and anything in a dialog) belongs to its parent's movement. */
 .motion-scene .panel .panel,

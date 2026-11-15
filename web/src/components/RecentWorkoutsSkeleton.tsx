@@ -1,34 +1,31 @@
 import { Skeleton } from './ui/Skeleton';
 
-/// Placeholders for the workout history, drawn with the real history classes (History.css is
-/// critical CSS, so it is already loaded and this file needs no import of its own, which also keeps
-/// it usable in the boot shell). Reusing the classes keeps each placeholder the size of its real
-/// counterpart, so nothing moves when the workouts arrive.
+/// Placeholders for the workout history. The Overview's cards carry their own `recent-skeleton-*`
+/// classes, styled in skeletons.css, because the boot shell paints before History.css has loaded and
+/// this must look the same in every frame of a load. A test compares it with the real cards.
 
 /** Overview's Recent workouts: the bare section title, then the newest workouts as cards. */
 export function RecentWorkoutsSkeleton({ count = 3 }: { count?: number }) {
   return (
-    <section className="panel history-recent history-recent-loading" aria-label="Loading recent workouts" aria-busy="true">
+    <section className="recent-skeleton" aria-label="Loading recent workouts" aria-busy="true">
       <div className="section-heading" aria-hidden="true"><h2>Recent workouts</h2></div>
-      <div className="history-list" aria-hidden="true">
-        <div className="history-month">
-          {Array.from({ length: count }, (_, index) => (
-            <div className="history-item-wrap history-card-skeleton" key={index}>
-              <div className="history-row">
-                <Skeleton className="history-date-skeleton" />
-                <div className="row-title">
-                  <Skeleton className="history-title-skeleton" />
-                  {/* Chips the width of the real figures, so the line wraps where the real one does. */}
-                  <div className="history-stats">
-                    {[0, 1, 2].map(chip => <Skeleton key={chip} className="history-stat-chip" />)}
-                  </div>
+      <div className="recent-skeleton-grid" aria-hidden="true">
+        {Array.from({ length: count }, (_, index) => (
+          <div className="recent-skeleton-card" key={index}>
+            <div className="recent-skeleton-row">
+              <Skeleton className="recent-skeleton-date" />
+              <div className="recent-skeleton-text">
+                <Skeleton className="recent-skeleton-title" />
+                {/* Chips the width of the real figures, so the line wraps where the real one does. */}
+                <div className="recent-skeleton-stats">
+                  {[0, 1, 2].map(chip => <Skeleton key={chip} className="recent-skeleton-chip" />)}
                 </div>
               </div>
-              {/* The actions button is invisible until hovered but still takes its column. */}
-              <span className="history-menu-trigger history-menu-spacer" />
             </div>
-          ))}
-        </div>
+            {/* The actions button is invisible until hovered but still takes its column. */}
+            <span className="recent-skeleton-menu" />
+          </div>
+        ))}
       </div>
     </section>
   );

@@ -5,8 +5,10 @@ import { ErrorBoundary } from './components/ui/ErrorBoundary';
 import '@fontsource-variable/geist/wght.css';
 import {applyTheme, initialTheme} from './lib/theme';
 import {trackInputModality} from './lib/inputModality';
+import {syncSkeletonShimmer} from './lib/skeletonShimmer';
 import './index.css';
 import './layout.css';
+import './skeletons.css';
 import './overview-layout.css';
 import './motion.css';
 import './workout.css';
@@ -18,6 +20,7 @@ void applyTheme(initialTheme(), false);
 // Styles that only the Android WebView needs (surfaces.css) key off this.
 if (isNative()) document.documentElement.dataset.shell = 'android';
 trackInputModality();
+syncSkeletonShimmer();
 void prepareNativeShell().then(ready => {
   if (ready) ReactDOM.createRoot(document.getElementById('root')!).render(<React.StrictMode><ErrorBoundary><App /></ErrorBoundary></React.StrictMode>);
 }).catch(() => {

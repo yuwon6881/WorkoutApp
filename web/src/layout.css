@@ -63,8 +63,13 @@
 .skeleton-topbar-ai { display: none; }
 @media (min-width: 640px) { .app-loading-shell .skeleton-topbar-action { display: none; } }
 @media (max-width: 639px) { .skeleton-topbar-ai { display: block; } }
-.app-loading .skeleton-title { width: 180px; max-width: 60%; height: 40px; }
-.app-loading .skeleton-subtitle { width: 220px; max-width: 70%; height: 16px; margin-top: 10px; }
+/* The heading is the h1 and the date line: 59 px on the real page, 55 on a phone. */
+/* Dashboard.css is not loaded yet at boot, so the heading's spacing is stated here. */
+.app-loading .page-heading.dashboard-heading { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; margin-bottom: 20px; }
+@media (max-width: 639px) { .app-loading .page-heading.dashboard-heading { margin-bottom: 12px; } }
+.app-loading .page-heading .skeleton-title { width: 180px; max-width: 60%; height: 35px; }
+.app-loading .skeleton-subtitle { width: 220px; max-width: 70%; height: 16px; margin-top: 8px; }
+@media (max-width: 639px) { .app-loading .page-heading .skeleton-title { height: 31px; } }
 .app-loading-hero { display: grid; gap: 12px; margin-bottom: 24px; }
 .app-loading-hero .hero-top { display: flex; justify-content: space-between; gap: 12px; }
 .skeleton-pill { width: 120px; height: 24px; border-radius: 999px !important; }
@@ -79,6 +84,20 @@
 .app-loading-quick-start .skeleton-hero-button { margin: 0; height: 44px; }
 @media (max-width: 639px) { .app-loading-quick-start .skeleton-hero-button { width: 100%; } }
 .app-loading .overview-main-column { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+/* The hero and calendar placeholders are as tall as the real cards (measured on the real page), so the
+   Recent workouts section under them sits where it will and does not jump when the cards arrive. */
+.app-loading .app-loading-quick-start { min-height: 201px; gap: 12px; padding: 20px 24px; }
+.app-loading .app-loading-quick-start .skeleton-hero-line { height: 16px; }
+.app-loading .training-calendar-card { min-height: 311px; }
+@media (min-width: 640px) {
+  .app-loading .app-loading-quick-start { min-height: 218px; }
+  .app-loading .training-calendar-card { min-height: 331px; }
+}
+@media (min-width: 1024px) {
+  .app-loading .overview-hero-calendar-grid { align-items: stretch; }
+  .app-loading .app-loading-quick-start { flex: 1 1 auto; }
+  .app-loading .training-calendar-card { min-height: 378px; }
+}
 @media (max-width: 639px) {
   .app-loading .overview-main-column { display: contents; }
   .app-loading .app-loading-quick-start { order: 1; }

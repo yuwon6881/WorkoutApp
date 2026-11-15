@@ -1,0 +1,41 @@
+/* Placeholders drawn before the feature stylesheets have loaded, so they are global: the boot shell
+   paints from the HTML, and the lazy Overview shows the same frames while its code arrives.
+   tests/loading-layout.spec.ts compares each with the loaded page. The boot shell's own shapes are in
+   layout.css. */
+
+/* Overview's Recent workouts placeholder (components/RecentWorkoutsSkeleton.tsx). Global because the
+   boot shell paints before History.css loads; the sizes are those of the real cards (History.css),
+   and tests/loading-layout.spec.ts compares the two. */
+.recent-skeleton .section-heading { min-height: 44px; margin: 0 2px 12px; }
+@media (min-width: 1024px) { .recent-skeleton .section-heading { min-height: 36px; } }
+.recent-skeleton-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 14px; }
+@media (min-width: 1024px) { .recent-skeleton-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+.recent-skeleton-card {
+  display: flex; align-items: flex-start; gap: 4px; padding: 16px 10px 16px 16px; box-sizing: border-box;
+  background: var(--surface); border: 1px solid var(--card-border); border-radius: var(--radius); box-shadow: var(--shadow);
+}
+.recent-skeleton-row { flex: 1 1 auto; min-width: 0; display: flex; align-items: center; gap: 10px; }
+.recent-skeleton-text { display: flex; flex-direction: column; gap: 6px; min-width: 0; flex: 1 1 auto; }
+.recent-skeleton-date { flex: 0 0 auto; width: 46px; height: 52px; border-radius: var(--radius-control); }
+.recent-skeleton-title { width: min(180px, 80%); height: 18px; border-radius: 6px; }
+.recent-skeleton-stats { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; }
+/* The widths of a real line (60 min, 12 sets, 2,400 kg), so it wraps in the same cards the real one does. */
+.recent-skeleton-chip { width: 61px; height: 21px; border-radius: 6px; }
+.recent-skeleton-chip:nth-child(2) { width: 65px; }
+.recent-skeleton-chip:nth-child(3) { width: 73px; }
+/* The actions button is invisible until hovered but still takes its column. */
+.recent-skeleton-menu { flex: 0 0 44px; width: 44px; height: 44px; }
+@media (max-width: 639px) {
+  .recent-skeleton-grid { grid-template-columns: minmax(0, 1fr); gap: 10px; }
+  .recent-skeleton-card { padding: 14px 6px 14px 14px; }
+}
+@media (min-width: 640px) {
+  .recent-skeleton-row { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 14px 12px; }
+  .recent-skeleton-text { display: contents; }
+  .recent-skeleton-date { width: 50px; height: 54px; }
+  .recent-skeleton-title { height: 20px; }
+  .recent-skeleton-stats { grid-column: 1 / -1; }
+}
+/* The calendar card's own placeholder (DashboardTrainingSkeleton.tsx), shown while its code loads, is 357 px
+   tall in the desktop column where the real card is 378, so the page below it would drop as the card arrives. */
+@media (min-width: 1024px) { .training-calendar-card[aria-busy="true"] { min-height: 378px; } }

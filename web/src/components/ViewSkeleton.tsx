@@ -1,12 +1,19 @@
 import { Skeleton } from './ui/Skeleton';
-import { CalendarSkeleton } from './DashboardTrainingSkeleton';
-import { RecentWorkoutsSkeleton } from './RecentWorkoutsSkeleton';
 import type { Tab } from '../app/useTabNavigation';
+import { OverviewLoadingContent } from './OverviewLoadingContent';
 import './ViewSkeleton.css';
 
 /// Drawn while a view's code arrives the first time it is opened: mirrors the route's real initial
 /// structure and responsive regions so layout shift stays minimal when real content replaces it.
 export function ViewSkeleton({ label, view = 'overview' }: { label: string; view?: Tab }) {
+  // The Overview is drawn exactly as the boot shell drew it, so the two frames never differ.
+  if (view === 'overview') {
+    return (
+      <div className="view-skeleton-overview app-loading" role="status" aria-label={`Loading ${label}`}>
+        <OverviewLoadingContent />
+      </div>
+    );
+  }
   return (
     <div className={`view-skeleton view-skeleton-${view}`} role="status" aria-label={`Loading ${label}`}>
       {view === 'import' ? (
@@ -95,19 +102,6 @@ export function ViewSkeleton({ label, view = 'overview' }: { label: string; view
         </>
       )}
 
-      {view === 'overview' && (
-        <>
-          <div className="overview-hero-calendar-grid">
-            <div className="overview-main-column">
-              <Skeleton className="skeleton-panel tall" aria-hidden="true" />
-            </div>
-            <div className="overview-calendar-column">
-              <CalendarSkeleton />
-            </div>
-          </div>
-          <RecentWorkoutsSkeleton />
-        </>
-      )}
     </div>
   );
 }
