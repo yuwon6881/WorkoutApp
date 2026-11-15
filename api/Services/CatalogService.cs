@@ -228,11 +228,20 @@ public sealed class CatalogService(AppDb db)
         // Then the same names as a table may spell them: a library entry stored as "DB Preacher
         // Curl" is what a document means by "Dumbbell Preacher Curl". These come after every
         // literal key, so an exact name always keeps the exercise it names.
+        // A derived spelling claimed by two different exercises is ambiguous: it is left out so the
+        // name stays unresolved for review instead of following whichever entry the catalog lists first.
+        var derived = new Dictionary<string, Guid?>(StringComparer.Ordinal);
+        void Derive(Guid id, IEnumerable<string> keys)
+        {
+            foreach (var key in keys)
+                derived[key] = derived.TryGetValue(key, out var seen) && seen != id ? null : id;
+        }
         foreach (var exercise in shared)
-            foreach (var key in exercise.Aliases.Append(exercise.Name).SelectMany(name => CatalogMatching.LibraryKeys(Normalize(name))))
-                built.TryAdd(key, exercise.Id);
-        foreach (var custom in customs)
-            foreach (var key in CatalogMatching.LibraryKeys(Normalize(custom.Name))) built.TryAdd(key, custom.Id);
+            Derive(exercise.Id, exercise.Aliases.Append(exercise.Name).SelectMany(name => CatalogMatching.LibraryKeys(Normalize(name))));
+        foreach (var custom in customs) Derive(custom.Id, CatalogMatching.LibraryKeys(Normalize(custom.Name)));
+        // Ambiguity is stored, not dropped, so a lookup stops there rather than falling through to a shorter name.
+        foreach (var (key, id) in derived)
+            built.TryAdd(key, id ?? CatalogMatching.Ambiguous);
         return built;
     }
 

@@ -32,6 +32,7 @@ import type { ExerciseEditing } from '../lib/exerciseEditScope';
 import { ExerciseScopeModal } from './ExerciseScopeModal';
 import { useExerciseDraft } from './useExerciseDraft';
 import { useExerciseSave } from './useExerciseSave';
+import { exercisesForWrittenName } from '../lib/machineVariants';
 import {
   type SetType,
   getSetType,
@@ -95,6 +96,7 @@ export function ExerciseEditor({ exercise: saved, exercises, allDayExercises, re
 
   const selected = exercises.find(option => option.id === exercise.exerciseId)
     || (exercise.sourceName ? exercises.find(option => option.name.toLowerCase() === exercise.sourceName.toLowerCase() || option.aliases.some(a => a.toLowerCase() === exercise.sourceName.toLowerCase())) : undefined);
+  const unspecifiedMachine = editing.keepWrittenName && !!exercise.exerciseId && exercisesForWrittenName(exercise.sourceName, exercises).length > 1;
   const repRange = usesRepRange(exercise.sets.filter(set => !hasOpenReps(set)));
   // A hold or hang is prescribed in seconds, as it is in the builder and the workout.
   const timed = selected?.trackingMode === 'duration';
@@ -214,6 +216,7 @@ export function ExerciseEditor({ exercise: saved, exercises, allDayExercises, re
               <ArrowLeftRight size={14} className="import-library-affordance" aria-hidden="true" />
             </Button>
           </div>
+          {unspecifiedMachine && <span className="muted">The program does not specify the machine type. Check the linked exercise.</span>}
           <GymAvailabilityBadge exerciseId={exercise.exerciseId} />
           {selected && (
             <div className="import-exercise-muscles iex-muscle-badges" aria-label={`Target muscles: ${[selected.muscle, ...(selected.secondaryMuscles ?? [])].filter(Boolean).join(', ')}`}>

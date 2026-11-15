@@ -1,13 +1,15 @@
 import type { CustomExerciseCreated, DraftExercise, Exercise } from '../types';
 import { demoUrlForName } from './demoLinks';
 import { MAX_SUBSTITUTIONS } from './validation';
+import { exercisesForWrittenName } from './machineVariants';
 
 const key = (name: string) => name.trim().toLocaleLowerCase();
 export function resolveExercise(name: string, library: Exercise[]): Exercise | undefined {
   return library.find(item => [item.name, ...item.aliases].some(value => key(value) === key(name)));
 }
 export function displayExerciseName(name: string, library: Exercise[]): string {
-  const canonical = resolveExercise(name, library)?.name ?? name;
+  const matches = exercisesForWrittenName(name, library);
+  const canonical = matches.length === 1 ? matches[0].name : name;
   return canonical.replace(/^\p{L}/u, letter => letter.toLocaleUpperCase());
 }
 /** The name the builder gives a row the user adds. Keep in step with `IsAddedPlaceholder` on the server. */

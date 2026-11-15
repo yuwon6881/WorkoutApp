@@ -13,11 +13,22 @@ internal static class ExternalImportOptions
         var kept = new List<ImportOption>();
         foreach (var option in options)
         {
-            var id = CatalogMatching.Find(library, option.ExerciseName ?? "");
+            // Applied on one click, so only a movement the name spells in full, qualifiers included: a
+            // specific option must not quietly become a generic exercise.
+            var id = CatalogMatching.FindUnaltered(library, option.ExerciseName ?? "");
             if (id is null || id == matched || !seen.Add(id.Value)) continue;
             kept.Add(new ImportOption(option.Label.Trim(), option.ExerciseName!.Trim(), id));
         }
         return uncertainty with { Options = kept.Count == 0 ? null : kept };
+    }
+
+    /// A link that settled for a shorter name than the file wrote is flagged for review, saying which words were set
+    /// aside. A flag the file raised itself already asks for a look and keeps its own reason and options.
+    public static ImportUncertainty? FlagDroppedWords(ImportUncertainty? uncertainty, string? dropped, Guid? matched)
+    {
+        if (matched is null || string.IsNullOrWhiteSpace(dropped) || uncertainty is { Flag: true }) return uncertainty;
+        var reason = $"Linked by setting aside \"{dropped}\" from the written name; check this is the same movement.";
+        return new ImportUncertainty(true, reason.Length <= 200 ? reason : reason[..199] + "…");
     }
 
     public static ImportUncertainty? ForSet(ImportUncertainty? uncertainty)

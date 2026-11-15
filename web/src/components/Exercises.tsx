@@ -14,6 +14,7 @@ import { GymAvailabilityBadge } from './GymAvailabilityBadge';
 import { useGymAvailabilityCheck } from '../lib/gymAvailability';
 import { muscleThumbTarget } from '../lib/muscleThumbTarget';
 import { MuscleThumbSprite, MuscleThumbUse } from './MuscleThumbSprite';
+import { exercisesForWrittenName } from '../lib/machineVariants';
 import './Exercises.css';
 import './RenderWindow.css';
 
@@ -30,15 +31,15 @@ function normalized(value: string) {
 
 /// Ranks every candidate against the current exercise once; the current exercise's muscles and the
 /// preferred names are normalized a single time rather than inside each sort comparison.
-function exerciseRanks(candidates: Exercise[], current: Exercise | undefined, preferredNames: string[]) {
-  const preferred = new Set(preferredNames.map(normalized));
+function exerciseRanks(candidates: Exercise[], library: Exercise[], current: Exercise | undefined, preferredNames: string[]) {
+  const preferred = new Set(preferredNames.flatMap(name => exercisesForWrittenName(name, library).map(e => e.id)));
   const primary = current ? normalized(current.muscle) : '';
   const secondary = new Set((current?.secondaryMuscles ?? []).map(normalized));
   return new Map(candidates.map(candidate => [candidate.id, exerciseRank(candidate, current, preferred, primary, secondary)]));
 }
 
 function exerciseRank(candidate: Exercise, current: Exercise | undefined, preferred: Set<string>, primary: string, secondary: Set<string>) {
-  if ([candidate.name, ...candidate.aliases].some(name => preferred.has(normalized(name)))) return 0;
+  if (preferred.has(candidate.id)) return 0;
   if (!current) return 1;
 
   const candidatePrimary = normalized(candidate.muscle);
@@ -100,7 +101,7 @@ export function ExerciseLibrary({ exercises, onSelect, exclude = emptyIds, added
     && (category === 'all' || getExerciseCategory(e) === category)
     && (muscle === 'All muscles' || [e.muscle, ...(e.secondaryMuscles ?? [])].some(value => value.toLowerCase() === muscle.toLowerCase()))
     && searchScores.has(e.id)), [exercises, exclude, currentExerciseId, source, category, muscle, searchScores]);
-  const ranks = useMemo(() => exerciseRanks(filtered, current, preferredNames), [filtered, current, preferredNames]);
+  const ranks = useMemo(() => exerciseRanks(filtered, exercises, current, preferredNames), [filtered, exercises, current, preferredNames]);
   const checkGym = useGymAvailabilityCheck();
   // A swap or an addition is for this gym, so what it can host comes first; mapping a written
   // movement to the library is about identity and keeps the plain order.

@@ -47,6 +47,16 @@ function renderEditor(warmup = false, readOnly = false) {
 }
 
 describe('import set review fields', () => {
+  it('explains when a linked machine build was not specified by the program', () => {
+    const plate = makeExercise({ id: 'plate', slug: 'lying-leg-curl', name: 'Plate-Loaded Lying Leg Curl', muscle: 'Posterior chain', aliases: ['Lying Leg Curl'] });
+    const stack = makeExercise({ id: 'stack', slug: 'weight-stack-lying-leg-curl', name: 'Weight-Stack Lying Leg Curl', muscle: 'Posterior chain' });
+    const day = { lineId: 'd', week: 1, name: 'Day', focus: null, notes: null, block: 'Block 1', phase: null, phaseWeek: 1, isRestDay: false, sourcePage: 1,
+      exercises: [{ lineId: 'e', sourceName: 'LYING LEG CURL', exerciseId: 'stack', notes: null, sequenceGroup: '', substitutions: [], sets: [] }] } as DraftWorkout;
+    const render = () => renderToStaticMarkup(createElement(DayEditor, { day, exercises: [plate, stack], onChange: async () => {}, editing, getRepRangeMemory: () => new Map() }));
+    expect(render()).toContain('The program does not specify the machine type. Check the linked exercise.');
+    day.exercises[0].sourceName = 'Weight-Stack Lying Leg Curl';
+    expect(render()).not.toContain('The program does not specify the machine type');
+  });
   it('retains printed load and compound rep instructions in editable and saved day review', () => {
     for (const readOnly of [false, true]) {
       const markup = renderEditor(false, readOnly);

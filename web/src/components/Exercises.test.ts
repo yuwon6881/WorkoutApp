@@ -81,6 +81,27 @@ describe('ExerciseLibrary UI and grouping', () => {
     expect(addWith).not.toContain('Recommended in your program');
   });
 
+  it('recommends both machine builds for a generic name, but only the named build when explicit', () => {
+    const machines: Exercise[] = [
+      { ...sampleExercises[6], id: 'plate', slug: 'lying-leg-curl', name: 'Plate-Loaded Lying Leg Curl', aliases: ['Lying Leg Curl', 'Plate-Loaded Curl Lying'] },
+      { ...sampleExercises[6], id: 'stack', slug: 'weight-stack-lying-leg-curl', name: 'Weight-Stack Lying Leg Curl', aliases: ['Selectorized Lying Leg Curl'] }
+    ];
+    const render = (name: string, currentExerciseId = 'ex-bench') => renderToStaticMarkup(createElement(ExerciseLibrary, {
+      exercises: [...sampleExercises, ...machines], action: 'swap', currentExerciseId, onSelect: () => {}, preferredNames: [name]
+    }));
+    const generic = render('Lying Leg Curl');
+    const section = generic.slice(generic.indexOf('Recommended in your program'), generic.indexOf('aria-label="Free Weights exercises"'));
+    expect(section).toContain('Swap Plate-Loaded Lying Leg Curl');
+    expect(section).toContain('Swap Weight-Stack Lying Leg Curl');
+    const explicit = render('Plate-Loaded Lying Leg Curl');
+    const explicitSection = explicit.slice(explicit.indexOf('Recommended in your program'), explicit.indexOf('aria-label="Free Weights exercises"'));
+    expect(explicitSection).toContain('Swap Plate-Loaded Lying Leg Curl');
+    expect(explicitSection).not.toContain('Swap Weight-Stack Lying Leg Curl');
+    const alias = render('Plate-Loaded Curl Lying');
+    expect(alias.slice(alias.indexOf('Recommended in your program'), alias.indexOf('aria-label="Free Weights exercises"'))).not.toContain('Swap Weight-Stack Lying Leg Curl');
+    expect(render('Lying Leg Curl', 'plate')).toContain('Recommended in your program');
+  });
+
   it('prioritizes the current exercise category in the group order', () => {
     // When swapping a Body Weight exercise (Push-up), Body Weight group comes first
     const bwMarkup = renderToStaticMarkup(createElement(ExerciseLibrary, {

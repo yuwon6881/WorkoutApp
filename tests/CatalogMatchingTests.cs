@@ -89,6 +89,44 @@ public sealed class CatalogMatchingTests
         Assert.Null(await catalog.Match(written, default));
     }
 
+    [Fact]
+    public async Task A_reordered_whole_name_wins_over_a_shorter_matching_tail()
+    {
+        await using var h = await Harness.Create();
+        await h.SignIn();
+        await h.Seed(
+            new SeedExercise("shoulder-press", "Shoulder Press", "Shoulders", "Machine", null),
+            new SeedExercise("seated-db-shoulder-press", "Seated Dumbbell Shoulder Press", "Shoulders", "Dumbbell", null));
+        Assert.Equal(await h.ExerciseId("seated-db-shoulder-press"),
+            await h.Catalog.Match("Dumbbell Seated Shoulder Press", default));
+    }
+
+    [Fact]
+    public async Task A_reordered_qualifier_in_brackets_wins_over_the_unqualified_movement()
+    {
+        await using var h = await Harness.Create();
+        await h.SignIn();
+        await h.Seed(
+            new SeedExercise("curl", "Biceps Curl", "Biceps", "Machine", null),
+            new SeedExercise("db-curl", "Dumbbell Biceps Curl", "Biceps", "Dumbbell", null));
+        Assert.Equal(await h.ExerciseId("db-curl"), await h.Catalog.Match("Biceps Curl (Dumbbell)", default));
+    }
+
+    [Fact]
+    public async Task A_derived_spelling_shared_by_two_exercises_is_left_unresolved()
+    {
+        await using var h = await Harness.Create();
+        await h.SignIn();
+        await h.Seed(
+            new SeedExercise("db-row", "DB Row", "Back", "Dumbbell", null),
+            new SeedExercise("dumbbell-row", "Dumbbell Row", "Back", "Dumbbell", null),
+            new SeedExercise("cable-row", "Cable Row", "Back", "Cable", null));
+        // "DB Row" and "Dumbbell Row" both expand to the same words, so a reordered spelling
+        // cannot say which was meant.
+        Assert.Null(await h.Catalog.Match("Row Dumbbell", default));
+        Assert.Equal(await h.ExerciseId("cable-row"), await h.Catalog.Match("Row Cable", default));
+    }
+
     [Theory]
     [InlineData("Cable Triceps Two Drop Sets Kickback (~25% per)", "Cable Triceps Kickback")]
     [InlineData("Close-Grip Lat Lengthened Partials Pulldown (Extend Set)", "Close-Grip Lat Pulldown")]
