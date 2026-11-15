@@ -1,4 +1,4 @@
-import { cancelAlarm, primeAlarm, releaseAlarm, scheduleAlarm, soundNow, testAlarmSound } from './alarm';
+import { cancelAlarm, primeAlarm, releaseAlarm, scheduleAlarm, soundNow, testAlarmSound, warmAlarm } from './alarm';
 import type { SessionRest } from '../types';
 import { hasNativeWorkoutStore, isNative, nativeKeepAwake, notificationPermission, syncNativeWorkout } from './platform';
 import type { NativeRestAction } from './platform';
@@ -402,5 +402,5 @@ export async function requestRestAlerts(): Promise<NotificationPermission> {
   try { return await Notification.requestPermission(); } catch { return 'denied'; }
 }
 
-export { testAlarmSound };
+export { testAlarmSound, warmAlarm };
 export const restTimer = new RestTimer();

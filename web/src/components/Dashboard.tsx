@@ -5,6 +5,7 @@ const TrainingCalendar = lazy(() => import('./TrainingCalendar').then(module => 
 const WorkoutHistory = lazy(() => import('./WorkoutHistory').then(module => ({ default: module.WorkoutHistory })));
 import './Dashboard.css';
 import { CalendarSkeleton } from './DashboardTrainingSkeleton';
+import { HistoryRowsSkeleton, RecentWorkoutsSkeleton } from './RecentWorkoutsSkeleton';
 import { Modal } from './ui/Modal';
 
 /** Overview shows the latest few workouts; the whole history opens in a sheet over it. */
@@ -74,7 +75,7 @@ export function Dashboard({
         </div>
       </div>
 
-      <Suspense fallback={<div className="panel"><div className="skeleton history-row-skeleton" aria-label="Loading recent workouts" /></div>}>
+      <Suspense fallback={<RecentWorkoutsSkeleton count={RECENT_WORKOUTS} />}>
         <WorkoutHistory
           initial={data.historyDeferred ? undefined : data.history}
           accountId={data.account.id}
@@ -92,7 +93,7 @@ export function Dashboard({
       {allHistory && (
         <Modal title="Workout history" wide className="history-sheet" onClose={() => setAllHistory(false)}>
           <div className="modal-body">
-            <Suspense fallback={<div className="skeleton history-row-skeleton" aria-label="Loading workout history" />}>
+            <Suspense fallback={<HistoryRowsSkeleton />}>
               <WorkoutHistory
                 initial={data.historyDeferred ? undefined : data.history}
                 accountId={data.account.id}

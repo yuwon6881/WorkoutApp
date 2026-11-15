@@ -109,3 +109,64 @@ test('settings loading mirrors account card, section nav, and panels across brea
   } finally { release(); }
   await expect(page.getByRole('heading', { name: 'Settings', exact: true })).toBeVisible();
 });
+
+/// The skeleton is swapped for its twin when the lazy chunk arrives, so a region clip is used rather
+/// than an element screenshot, which would wait for a node that has just been replaced.
+async function shoot(page: Page, selector: string, path: string) {
+  const box = await page.locator(selector).boundingBox();
+  if (box) await page.screenshot({ path, fullPage: true, clip: box });
+}
+
+test('recent workouts loading reserves the cards and heading the workouts then fill', async ({ page }, info) => {
+  const when = '2026-11-10T08:00:00.000Z';
+  const summary = (index: number) => ({
+    id: `skeleton-fit-${index}`, templateId: null, programId: null, name: `Skeleton fit ${index}`, note: '', active: false,
+    startedAt: when, finishedAt: '2026-11-10T09:00:00.000Z', revision: 1, exercises: [], volumeKg: 2400,
+    completedSets: 12, warmupSets: 0, prCount: 0, pausedSeconds: 0
+  });
+  const measure = (section: string, card: string) => page.evaluate(([sectionSelector, cardSelector]) => {
+    const cards = [...document.querySelectorAll(`${sectionSelector} ${cardSelector}`)].map(element => element.getBoundingClientRect());
+    return {
+      count: cards.length,
+      width: Math.round(cards[0]?.width ?? 0),
+      height: Math.round(cards[0]?.height ?? 0),
+      top: Math.round((cards[0]?.top ?? 0) + scrollY),
+      columns: new Set(cards.map(rect => Math.round(rect.left))).size
+    };
+  }, [section, card] as const);
+
+  await signIn(page);
+  for (const width of [390, 768, 1440]) {
+    await page.setViewportSize({ width, height: 1000 });
+    let release!: () => void;
+    const ready = new Promise<void>(resolve => { release = resolve; });
+    await page.route('**/api/history/summaries?*', async route => {
+      await ready;
+      await route.fulfill({ json: { total: 5, sessions: [0, 1, 2].map(summary), nextBeforeAt: null, nextBeforeId: null, summaryOnly: true } });
+    });
+    try {
+      await page.goto('/', { waitUntil: 'domcontentloaded' });
+      // The boot shell carries a copy of the skeleton too; measure the one the Overview itself draws.
+      await expect(page.getByRole('heading', { name: 'Overview', exact: true })).toBeVisible();
+      await expect(page.locator('.history-recent-loading')).toBeVisible();
+      const loading = await measure('.history-recent-loading', '.history-card-skeleton');
+      await shoot(page, '.history-recent-loading', info.outputPath(`recent-loading-${width}.png`));
+      release();
+      await expect(page.getByRole('region', { name: 'Recent workouts' }).locator('.history-row')).toHaveCount(3);
+      const loaded = await measure('.history-recent', '.history-item-wrap');
+      await shoot(page, '.history-recent', info.outputPath(`recent-loaded-${width}.png`));
+
+      expect(loading.count, `${width}px cards`).toBe(loaded.count);
+      expect(loading.columns, `${width}px columns`).toBe(loaded.columns);
+      expect(Math.abs(loading.width - loaded.width), `${width}px card width`).toBeLessThanOrEqual(2);
+      // Whether a card's figures wrap onto a second line depends on the figures and on a fraction of a
+      // pixel at the medium widths, which a placeholder cannot know: one line of difference is allowed
+      // there, while a phone must match exactly.
+      expect(Math.abs(loading.height - loaded.height), `${width}px card height`).toBeLessThanOrEqual(width < 640 ? 6 : 28);
+      expect(Math.abs(loading.top - loaded.top), `${width}px first card position`).toBeLessThanOrEqual(4);
+    } finally {
+      release();
+      await page.unroute('**/api/history/summaries?*');
+    }
+  }
+});

@@ -339,7 +339,6 @@ details>p{font-size:14px!important;line-height:1.5;color:var(--muted);margin-top
 .detail-loading{height:120px;border-radius:8px}
 .progress-optional-section:empty{display:none}
 .history-loading-list{display:grid;gap:1px}
-.history-row-skeleton{height:64px;border-radius:0;border-bottom:1px solid var(--border)}
 .week-strip{display:grid;grid-template-columns:minmax(140px,auto) minmax(0,1fr);align-items:center;gap:18px}
 .week-caption{width:auto;display:flex;flex-direction:column;gap:8px;flex-shrink:0}
 .week-caption-label{display:flex;gap:8px;align-items:center;font-size:14px;font-weight:600;color:var(--text);white-space:nowrap}

@@ -5,7 +5,7 @@ import {defaultDevicePreferences} from '../lib/workoutDevicePreferences';
 const native=vi.hoisted(()=>({request:vi.fn(),change:undefined as undefined|((wanted:boolean)=>Promise<void>)}));
 vi.mock('../lib/platform',()=>({hasNativeWorkoutStore:()=>true,isNative:()=>true,
   getAlertCapabilities:async()=>null,openNativeSettings:vi.fn(),testNativeAlert:vi.fn()}));
-vi.mock('../lib/restTimer',()=>({requestRestAlerts:native.request,testAlarmSound:vi.fn()}));
+vi.mock('../lib/restTimer',()=>({requestRestAlerts:native.request,testAlarmSound:vi.fn(),warmAlarm:vi.fn()}));
 vi.mock('../lib/push/firebaseMessaging',()=>({getWorkoutPushDeviceId:()=> 'device',
   deleteWorkoutPushToken:vi.fn(),registerWorkoutPushDevice:vi.fn()}));
 vi.mock('./ui/Switch',()=>({Switch:(props:{label:string;onChange:(wanted:boolean)=>Promise<void>})=>{

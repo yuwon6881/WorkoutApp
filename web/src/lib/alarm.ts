@@ -25,6 +25,42 @@ const CHIME: readonly ToneSpec[] = [
 ] as const;
 
 const TEST_CHIME_LEAD_SECONDS = 0.15;
+/// A speaker, Bluetooth sink or WebView output that has been idle takes a moment to wake and drops
+/// the start of whatever is sent first, which for a one-second chime is most of it. A cold output is
+/// kept streaming near-silence for this long before the chime; a recently used one needs only the
+/// short lead.
+const COLD_LEAD_SECONDS = 0.8;
+const COLD_AFTER_MS = 8000;
+const WAKE_GAIN = 0.0002;
+
+let awakeSince: number | null = null;
+let lastOutputAt = 0;
+
+/// Seconds of output already streaming since the device last woke; zero when it has gone cold.
+function warmthSeconds(now: number): number {
+  return awakeSince === null || now - lastOutputAt > COLD_AFTER_MS ? 0 : (now - awakeSince) / 1000;
+}
+
+function chimeLeadSeconds(now: number): number {
+  return Math.min(COLD_LEAD_SECONDS, Math.max(TEST_CHIME_LEAD_SECONDS, COLD_LEAD_SECONDS - warmthSeconds(now)));
+}
+
+function playWakeTone(context: AudioContext, seconds: number): void {
+  const oscillator = context.createOscillator();
+  const gain = context.createGain();
+  oscillator.frequency.value = 180;
+  gain.gain.value = WAKE_GAIN;
+  oscillator.connect(gain);
+  gain.connect(context.destination);
+  oscillator.start(context.currentTime);
+  oscillator.stop(context.currentTime + seconds);
+  scheduled.push(oscillator);
+}
+
+function markOutput(now: number, waking: boolean): void {
+  if (waking || awakeSince === null || now - lastOutputAt > COLD_AFTER_MS) awakeSince = now;
+  lastOutputAt = now;
+}
 
 /// Call from a user gesture because browsers block audio-context startup outside user input.
 export function primeAlarm(): boolean {
@@ -105,7 +141,25 @@ export function soundNow(): boolean {
 export async function testAlarmSound(): Promise<boolean> {
   const context = await runningContext();
   if (!context) return false;
-  const start = context.currentTime + TEST_CHIME_LEAD_SECONDS;
+  const now = performance.now();
+  const lead = chimeLeadSeconds(now);
+  if (lead > TEST_CHIME_LEAD_SECONDS) {
+    playWakeTone(context, lead);
+    markOutput(now, warmthSeconds(now) === 0);
+  } else markOutput(now, false);
+  const start = context.currentTime + lead;
   for (const tone of CHIME) scheduled.push(playChimeTone(context, start + tone.offset, tone.frequency, tone.duration, tone.gain));
   return true;
+}
+
+/// Starts waking the output ahead of a Test sound press. Call from a user gesture on the screen that
+/// offers the test, so the press that follows finds the device already streaming.
+export function warmAlarm(): void {
+  const now = performance.now();
+  if (warmthSeconds(now) > 0) return;
+  void runningContext().then(context => {
+    if (!context || warmthSeconds(performance.now()) > 0) return;
+    playWakeTone(context, 1);
+    markOutput(performance.now(), true);
+  });
 }

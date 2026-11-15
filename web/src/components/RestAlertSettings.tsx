@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { BellOff, BellRing, Volume2 } from 'lucide-react';
 import type { Preferences } from '../types';
 import { api } from '../lib/api';
-import { requestRestAlerts, testAlarmSound } from '../lib/restTimer';
+import { requestRestAlerts, testAlarmSound, warmAlarm } from '../lib/restTimer';
 import { deleteWorkoutPushToken, getWorkoutPushDeviceId, registerWorkoutPushDevice } from '../lib/push/firebaseMessaging';
 import { isFirebasePushConfigured } from '../lib/push/firebaseConfig';
 import type { DevicePreferences } from '../lib/workoutRecovery';
@@ -33,6 +33,13 @@ export function RestAlertSettings({ accountId, preferences, devicePreferences, o
   const [capabilities, setCapabilities] = useState<AlertCapabilities | null>(null);
   const nativeAlerts = hasNativeWorkoutStore();
   const deviceId = getWorkoutPushDeviceId();
+
+  // The first press of Test sound finds an idle output that drops the start of the chime, so any
+  // touch on this screen starts waking it first.
+  useEffect(() => {
+    document.addEventListener('pointerdown', warmAlarm);
+    return () => document.removeEventListener('pointerdown', warmAlarm);
+  }, []);
 
   // Permissions change in system settings, so they are read again whenever the app returns.
   useEffect(() => {

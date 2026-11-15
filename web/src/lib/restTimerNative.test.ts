@@ -6,7 +6,7 @@ vi.mock('./platform',async()=>({
 }));
 import {nativeWorkoutState} from './nativeWorkoutProjection';
 vi.mock('./alarm',()=>({cancelAlarm:vi.fn(),primeAlarm:vi.fn(),releaseAlarm:vi.fn(),
-  scheduleAlarm:vi.fn(),soundNow:native.sound,testAlarmSound:vi.fn()}));
+  scheduleAlarm:vi.fn(),soundNow:native.sound,testAlarmSound:vi.fn(),warmAlarm:vi.fn()}));
 import {RestTimer,nativeRestActionsToApply} from './restTimer';
 
 describe('Android rest alert ownership',()=>{

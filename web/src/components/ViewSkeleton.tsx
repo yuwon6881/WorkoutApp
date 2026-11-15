@@ -1,4 +1,6 @@
 import { Skeleton } from './ui/Skeleton';
+import { CalendarSkeleton } from './DashboardTrainingSkeleton';
+import { RecentWorkoutsSkeleton } from './RecentWorkoutsSkeleton';
 import type { Tab } from '../app/useTabNavigation';
 import './ViewSkeleton.css';
 
@@ -95,11 +97,15 @@ export function ViewSkeleton({ label, view = 'overview' }: { label: string; view
 
       {view === 'overview' && (
         <>
-          <Skeleton className="skeleton-panel tall" aria-hidden="true" />
-          <div className="view-skeleton-sections" aria-hidden="true">
-            <Skeleton className="skeleton-panel" />
-            <Skeleton className="skeleton-panel" />
+          <div className="overview-hero-calendar-grid">
+            <div className="overview-main-column">
+              <Skeleton className="skeleton-panel tall" aria-hidden="true" />
+            </div>
+            <div className="overview-calendar-column">
+              <CalendarSkeleton />
+            </div>
           </div>
+          <RecentWorkoutsSkeleton />
         </>
       )}
     </div>

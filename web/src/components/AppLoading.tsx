@@ -1,4 +1,5 @@
 import { Skeleton } from './ui/Skeleton';
+import { RecentWorkoutsSkeleton } from './RecentWorkoutsSkeleton';
 
 const NAV_ITEMS = 4;
 const WEEK_DAYS = 7;
@@ -75,6 +76,8 @@ export function AppLoading() {
               </section>
             </div>
           </div>
+
+          <RecentWorkoutsSkeleton />
         </main>
       </div>
 

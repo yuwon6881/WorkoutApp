@@ -13,6 +13,7 @@ import { Modal } from './ui/Modal';
 import { useLoadMoreOnScroll } from './ui/useLoadMoreOnScroll';
 import './History.css';
 import './RenderWindow.css';
+import { HistoryRowsSkeleton, RecentWorkoutsSkeleton } from './RecentWorkoutsSkeleton';
 
 interface WorkoutHistoryProps {
   initial?: HistoryPage;
@@ -139,6 +140,8 @@ export function WorkoutHistory({
   const groups: { key: string; label: string | null; sessions: Session[] }[] = recent
     ? (sessions.length ? [{ key: 'recent', label: null, sessions }] : [])
     : historyMonths(sessions);
+  // Overview's cards are drawn whole while the first read is out, in the cards' own shape.
+  if (recent && loading && !sessions.length && !error) return <RecentWorkoutsSkeleton count={recent.count} />;
   const surface = embedded ? 'history-embedded' : `panel${recent ? ' history-recent' : ''}`;
 
   return (
@@ -216,19 +219,7 @@ export function WorkoutHistory({
         ))}
       </div>
 
-      {loading && !sessions.length && (
-        <div className="history-loading-list" aria-label="Loading workout history">
-          {[0, 1, 2].map(row => (
-            <div className="history-row-skeleton-shape" key={row}>
-              <div className="skeleton history-date-skeleton" />
-              <div className="history-row-skeleton-lines">
-                <div className="skeleton history-title-skeleton" />
-                <div className="skeleton history-stats-skeleton" />
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
+      {loading && !sessions.length && <HistoryRowsSkeleton />}
 
       {!sessions.length && !loading && (
         <div className="empty-message">

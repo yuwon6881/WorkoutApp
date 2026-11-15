@@ -6,7 +6,8 @@ const alarm = vi.hoisted(() => ({
   releaseAlarm: vi.fn(),
   scheduleAlarm: vi.fn(),
   soundNow: vi.fn(),
-  testAlarmSound: vi.fn()
+  testAlarmSound: vi.fn(),
+  warmAlarm: vi.fn()
 }));
 
 vi.mock('./alarm', () => alarm);

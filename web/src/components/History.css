@@ -195,15 +195,24 @@
 .history-loading-list {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 2px;
   padding-top: 22px;
 }
 
+/* A real row is its 54 px date tile inside 4 px of row padding, 8 px of wrapper padding and a 1 px
+   border, so the placeholder reserves the same 80 px. */
 .history-row-skeleton-shape {
   display: flex;
   align-items: center;
   gap: 14px;
-  padding: 10px 12px;
+  padding: 13px 12px;
+}
+
+.history-month-skeleton {
+  width: 96px;
+  height: 14px;
+  margin: 4px 10px 8px;
+  border-radius: 6px;
 }
 
 .history-date-skeleton {
@@ -233,7 +242,23 @@
   border-radius: 6px;
 }
 
+/* Overview's loading cards share the real cards' classes, so only what a placeholder must not do or
+   must reserve is set here: no hover lift, the invisible actions column, and the heading's height. */
+.history-card-skeleton { pointer-events: none; }
+.history-menu-spacer { visibility: hidden; }
+.history-card-skeleton .history-title-skeleton { height: 20px; width: min(180px, 80%); }
+/* The widths of a real line (60 min, 12 sets, 2,400 kg), so it wraps in the same cards the real one does. */
+.history-stat-chip { width: 61px; height: 21px; border-radius: 6px; }
+.history-stat-chip:nth-child(2) { width: 65px; }
+.history-stat-chip:nth-child(3) { width: 73px; }
+.history-recent-loading .section-heading { min-height: 44px; }
+
+@media (min-width: 1024px) {
+  .history-recent-loading .section-heading { min-height: 36px; }
+}
+
 @media (max-width: 639px) {
+  .history-card-skeleton .history-title-skeleton { height: 18px; }
   .panel[aria-label="Workout history"],
   .panel.history-recent,
   .panel.history-windowed {
