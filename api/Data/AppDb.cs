@@ -17,6 +17,7 @@ public sealed class AppDb(DbContextOptions<AppDb> options) : DbContext(options)
     public DbSet<EquipmentLoadDefault> EquipmentLoadDefaults => Set<EquipmentLoadDefault>();
     public DbSet<GymProfile> GymProfiles => Set<GymProfile>();
     public DbSet<ExerciseAlias> Aliases => Set<ExerciseAlias>();
+    public DbSet<ExerciseNameChoice> ExerciseNameChoices => Set<ExerciseNameChoice>();
     public DbSet<TrainingProgram> Programs => Set<TrainingProgram>();
     public DbSet<ProgramPhase> ProgramPhases => Set<ProgramPhase>();
     public DbSet<ProgramSkip> ProgramSkips => Set<ProgramSkip>();
@@ -102,6 +103,10 @@ public sealed class AppDb(DbContextOptions<AppDb> options) : DbContext(options)
         m.Entity<GymProfile>().Property(x => x.Name).HasMaxLength(GymProfileLimits.NameLength);
         m.Entity<GymProfile>().Property(x => x.MissingEquipmentJson).HasDefaultValue("[]");
         m.Entity<GymProfile>().Property(x => x.ExerciseOverridesJson).HasDefaultValue("{}");
+        Configure<ExerciseNameChoice>(m);
+        m.Entity<ExerciseNameChoice>().Property(x => x.NameKey).HasMaxLength(ExerciseNameChoiceLimits.NameKeyLength);
+        m.Entity<ExerciseNameChoice>().HasIndex(x => new { x.UserId, x.NameKey }).IsUnique();
+        m.Entity<ExerciseNameChoice>().ToTable("ExerciseNameChoices");
         Configure<ExerciseLoadSetting>(m);
         // Id is the exercise; each gym keeps its own rule for it.
         m.Entity<ExerciseLoadSetting>().HasKey(x => new { x.UserId, x.GymProfileId, x.Id });

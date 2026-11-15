@@ -51,6 +51,8 @@ export const ImportReviewPanel = forwardRef<HTMLElement, {
 }>(function ImportReviewPanel({ view, draft, attentionRows, onNameChange, onNameCommit, onFocusIssue, acknowledgedUncertainty, onAcknowledgeUncertainty, busy, exercises = [], onApplyOption }, ref) {
   const checkGym = useGymAvailabilityCheck();
   const hasUncertainty = (view.reviewIssues ?? []).some(issue => issue.code === 'external_uncertainty');
+  // Names linked from an earlier review's choice are announced, so a reused link is never silent.
+  const rememberedLinks = (view.reviewIssues ?? []).filter(issue => issue.code === 'remembered_exercise_link');
   // Match the editor’s occurrence groups so each replacement can reach its repeats.
   const linked = new Map<string, { dayId: string; lineId: string; name: string; exerciseId: string }>();
   for (const day of draft.workouts) {
@@ -105,6 +107,13 @@ export const ImportReviewPanel = forwardRef<HTMLElement, {
           </span>
         </div>
       )}
+
+      {rememberedLinks.map(issue => (
+        <div className="irev-unresolved-banner" role="status" key={issue.message}>
+          <Info size={16} className="irev-unresolved-icon" />
+          <span className="irev-unresolved-text">{issue.message}</span>
+        </div>
+      ))}
 
       <GymSwitcher />
       {unavailable[0] && (

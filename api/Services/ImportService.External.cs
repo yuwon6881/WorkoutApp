@@ -24,7 +24,7 @@ public sealed partial class ImportService
         ExternalImportPath.At("$.program.name", () => Validation.Name(source!.Name, "Program name"));
         ExternalImportPath.At("$.program.sourceWeekDays", () => Validation.Require(source!.SourceWeekDays is null or >= 1 and <= ExternalImportLimits.MaxCycleDays, "Source cycle length must be between 1 and 14 days."));
         ExternalImportPath.At("$.program.days", () => Validation.Require(source!.Days!.Count is > 0 and <= ExternalImportLimits.MaxDays, "A program needs between 1 and 400 days."));
-        var library = await catalog.MatchIndexForActiveGym(ct);
+        var (library, remembered) = await ImportNameChoices.Apply(db, await catalog.MatchIndexForActiveGym(ct), ct);
         var days = new List<DraftWorkout>();
         var exerciseErrors = new List<ExternalImportPath.FieldError>();
         var dayKeys = new Dictionary<string, Guid>(StringComparer.OrdinalIgnoreCase);
@@ -99,7 +99,8 @@ public sealed partial class ImportService
             DraftBaselineJson = groups.Count > 0 ? "" : Json.Write(draft),
             AlternativesJson = Json.Write(groups.FirstOrDefault()?.Members ?? []),
             NoticesJson = Json.Write(new[] { new ImportReviewIssue("external_source_unverified",
-                "WorkoutApp has not checked this import against the original source.", "info") })
+                "WorkoutApp has not checked this import against the original source.", "info") }
+                .Concat(ImportNameChoices.Notice(draft, remembered)).ToList())
         };
         UpdateCounters(import, draft);
         db.Imports.Add(import);
@@ -147,10 +148,13 @@ public sealed partial class ImportService
                 }
             });
         }
-        var (matched, paused) = ImportPause.ForFile(library, exercise.SourceName, exercise.Notes, CatalogMatching.Find(library, exercise.SourceName), sets);
+        var link = CatalogMatching.FindWithDropped(library, exercise.SourceName);
+        var (matched, paused) = ImportPause.ForFile(library, exercise.SourceName, exercise.Notes, link?.Id, sets);
+        var uncertainty = ExternalImportOptions.FlagDroppedWords(
+            ExternalImportOptions.ForExercise(exercise.Uncertainty, library, matched), link?.Dropped, matched);
         return new DraftExercise(Guid.NewGuid(), exercise.SourceName, matched,
             exercise.Notes, paused,exercise.SequenceGroup ?? "", exercise.Substitutions ?? [], RestSeconds: exercise.RestSeconds,
-            DemoUrl: demo, DemoLinks: links) { SourceReference = exercise.SourceReference, Uncertainty = ExternalImportOptions.ForExercise(exercise.Uncertainty, library, matched) };
+            DemoUrl: demo, DemoLinks: links) { SourceReference = exercise.SourceReference, Uncertainty = uncertainty };
     }
 
     private static string? CheckedDemo(string? url)

@@ -22,6 +22,16 @@ describe('import gym review', () => {
     expect(html).not.toContain('Source references');
     expect(html).not.toContain('has not checked');
   });
+  it('announces names linked from an earlier review without asking for anything', () => {
+    const draft = { programName: 'Plan', workouts: [] } as unknown as ImportDraft;
+    const view = { unresolved: [], acceptable: true, reviewIssues: [
+      { code: 'remembered_exercise_link', message: 'High-Bar Squat is linked the way you linked it in an earlier import.', severity: 'info' }
+    ] } as unknown as ImportView;
+    const html = renderToStaticMarkup(createElement(ImportReviewPanel, { view, draft, attentionRows: [],
+      onNameChange: () => {}, onNameCommit: () => {}, onFocusIssue: () => {} }));
+    expect(html).toContain('High-Bar Squat is linked the way you linked it in an earlier import.');
+    expect(html).toContain('Ready to create');
+  });
   it('shows uncertain details and an unchecked acknowledgement', () => {
     const draft = { programName: 'Plan', workouts: [] } as unknown as ImportDraft;
     const view = { unresolved: [], acceptable: true, reviewIssues: [

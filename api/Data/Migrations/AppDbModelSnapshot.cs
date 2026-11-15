@@ -756,6 +756,37 @@ namespace Workout.Api.Data.Migrations
                         });
                 });
 
+            modelBuilder.Entity("Workout.Api.Data.ExerciseNameChoice", b =>
+                {
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ExerciseId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("NameKey")
+                        .IsRequired()
+                        .HasMaxLength(160)
+                        .HasColumnType("character varying(160)");
+
+                    b.Property<int>("Revision")
+                        .IsConcurrencyToken()
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("UserId", "Id");
+
+                    b.HasIndex("UserId", "NameKey")
+                        .IsUnique();
+
+                    b.ToTable("ExerciseNameChoices", (string)null);
+                });
+
             modelBuilder.Entity("Workout.Api.Data.ExerciseProgress", b =>
                 {
                     b.Property<Guid>("UserId")
@@ -2178,6 +2209,15 @@ namespace Workout.Api.Data.Migrations
                     b.HasOne("Workout.Api.Data.GymProfile", null)
                         .WithMany()
                         .HasForeignKey("UserId", "GymProfileId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Workout.Api.Data.ExerciseNameChoice", b =>
+                {
+                    b.HasOne("Workout.Api.Data.AppUser", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });

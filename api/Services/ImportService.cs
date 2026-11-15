@@ -214,6 +214,9 @@ public sealed partial class ImportService(AppDb db, CatalogService catalog, Prog
         var external = import.PromptVersion == ImportDraftAlternatives.ExternalPromptVersion;
         var program = await programs.Materialize(input, activate: false, sourceImportId: external ? null : import.Id, ct);
         program.AllowUnspecifiedEffort = external;
+        if (!string.IsNullOrEmpty(import.DraftBaselineJson))
+            await ImportNameChoices.Learn(db, ImportValidation.NormalizeDraft(Json.Read<ImportDraft>(import.DraftBaselineJson)),
+                draft, await catalog.MatchIndexForActiveGym(ct), ct);
         // An import is working state, not history. Once its program exists the row has nothing
         // left to say, so it is removed rather than kept as a record of what was imported.
         db.Imports.Remove(import);
