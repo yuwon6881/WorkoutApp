@@ -202,8 +202,7 @@ test('unified plate defaults and active exercise menu keep weight editing availa
       await expect(dialog.getByRole('spinbutton', { name: 'Weight increase (kg)', exact: true })).toHaveValue('2');
       await dialog.getByRole('button', { name: 'Increase increment', exact: true }).click();
       await expect(dialog.getByRole('spinbutton', { name: 'Weight increase (kg)', exact: true })).toHaveValue('2.5');
-      await dialog.getByRole('button', { name: 'Advanced options', exact: true }).click();
-      await dialog.getByRole('button', { name: 'Available weights', exact: true }).click();
+      await dialog.getByRole('button', { name: 'Set weights', exact: true }).click();
       await dialog.getByRole('button', { name: 'Available weights (kg)', exact: true }).click();
       const weightList = dialog.getByRole('listbox', { name: 'Available weights (kg)' });
       for (const value of ['2.5', '5', '7.5', '10']) await weightList.getByRole('option', { name: value + ' kg', exact: true }).click();
@@ -216,7 +215,7 @@ test('unified plate defaults and active exercise menu keep weight editing availa
       await dialog.getByRole('button', { name: 'Done', exact: true }).click();
       await expect(dialog.getByRole('button', { name: 'Available weights (kg)', exact: true })).toContainText('2.5 kg, 5 kg');
       await page.screenshot({ path: join(screenshotsDirectory, `weights-picker-closed-${info.project.name}-${theme}.png`) });
-      await dialog.getByRole('button', { name: 'Weight increase', exact: true }).click();
+      await dialog.getByRole('button', { name: 'Fixed step', exact: true }).click();
       await dialog.getByRole('spinbutton', { name: 'Weight increase (kg)', exact: true }).fill('2.5');
       await expect.poll(() => dialog.evaluate(element => element.scrollWidth <= element.clientWidth + 1)).toBeTruthy();
       await page.screenshot({ path: join(screenshotsDirectory, `plate-editor-${info.project.name}-${theme}.png`) });
@@ -305,10 +304,7 @@ test('personal exercise weights support uneven lists and kg/lb switching', async
       const weights = page.getByRole('dialog', { name: `${name} weights`, exact: true });
       await expect(weights.getByRole('button', { name: 'Done', exact: true })).toHaveCount(0);
       await expect(weights.locator('.detail-record-grid, .detail-selectors')).toHaveCount(0);
-      if (await weights.getByRole('button', { name: 'Advanced options', exact: true }).isVisible()) {
-        await weights.getByRole('button', { name: 'Advanced options', exact: true }).click();
-        await weights.getByRole('button', { name: 'Available weights', exact: true }).click();
-      }
+      await weights.getByRole('button', { name: 'Set weights', exact: true }).click();
       await weights.getByRole('button', { name: 'Available weights (kg)', exact: true }).click();
       const list = weights.getByRole('listbox', { name: 'Available weights (kg)' });
       for (const value of ['5', '12.5', '20']) {
@@ -337,7 +333,7 @@ test('personal exercise weights support uneven lists and kg/lb switching', async
     await expect(dialog.getByText("11.02, 27.56, 44.09 lb · This exercise's setting", { exact: true })).toBeVisible();
     await dialog.getByRole('button', { name: 'Edit weights', exact: true }).click();
     const weights = page.getByRole('dialog', { name: `${name} weights`, exact: true });
-    await weights.getByRole('button', { name: 'Weight increase', exact: true }).click();
+    await weights.getByRole('button', { name: 'Fixed step', exact: true }).click();
     await weights.getByRole('spinbutton', { name: 'Weight increase (lb)', exact: true }).fill('5');
     await weights.getByRole('button', { name: 'Save weights', exact: true }).click();
     await expect(weights).toBeHidden();

@@ -1,25 +1,71 @@
-.load-rule-editor, .load-weight-picker { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; min-width: 0; }
-.load-rule-editor p { margin: 0; overflow-wrap: anywhere; font-size: 13px; line-height: 1.5; color: var(--muted); }
-.load-rule-editor .button { min-height: 44px; }
-.load-stepper { display: grid; grid-template-columns: 44px minmax(0, 1fr) 44px; gap: 10px; align-items: end; }
-.load-rule-advanced { justify-self: end; }
-.load-rule-choices { display: flex; flex-wrap: wrap; gap: 8px; min-width: 0; }
-.load-rule-choices .button[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
-.load-weight-picker { gap: 7px; }
-.load-weight-label { color: var(--muted); font-size: 14px; }
+/* One column of sections: where the rule came from, how weight goes up, that mode's input, then actions.
+   Labels share the field label style so every section reads the same. */
+.load-rule-editor { display: grid; grid-template-columns: minmax(0, 1fr); gap: 20px; min-width: 0; }
+.load-rule-editor p { margin: 0; overflow-wrap: anywhere; font-size: 14px; line-height: 1.5; color: var(--muted); }
+.load-rule-editor .load-rule-source { padding: 10px 12px; border-radius: var(--radius-control); background: var(--surface-raised); color: var(--muted); }
+.load-rule-mode, .load-rule-body, .load-weight-picker { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; min-width: 0; }
+.load-rule-heading, .load-weight-label, .load-stepper-field > span:first-child { color: var(--muted); font-size: 14px; font-weight: 500; }
+.load-rule-modes.segmented { display: grid; width: 100%; min-width: 0; }
+.load-rule-modes.segmented > .button { padding-inline: 8px; }
+.load-rule-editor .load-rule-error { color: var(--red); }
+
+/* Phones stack the label, a full-width −/+ field, then the explanation. Wider dialogs read it as a
+   settings row: label and explanation on the left, a compact stepper on the trailing edge, so the
+   row fills the dialog without stretching a short number across it. */
+.load-stepper {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) 44px;
+  grid-template-areas: "label label label" "minus input plus" "hint hint hint" "error error error";
+  gap: 8px;
+  align-items: center;
+}
+.load-stepper > .load-stepper-hint { grid-area: hint; }
+@media (min-width: 640px) {
+  .load-stepper {
+    grid-template-columns: minmax(0, 1fr) 44px 96px 44px;
+    grid-template-areas: "label minus input plus" "hint minus input plus" "error error error error";
+    column-gap: 8px;
+    row-gap: 2px;
+    padding: 14px 16px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-control);
+  }
+  .load-stepper > .load-stepper-field > span:first-child { align-self: end; color: var(--text); }
+  .load-stepper > .load-stepper-hint { align-self: start; padding-right: 8px; }
+  .load-stepper > .load-stepper-field > .field-error { margin-top: 8px; }
+}
+.load-stepper > .load-stepper-field { display: contents; }
+.load-stepper > .load-stepper-field > span:first-child { grid-area: label; }
+.load-stepper > .load-stepper-field > input { grid-area: input; width: 100%; height: 44px; text-align: center; font-size: 16px; font-weight: 600; }
+.load-stepper > .load-stepper-field > .field-error { grid-area: error; }
+.load-stepper > .button { width: 44px; height: 44px; min-height: 44px; padding: 0; }
+.load-stepper-minus { grid-area: minus; }
+.load-stepper-plus { grid-area: plus; }
+
+.load-rule-editor .modal-actions.load-rule-actions {
+  display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px;
+  margin: 0; padding: 16px 0 0; border-top: 1px solid var(--border); background: transparent;
+}
+.load-rule-actions > .button { min-height: 44px; }
+.load-rule-editor .load-rule-reset { margin-right: auto; }
+@media (max-width: 639px) {
+  /* Phones split the row into two equal thumb targets; Use default takes its own row above. */
+  .load-rule-editor .modal-actions.load-rule-actions { display: grid; grid-template-columns: 1fr 1fr; }
+  .load-rule-actions > .load-rule-reset { grid-column: 1 / -1; margin: 0; }
+  .load-stepper { width: 100%; }
+}
+@media (min-width: 1024px) { .load-rule-actions > .button, .custom-select-footer > .button { min-height: 36px; } }
+
 .custom-select-with-footer { display: flex; flex-direction: column; overflow: hidden; max-height: 400px; }
 .custom-select-options { list-style: none; padding: 0; margin: 0; overflow-y: auto; min-height: 0; flex: 1; overscroll-behavior: contain; }
-.custom-select-footer { display: grid; grid-template-columns: minmax(0, 1fr); min-width: 0; gap: 8px; padding: 10px; border-top: 1px solid var(--border); }
-.custom-select-footer > .button { justify-self: end; min-height: 44px; }
+.custom-select-footer { display: grid; grid-template-columns: minmax(0, 1fr); min-width: 0; gap: 16px; padding: 10px; border-top: 1px solid var(--border); }
+.custom-select-footer > .button { justify-self: end; min-width: 96px; min-height: 44px; }
 .load-weight-custom { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: 8px; min-width: 0; }
 .load-weight-custom > :first-child, .load-weight-custom input { width: 100%; min-width: 0; }
-.load-rule-editor .modal-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; margin-top: 4px; }
-.load-rule-editor .load-rule-reset { margin-right: auto; }
-@media (min-width: 1024px) { .load-rule-editor .button, .custom-select-footer > .button { min-height: 36px; } }
 
 .custom-select-with-footer .custom-select-item { min-height: 44px; }
 .load-weight-picker .custom-select-wrap {
-  width: min(100%, 360px);
+  width: 100%;
   max-width: none;
 }
 
@@ -41,7 +87,8 @@
 }
 
 .custom-select-panel-heading span { color: var(--muted); }
-.custom-select-with-footer .custom-select-options { padding: 4px 6px; }
+/* A small gap keeps neighbouring selected weights reading as separate rows rather than one block. */
+.custom-select-with-footer .custom-select-options { display: flex; flex-direction: column; gap: 4px; padding: 6px; }
 .custom-select-with-footer .custom-select-item { border-radius: var(--radius-control); }
 .custom-select-with-footer .custom-select-footer { padding: 10px 14px; }
 
@@ -53,5 +100,11 @@
     padding: 8px 0 calc(12px + env(safe-area-inset-bottom));
   }
 
-  .custom-select-with-footer .custom-select-options { padding-inline: 8px; }
+  .custom-select-with-footer .custom-select-options { padding: 8px; }
+}
+
+/* Done closes the whole picker, so on phones it spans the sheet like a footer action rather than
+   sitting under Add as if it belonged to the custom-weight row. */
+@media (max-width: 639px) {
+  .custom-select-with-footer .custom-select-footer > .button { justify-self: stretch; }
 }

@@ -457,8 +457,7 @@ for (const theme of ['dark', 'light']) {
     await plateWeights.click();
     const plateEditor = page.getByRole('dialog', { name: 'Plate-loaded weights', exact: true });
     await screenshot('plate-loaded-weights');
-    await plateEditor.getByRole('button', { name: 'Advanced options', exact: true }).click();
-    await plateEditor.getByRole('button', { name: 'Available weights', exact: true }).click();
+    await plateEditor.getByRole('button', { name: 'Set weights', exact: true }).click();
     await plateEditor.getByRole('button', { name: 'Available weights (kg)', exact: true }).click();
     for (const value of ['2.5', '5', '7.5', '10']) await plateEditor.getByRole('option', { name: value + ' kg', exact: true }).click();
     await screenshot('equipment-weight-picker');
@@ -562,8 +561,7 @@ for (const theme of ['dark', 'light']) {
     await screenshot('exercise-detail');
     await detail.getByRole('button', { name: 'Edit weights', exact: true }).click();
     const exerciseWeights = page.getByRole('dialog', { name: 'Barbell bench press weights', exact: true });
-    await exerciseWeights.getByRole('button', { name: 'Advanced options', exact: true }).click();
-    await exerciseWeights.getByRole('button', { name: 'Available weights', exact: true }).click();
+    await exerciseWeights.getByRole('button', { name: 'Set weights', exact: true }).click();
     await exerciseWeights.getByRole('button', { name: 'Available weights (kg)', exact: true }).click();
     for (const value of ['5', '7.5', '12.5', '20', '27.5']) await exerciseWeights.getByRole('option', { name: value + ' kg', exact: true }).click();
     await exerciseWeights.getByRole('button', { name: 'Done', exact: true }).click();
