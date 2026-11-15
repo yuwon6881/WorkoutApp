@@ -234,7 +234,9 @@ export function MultiSelect<T extends string>({
   placeholder = 'None',
   className = '',
   disabled = false,
-  fitMenuToOptions = false
+  fitMenuToOptions = false,
+  displayLabel,
+  footer
 }: {
   name?: string;
   label?: string;
@@ -248,12 +250,15 @@ export function MultiSelect<T extends string>({
   className?: string;
   disabled?: boolean;
   fitMenuToOptions?: boolean;
+  displayLabel?: React.ReactNode;
+  footer?: React.ReactNode;
 }) {
   const accessibleLabel = label ?? ariaLabel ?? '';
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const listboxRef = useRef<HTMLUListElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
   const id = useId();
   const [highlightedIndex, setHighlightedIndex] = useState(0);
 
@@ -268,7 +273,7 @@ export function MultiSelect<T extends string>({
     if (!open) return;
     const handleClick = (e: MouseEvent) => {
       const target = e.target as Node;
-      if (containerRef.current && !containerRef.current.contains(target) && !listboxRef.current?.contains(target)) {
+      if (containerRef.current && !containerRef.current.contains(target) && !listboxRef.current?.contains(target) && !panelRef.current?.contains(target)) {
         setOpen(false);
       }
     };
@@ -286,11 +291,11 @@ export function MultiSelect<T extends string>({
   const { portalTarget, style: dropdownStyle } = useAnchoredLayer({
     open,
     triggerRef,
-    layerRef: listboxRef,
+    layerRef: footer ? panelRef : listboxRef,
     matchTriggerWidth: !fitMenuToOptions,
     minWidth: fitMenuToOptions ? 140 : 120,
-    maxWidth: 260,
-    maxHeight: 260,
+    maxWidth: footer ? 360 : 260,
+    maxHeight: footer ? 400 : 260,
     offset: 5,
     dependencies: [options.length]
   });
@@ -309,13 +314,15 @@ export function MultiSelect<T extends string>({
 
   const handleKeyDown = (e: ReactKeyboardEvent) => {
     if (disabled) return;
-    if (e.key === 'Escape') {
-      if (open) {
-        e.preventDefault();
-        setOpen(false);
-        triggerRef.current?.focus();
-      }
-    } else if (e.key === 'ArrowDown') {
+    if (e.key === 'Escape' && open) {
+      e.preventDefault();
+      e.stopPropagation();
+      setOpen(false);
+      triggerRef.current?.focus();
+      return;
+    }
+    if (e.target !== triggerRef.current) return;
+    if (e.key === 'ArrowDown') {
       e.preventDefault();
       if (!open) setOpen(true);
       else setHighlightedIndex(prev => (prev + 1 < options.length ? prev + 1 : 0));
@@ -334,11 +341,34 @@ export function MultiSelect<T extends string>({
       const chosen = options[highlightedIndex];
       if (chosen) toggleValue(chosen.value);
     } else if (e.key === 'Tab' && open) {
-      setOpen(false);
+      const firstAction = !e.shiftKey && panelRef.current?.querySelector<HTMLElement>('input:not(:disabled), button:not(:disabled)');
+      if (firstAction) {
+        e.preventDefault();
+        firstAction.focus();
+      } else setOpen(false);
     }
   };
 
   const controlName = name ?? (label ? label.toLowerCase().replace(/[^a-z0-9]+/g, '-') : (ariaLabel ? ariaLabel.toLowerCase().replace(/[^a-z0-9]+/g, '-') : id));
+
+  const rows = open && options.map((o, idx) => {
+    const isSelected = selectedSet.has(o.value);
+    const isHighlighted = idx === highlightedIndex;
+    return (
+      <li
+        key={String(o.value)}
+        id={`${id}-opt-${idx}`}
+        role="option"
+        aria-selected={isSelected}
+        className={`custom-select-item ${isSelected ? 'selected' : ''} ${isHighlighted ? 'highlighted' : ''}`}
+        onMouseEnter={() => setHighlightedIndex(idx)}
+        onClick={() => toggleValue(o.value)}
+      >
+        <span>{o.label}</span>
+        {isSelected && <Check size={15} className="custom-select-check accent" />}
+      </li>
+    );
+  });
 
   return (
     <div ref={containerRef} className={`custom-select-wrap ${className}`.trim()} onKeyDown={handleKeyDown}>
@@ -357,35 +387,33 @@ export function MultiSelect<T extends string>({
       >
         <div className="custom-select-content">
           {icon && <span className="custom-select-icon" aria-hidden="true">{icon}</span>}
-          <span className="custom-select-text">{summaryText}</span>
+          <span className="custom-select-text">{displayLabel ?? summaryText}</span>
         </div>
         <ChevronDown size={16} className={`custom-select-chevron ${open ? 'rotated' : ''}`} />
       </Button>
 
       {open && portalTarget && sheet && createPortal(<div className="picker-sheet-backdrop" aria-hidden="true" />, portalTarget)}
-      {open && portalTarget && createPortal(
-        <ul ref={listboxRef} className={['custom-select-dropdown', sheet && 'picker-sheet', fitMenuToOptions && 'fit-options'].filter(Boolean).join(' ')} style={sheet ? undefined : dropdownStyle ?? { visibility: 'hidden' }} role="listbox" aria-multiselectable="true" aria-label={accessibleLabel}>
-          {options.map((o, idx) => {
-            const isSelected = selectedSet.has(o.value);
-            const isHighlighted = idx === highlightedIndex;
-            return (
-              <li
-                key={String(o.value)}
-                id={`${id}-opt-${idx}`}
-                role="option"
-                aria-selected={isSelected}
-                className={`custom-select-item ${isSelected ? 'selected' : ''} ${isHighlighted ? 'highlighted' : ''}`}
-                onMouseEnter={() => setHighlightedIndex(idx)}
-                onClick={() => toggleValue(o.value)}
-              >
-                <span>{o.label}</span>
-                {isSelected && <Check size={15} className="custom-select-check accent" />}
-              </li>
-            );
-          })}
-        </ul>,
-        portalTarget
-      )}
+      {open && portalTarget && createPortal(footer ? (
+        <div ref={panelRef} className={`custom-select-dropdown custom-select-with-footer ${sheet ? 'picker-sheet' : ''}`}
+          style={sheet ? undefined : dropdownStyle ?? { visibility: 'hidden' }}>
+          <div className="custom-select-panel-heading">
+            <strong>{accessibleLabel}</strong>
+            <span>{values.length} selected</span>
+          </div>
+          <ul ref={listboxRef} className="custom-select-options" role="listbox" aria-multiselectable="true" aria-label={accessibleLabel}>
+            {rows}
+          </ul>
+          <div className="custom-select-footer">
+            {footer}
+            <Button variant="primary" onClick={() => { setOpen(false); triggerRef.current?.focus(); }}>Done</Button>
+          </div>
+        </div>
+      ) : (
+        <ul ref={listboxRef} className={['custom-select-dropdown', sheet && 'picker-sheet', fitMenuToOptions && 'fit-options'].filter(Boolean).join(' ')}
+          style={sheet ? undefined : dropdownStyle ?? { visibility: 'hidden' }} role="listbox" aria-multiselectable="true" aria-label={accessibleLabel}>
+          {rows}
+        </ul>
+      ), portalTarget)}
     </div>
   );
 }

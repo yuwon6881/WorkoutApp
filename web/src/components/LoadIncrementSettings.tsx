@@ -93,7 +93,7 @@ export function LoadIncrementSettings({ unit, notify, onChanged }: {
       <div className="modal-body">
         <LoadRuleEditor unit={shown} name={`equipment-${editing.group}`} busy={busy}
           rule={{ loadStepKg: editing.ownStepKg, availableLoadsKg: editing.ownAvailableLoadsKg }}
-          perSide={equipmentGroupInfo(editing.group).perSide}
+          perSide={equipmentGroupInfo(editing.group).perSide} inheritedStepKg={editing.appDefaultStepKg}
           inheritText={`Uses the app default: ${describeLoad(editing.appDefaultStepKg, null, shown)}.`}
           onSubmit={rule => void saveEquipment(editing, rule)} onCancel={() => setEditing(null)} />
       </div>

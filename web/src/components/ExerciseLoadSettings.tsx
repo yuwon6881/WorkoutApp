@@ -72,6 +72,7 @@ export function ExerciseLoadSettings({ exerciseId, exerciseName, unit, perSide =
     {!settings && !error && <p className="muted" role="status">Loading weight settings…</p>}
     {settings && <LoadRuleEditor key={unit} unit={unit} name="exercise-load" busy={busy} perSide={perSide}
       rule={{ loadStepKg: settings.ownStepKg ?? null, availableLoadsKg: settings.ownAvailableLoadsKg ?? null }}
+      inheritedStepKg={inherited?.stepKg} inheritedLoadsKg={inherited?.availableLoadsKg}
       inheritText={inherited
         ? `${describeSource(inherited.source, group)}: ${describeLoad(inherited.stepKg, inherited.availableLoadsKg, unit)}.`
         : undefined}
