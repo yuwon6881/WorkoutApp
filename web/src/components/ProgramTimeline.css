@@ -312,8 +312,3 @@
   margin-top: 4px;
 }
 
-/* The hint names what blocks the action; its link takes the lifter there. */
-.ptl-action-hint-link {
-  margin-inline-start: 6px;
-  vertical-align: baseline;
-}

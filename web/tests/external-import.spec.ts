@@ -81,8 +81,9 @@ for (const theme of ['light', 'dark']) {
       expect((await page.locator('.irev-uncertainty-confirm').boundingBox())!.height).toBeGreaterThanOrEqual(44);
     }
     const accept = page.getByRole('button', { name: 'Accept and create program' });
-    if (info.project.name !== '1440px') expect((await accept.boundingBox())!.height).toBeGreaterThanOrEqual(44);
-    await expect(accept).toBeDisabled();
+    const reviewAction = page.getByRole('button', { name: /^Review \d+ (detail|details|item|items)$/ });
+    if (info.project.name !== '1440px') expect((await reviewAction.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+    await expect(accept).toHaveCount(0);
     await page.getByRole('checkbox', { name: 'I reviewed these uncertain details.' }).check();
     await expect(accept).toBeEnabled();
     await page.screenshot({ path: info.outputPath(`external-review-${theme}.png`), fullPage: true });

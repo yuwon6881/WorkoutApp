@@ -1,4 +1,4 @@
-import type { SessionExercise } from '../types';
+import type { DraftExercise, SessionExercise } from '../types';
 
 export type RestMode = 'minimal' | 'balanced' | 'maximal';
 
@@ -87,4 +87,15 @@ export function sessionHasRestRange(exercises: readonly SessionExercise[]): bool
   return exercises.some(exercise =>
     exercise.prescription.some((_, setIndex) => planRestRange(exercise, setIndex) !== null)
   );
+}
+
+/// The range a planned (not yet started) exercise prints for its working sets, for the read-only day
+/// and the start preview. Same rule as the session: a set whose stored rest is not the range's average
+/// was changed on purpose, so the exact stored rest wins and no range is shown.
+export function draftRestRange(exercise: DraftExercise): RestRange | null {
+  const working = exercise.sets.find(set => !set.warmup) ?? exercise.sets[0];
+  const parsed = parseRestRange(working?.restText);
+  if (!parsed || !working) return null;
+  const stored = exercise.restSeconds ?? working.restSeconds;
+  return stored != null && Math.abs(stored - parsed.balancedSeconds) > 1 ? null : parsed;
 }

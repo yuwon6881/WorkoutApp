@@ -5,6 +5,7 @@ import { draftExerciseName } from '../lib/draftExerciseSwap';
 import { getSupersetGroup } from '../lib/supersets';
 import { summarizeSets } from '../lib/setSummary';
 import { formatRest } from '../lib/training';
+import { draftRestRange } from '../lib/restRange';
 import { useTrackRir } from '../lib/trackRir';
 import { ProgramMusclePreview } from './ProgramMusclePreview';
 import { SupersetGroupHeader } from './SupersetTag';
@@ -75,10 +76,12 @@ export function ReadOnlyDay({ day, exercises, selectedMuscle, onMuscleSelect, la
 function ReadOnlyExercise({ exercise, name, trackRir, dimmed, last }: { exercise: DraftExercise; name: string; trackRir: boolean; dimmed: boolean; last?: string }) {
   const lines = summarizeSets(exercise.sets, trackRir);
   const rest = exercise.restSeconds ?? exercise.sets.find(set => !set.warmup)?.restSeconds ?? null;
+  // A printed range reads as the range; the workout starts at its average and the menu offers Minimal or Maximal.
+  const range = draftRestRange(exercise);
   return <div className={`readonly-exercise ${dimmed ? 'exercise-dimmed' : ''}`}>
     <div className="readonly-exercise-head">
       <strong className="readonly-exercise-name">{name}</strong>
-      {rest != null && <span className="readonly-exercise-rest">Rest {formatRest(rest)}</span>}
+      {rest != null && <span className="readonly-exercise-rest">Rest {range ? `${formatRest(range.minSeconds)}–${formatRest(range.maxSeconds)}` : formatRest(rest)}</span>}
     </div>
     <GymAvailabilityBadge exerciseId={exercise.exerciseId} />
     {last && <p className="readonly-exercise-last">{last}</p>}

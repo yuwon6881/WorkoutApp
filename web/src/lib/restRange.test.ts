@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import type { SessionExercise, SetPrescription } from '../types';
-import { parseRestRange, planRestRange, sessionHasRestRange } from './restRange';
+import type { DraftExercise, SessionExercise, SetPrescription } from '../types';
+import { draftRestRange, parseRestRange, planRestRange, sessionHasRestRange } from './restRange';
 
 function makePrescription(overrides: Partial<SetPrescription> = {}): SetPrescription {
   return {
@@ -198,5 +198,21 @@ describe('sessionHasRestRange', () => {
     const ex1 = makeExercise([makePrescription({ restText: null, restSeconds: 90 })]);
     const ex2 = makeExercise([makePrescription({ restText: '3 min', restSeconds: 180 })]);
     expect(sessionHasRestRange([ex1, ex2])).toBe(false);
+  });
+});
+
+describe('draftRestRange', () => {
+  const draft = (restText: string | null, restSeconds: number | null, exerciseRest: number | null = null, warmup = false) =>
+    ({ restSeconds: exerciseRest, sets: [{ ...makePrescription({ restText, restSeconds }), warmup }] }) as unknown as DraftExercise;
+
+  it('reports the printed range when the stored rest is its average', () => {
+    expect(draftRestRange(draft('3-4 min', 210))).toMatchObject({ minSeconds: 180, maxSeconds: 240, balancedSeconds: 210 });
+  });
+
+  it('shows no range for a single value, no text, or a rest that was changed from the average', () => {
+    expect(draftRestRange(draft('3 min', 180))).toBeNull();
+    expect(draftRestRange(draft(null, 180))).toBeNull();
+    expect(draftRestRange(draft('3-4 min', 150))).toBeNull();
+    expect(draftRestRange(draft('3-4 min', 210, 120))).toBeNull();
   });
 });

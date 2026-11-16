@@ -27,3 +27,13 @@ export function importAcceptHint(blockers: ImportAcceptBlockers): string | undef
   }
   return undefined;
 }
+
+/// When what blocks is the review itself, the action slot becomes the way into it ("Review 9 details")
+/// instead of a disabled button with an explanation beside it. Undefined while saving or after a failed
+/// save, which the lifter cannot fix by reviewing.
+export function importReviewActionLabel(blockers: ImportAcceptBlockers): string | undefined {
+  if (blockers.saveFailed || blockers.saving) return undefined;
+  if (blockers.attention > 0) return `Review ${plural(blockers.attention, 'item', 'items')}`;
+  if (blockers.uncertain > 0 && !blockers.uncertainConfirmed) return `Review ${plural(blockers.uncertain, 'detail', 'details')}`;
+  return undefined;
+}

@@ -3,6 +3,7 @@ import { Play } from 'lucide-react';
 import type { Exercise, Template, Unit } from '../types';
 import { lastPerformedLabel } from '../lib/lastPerformed';
 import { estimateWorkoutMinutes } from '../lib/workoutEstimate';
+import { draftRestRange } from '../lib/restRange';
 import { useLastPerformed } from './useLastPerformed';
 import { api, ApiError } from '../lib/api';
 import { templateToDraft } from '../lib/activeSlot';
@@ -44,6 +45,7 @@ export function WorkoutPreviewModal({ templateId, name, exercises, unit, default
     return labels;
   }, [lastPerformed, exercises, unit]);
   const minutes = day ? estimateWorkoutMinutes(day.exercises, defaultRestSeconds) : null;
+  const hasRange = (day?.exercises ?? []).some(exercise => draftRestRange(exercise) !== null);
   const unavailable = (day?.exercises ?? []).map(exercise => checkGym(exercise.exerciseId)).filter(result => !result.available);
   // Waking Nutrition (and the token exchange that reaches it) takes longer than Start may wait, so
   // it begins while the plan is read. It is not aborted on close: Start closes this preview, and the
@@ -64,7 +66,7 @@ export function WorkoutPreviewModal({ templateId, name, exercises, unit, default
   return <Modal title={template?.name ?? name} wide className="day-detail-modal" onClose={onClose}>
     <div className="modal-body day-detail-modal-body">
       {template && day && requirementsReady ? <>
-        {minutes !== null && <p className="muted small-copy workout-preview-estimate">About {minutes} min, at the planned rests</p>}
+        {minutes !== null && <p className="muted small-copy workout-preview-estimate">About {minutes} min, at the {hasRange ? 'average of the printed rests' : 'planned rests'}{hasRange && '. Change it to Minimal or Maximal in the workout menu.'}</p>}
         {template.note && <p className="muted small-copy">{template.note}</p>}
         {/* Switching here makes the workout record that gym and follow its weights. */}
         <GymSwitcher />

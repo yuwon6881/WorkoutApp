@@ -59,7 +59,9 @@ for (const theme of ['dark', 'light']) {
     await expect(page.getByText('Check the set count')).toBeVisible();
     await expect(page.getByText('Review needed', { exact: true })).toBeVisible();
     const acknowledge = page.getByRole('checkbox', { name: 'I reviewed these uncertain details.' });
-    await expect(page.getByRole('button', { name: 'Accept and create program' })).toBeDisabled();
+    // While the review blocks, the action slot is the way into it rather than a disabled Accept.
+    await expect(page.getByRole('button', { name: /^Review \d+ (detail|details|item|items)$/ })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Accept and create program' })).toHaveCount(0);
     const screenshotDir = resolve('..', 'artifacts', 'uncertainty-ui-screenshots');
     mkdirSync(screenshotDir, { recursive: true });
     await page.evaluate(() => { document.querySelector('.irev-uncertainty')?.scrollIntoView({ block: 'center' }); });

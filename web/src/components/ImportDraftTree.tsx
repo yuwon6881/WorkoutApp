@@ -39,9 +39,8 @@ export const DraftOutline = forwardRef<DraftOutlineHandle, {
   editableProgramName?: boolean;
   onProgramNameChange?: (name: string) => void;
   actionHint?: string;
-  /// Takes the lifter to what blocks the action, shown beside the hint.
-  onActionHintClick?: () => void;
-  actionHintLabel?: string;
+  /// When the review is what blocks the action, the action slot offers the way into it instead of a disabled button.
+  blockedAction?: { label: string; onClick: () => void };
   acceptable?: boolean;
   busy?: boolean;
   onRestoreDraft?: () => void;
@@ -67,8 +66,7 @@ export const DraftOutline = forwardRef<DraftOutlineHandle, {
   editableProgramName,
   onProgramNameChange,
   actionHint,
-  onActionHintClick,
-  actionHintLabel = 'Go to review',
+  blockedAction,
   acceptable,
   busy,
   onRestoreDraft,
@@ -237,7 +235,12 @@ export const DraftOutline = forwardRef<DraftOutlineHandle, {
         </div>
         <div className="import-program-actions ptl-actions-group">
           <div className="ptl-actions-row">
-            {onAcceptProgram && (
+            {onAcceptProgram && !acceptable && blockedAction && (
+              <Button variant="secondary" onClick={blockedAction.onClick} className="ptl-primary-btn">
+                {blockedAction.label}
+              </Button>
+            )}
+            {onAcceptProgram && !(blockedAction && !acceptable) && (
               <Button
                 variant="primary"
                 disabled={busy || !acceptable}
@@ -265,14 +268,9 @@ export const DraftOutline = forwardRef<DraftOutlineHandle, {
               </div>
             )}
           </div>
-          {onAcceptProgram && !acceptable && (
+          {onAcceptProgram && !acceptable && !blockedAction && (
             <p className="ptl-action-hint" role="status">
               {actionHint ?? 'Resolve review items before creating the program'}
-              {onActionHintClick && (
-                <Button variant="tertiary" className="ptl-action-hint-link" onClick={onActionHintClick}>
-                  {actionHintLabel}
-                </Button>
-              )}
             </p>
           )}
         </div>
