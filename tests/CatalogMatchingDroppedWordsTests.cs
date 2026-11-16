@@ -127,6 +127,38 @@ public sealed class CatalogMatchingDroppedWordsTests
         return library;
     }
 
+    [Theory]
+    [InlineData("Pause Incline Press", null)]
+    [InlineData("Incline Press (RPE 9.5 AMRAP)", null)]
+    [InlineData("Incline Press (Back Off)", null)]
+    [InlineData("Incline Press (Chest)", null)]
+    [InlineData("Smith Incline Press", "smith")]
+    public void Labels_the_import_already_handles_are_not_dropped_qualifiers(string written, string? dropped)
+        => Assert.Equal(dropped, CatalogMatching.FindWithDropped(Library(), written)!.Dropped);
+
+    [Fact]
+    public void Grip_work_is_a_purpose_label_not_a_qualifier()
+    {
+        var library = Library();
+        var id = Guid.NewGuid();
+        var name = CatalogService.Normalize("Barbell Isometric Hold");
+        foreach (var key in CatalogMatching.LibraryKeys(name).Append(name)) library[key] = id;
+        Assert.Null(CatalogMatching.FindWithDropped(library, "Barbell Isometric Hold (Grip Work)")!.Dropped);
+    }
+
+    [Fact]
+    public async Task A_movement_repeated_across_weeks_is_flagged_once()
+    {
+        await using var h = await Harness.Create();
+        await h.SignIn();
+        await h.Seed(new SeedExercise("incline", "Incline Press", "Chest", "Machine", null));
+        string Week(int week) => $"{{\"key\":\"w{week}\",\"week\":{week},\"name\":\"A\",\"exercises\":["
+            + "{\"sourceName\":\"Smith Machine Incline Press\",\"sets\":[{\"repMin\":8,\"repMax\":10}]}]}";
+        var view = await h.Imports().CreateExternalImport(
+            "{\"version\":1,\"program\":{\"name\":\"P\",\"days\":[" + Week(1) + "," + Week(2) + "," + Week(3) + "]}}", "p.json", default);
+        Assert.Equal(1, view.ReviewIssues!.Count(issue => issue.Code == "external_uncertainty"));
+    }
+
     [Fact]
     public void An_offered_option_must_spell_the_movement_with_nothing_set_aside()
     {

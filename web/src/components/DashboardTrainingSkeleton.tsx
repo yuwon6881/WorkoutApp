@@ -5,7 +5,7 @@ import './ProgressPanels.css';
 /** Reserve the same responsive calendar and unboxed metric strip structure while lazy code loads. */
 export function CalendarSkeleton() {
   return (
-    <section className="panel training-calendar-card" aria-label="Loading training overview" aria-busy="true">
+    <section className="panel training-calendar-card is-placeholder" aria-label="Loading training overview" aria-busy="true">
       <div className="calendar-card-header" aria-hidden="true">
         <div className="calendar-completion">
           <Skeleton className="weekly-completion-ring" />

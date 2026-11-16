@@ -3,6 +3,7 @@ import type { Exercise, ImportDraft, ImportView } from '../types';
 import { ApiError, api } from '../lib/api';
 import { buildAttentionRows, type ImportIssueTarget } from '../lib/importAttentionRows';
 import { resumableImport } from '../lib/importSelection';
+import { importAcceptHint } from '../lib/importAcceptHint';
 import { CardFeedback } from './ui/CardFeedback';
 import { AlertTriangle } from 'lucide-react';
 import { LiftLoader } from './ui/LiftLoader';
@@ -102,6 +103,11 @@ export function ImportReview({ exercises, imports, onBack, onChanged, notify }: 
   }
 
   const attentionRows = selected ? buildAttentionRows(selected, draft) : [];
+  const uncertainCount = (selected?.reviewIssues ?? []).filter(issue => issue.code === 'external_uncertainty').length;
+  const acceptHint = importAcceptHint({
+    saving: saver.localDirty, saveFailed: Boolean(saveError), attention: attentionRows.length,
+    uncertain: uncertainCount, uncertainConfirmed: acknowledgedUncertainty
+  });
 
   function focusReviewIssue(target: ImportIssueTarget) {
     outlineRef.current?.focusIssue(target);
@@ -179,6 +185,10 @@ export function ImportReview({ exercises, imports, onBack, onChanged, notify }: 
           acceptable={selected.acceptable && !saver.localDirty && !saveError &&
             (!(selected.reviewIssues ?? []).some(issue => issue.code === 'external_uncertainty') || acknowledgedUncertainty)}
           busy={busy}
+          actionHint={acceptHint}
+          onActionHintClick={acceptHint && !saver.localDirty && !saveError
+            ? () => reviewRef.current?.scrollIntoView({ behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' })
+            : undefined}
           onRestoreDraft={() => setConfirmRestoreDraft(true)}
           onDiscardDraft={() => pipeline.run('Discarding this draft…', async () => { discarded.current.add(selected.id); await api.discardImport(selected.id); setSelected(null); setDraft(null); })}
           onAcceptProgram={() => pipeline.run('Creating the program…', async () => { await saver.flush(); await api.acceptImport(selected.id, saver.revision(), acknowledgedUncertainty); await onChanged(); setSelected(null); setDraft(null); onBack(); })}

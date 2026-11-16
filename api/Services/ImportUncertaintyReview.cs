@@ -21,6 +21,7 @@ internal static class ImportUncertaintyReview
                     issues.Add(new(Code, $"{exercise.SourceName}, set {index + 1}: {setUncertainty.Reason ?? "Review this set."}", "info",
                         exercise.Sets[index].SourcePage, day.LineId, exercise.LineId, index));
         }
-        return issues;
+        // A movement a program repeats every week raises the same question every week; ask it once.
+        return issues.DistinctBy(issue => (issue.Code, issue.Message)).ToList();
     }
 }

@@ -133,7 +133,7 @@ export function MuscleBalanceView({ timeZone, onExercise, refreshKey, unconfirme
       )}
 
       {!view && loading && (
-        <section className="panel muscle-balance-loading" aria-label="Loading muscle coverage" aria-busy="true">
+        <section className="panel muscle-balance-loading is-placeholder" aria-label="Loading muscle coverage" aria-busy="true">
           <div className="skeleton muscle-balance-loading-title" />
           <div className="skeleton muscle-balance-loading-map" />
         </section>

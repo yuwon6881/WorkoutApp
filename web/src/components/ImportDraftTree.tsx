@@ -39,6 +39,9 @@ export const DraftOutline = forwardRef<DraftOutlineHandle, {
   editableProgramName?: boolean;
   onProgramNameChange?: (name: string) => void;
   actionHint?: string;
+  /// Takes the lifter to what blocks the action, shown beside the hint.
+  onActionHintClick?: () => void;
+  actionHintLabel?: string;
   acceptable?: boolean;
   busy?: boolean;
   onRestoreDraft?: () => void;
@@ -64,6 +67,8 @@ export const DraftOutline = forwardRef<DraftOutlineHandle, {
   editableProgramName,
   onProgramNameChange,
   actionHint,
+  onActionHintClick,
+  actionHintLabel = 'Go to review',
   acceptable,
   busy,
   onRestoreDraft,
@@ -263,6 +268,11 @@ export const DraftOutline = forwardRef<DraftOutlineHandle, {
           {onAcceptProgram && !acceptable && (
             <p className="ptl-action-hint" role="status">
               {actionHint ?? 'Resolve review items before creating the program'}
+              {onActionHintClick && (
+                <Button variant="tertiary" className="ptl-action-hint-link" onClick={onActionHintClick}>
+                  {actionHintLabel}
+                </Button>
+              )}
             </p>
           )}
         </div>

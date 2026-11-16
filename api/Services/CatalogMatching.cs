@@ -77,8 +77,18 @@ internal static class CatalogMatching
     private static readonly HashSet<string> TechniqueNoteWords = new(StringComparer.Ordinal)
     {
         "tempo", "pause", "paused", "rom", "per", "side", "each", "reps", "sets",
-        "extend", "set", "drop", "myo", "partials", "partial", "lengthened", "optional"
+        "extend", "set", "drop", "myo", "partials", "partial", "lengthened", "optional",
+        // Prescription and purpose labels, and the muscle a table names beside a movement that already trains it.
+        "rpe", "amrap", "back", "off", "work", "abs", "traps", "glutes", "quads", "hamstrings", "calves",
+        "chest", "biceps", "triceps", "shoulders", "lats", "delts", "forearms"
     };
+
+    private static string? NullIfEmpty(string value) => value.Length == 0 ? null : value;
+
+    /// Leading words the import already carries through another route: "Pause" becomes pause sets on the
+    /// linked movement, so setting it aside from the name loses nothing.
+    private static string WithoutHandledWords(string dropped)
+        => string.Join(' ', dropped.Split(' ', StringSplitOptions.RemoveEmptyEntries).Where(word => word is not ("pause" or "paused")));
 
     /// The meaningful words of a bracketed note the matched spelling does not carry.
     private static string? DroppedBracket(string name, string matched)
@@ -93,7 +103,7 @@ internal static class CatalogMatching
         }
         var carried = Expand(matched).Split(' ', StringSplitOptions.RemoveEmptyEntries)
             .Select(word => Singular(word)).ToHashSet(StringComparer.Ordinal);
-        var lost = Expand(CatalogService.Normalize(noted.ToString())).Split(' ', StringSplitOptions.RemoveEmptyEntries)
+        var lost = Expand(CatalogService.Normalize(noted.ToString()).Replace("grip work", " ", StringComparison.Ordinal)).Split(' ', StringSplitOptions.RemoveEmptyEntries)
             .Where(word => !word.All(char.IsDigit) && !TechniqueNoteWords.Contains(word) && !carried.Contains(Singular(word)))
             .ToList();
         // A trailing "Machine" is also set aside by the spelling rules ("Seated Row Machine" as "Seated
@@ -136,7 +146,7 @@ internal static class CatalogMatching
         if (allowTail)
             foreach (var (tail, dropped) in HeadTails(name))
                 if (library.TryGetValue(tail, out var id))
-                    return Resolve(id, string.Join(' ', new[] { dropped, DroppedBracket(name, tail) }.Where(part => part is { Length: > 0 })));
+                    return Resolve(id, NullIfEmpty(string.Join(" ", new[] { WithoutHandledWords(dropped), DroppedBracket(name, tail) }.Where(part => part is { Length: > 0 }))));
         return null;
     }
 
