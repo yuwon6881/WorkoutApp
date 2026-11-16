@@ -267,7 +267,9 @@
     "name": "Goblet Squat",
     "muscle": "Quads",
     "equipment": "Dumbbell",
-    "requires": ["dumbbells"],
+    "requires": [
+      "dumbbells"
+    ],
     "category": "Free Weights",
     "aliases": []
   },
@@ -414,6 +416,20 @@
     ]
   },
   {
+    "slug": "single-leg-leg-extension",
+    "weightBasis": "total",
+    "name": "Plate-Loaded Single-Leg Leg Extension",
+    "muscle": "Quads",
+    "equipment": "Machine",
+    "requires": [
+      "leg-extension.plate"
+    ],
+    "category": "Machine",
+    "aliases": [
+      "Single-Leg Leg Extension"
+    ]
+  },
+  {
     "slug": "weight-stack-leg-extension",
     "weightBasis": "total",
     "name": "Weight-Stack Leg Extension",
@@ -426,6 +442,21 @@
     "aliases": [
       "Selectorized Leg Extension",
       "Selectorised Leg Extension"
+    ]
+  },
+  {
+    "slug": "weight-stack-single-leg-leg-extension",
+    "weightBasis": "total",
+    "name": "Weight-Stack Single-Leg Leg Extension",
+    "muscle": "Quads",
+    "equipment": "Machine",
+    "requires": [
+      "leg-extension.stack"
+    ],
+    "category": "Machine",
+    "aliases": [
+      "Selectorized Single-Leg Leg Extension",
+      "Selectorised Single-Leg Leg Extension"
     ]
   },
   {
@@ -736,6 +767,20 @@
     ]
   },
   {
+    "slug": "single-leg-lying-leg-curl",
+    "weightBasis": "total",
+    "name": "Plate-Loaded Single-Leg Lying Leg Curl",
+    "muscle": "Posterior chain",
+    "equipment": "Machine",
+    "requires": [
+      "lying-leg-curl.plate"
+    ],
+    "category": "Machine",
+    "aliases": [
+      "Single-Leg Lying Leg Curl"
+    ]
+  },
+  {
     "slug": "weight-stack-lying-leg-curl",
     "weightBasis": "total",
     "name": "Weight-Stack Lying Leg Curl",
@@ -748,6 +793,21 @@
     "aliases": [
       "Selectorized Lying Leg Curl",
       "Selectorised Lying Leg Curl"
+    ]
+  },
+  {
+    "slug": "weight-stack-single-leg-lying-leg-curl",
+    "weightBasis": "total",
+    "name": "Weight-Stack Single-Leg Lying Leg Curl",
+    "muscle": "Posterior chain",
+    "equipment": "Machine",
+    "requires": [
+      "lying-leg-curl.stack"
+    ],
+    "category": "Machine",
+    "aliases": [
+      "Selectorized Single-Leg Lying Leg Curl",
+      "Selectorised Single-Leg Lying Leg Curl"
     ]
   },
   {
@@ -853,6 +913,20 @@
     ]
   },
   {
+    "slug": "single-leg-seated-leg-curl",
+    "weightBasis": "total",
+    "name": "Plate-Loaded Single-Leg Seated Leg Curl",
+    "muscle": "Posterior chain",
+    "equipment": "Machine",
+    "requires": [
+      "seated-leg-curl.plate"
+    ],
+    "category": "Machine",
+    "aliases": [
+      "Single-Leg Seated Leg Curl"
+    ]
+  },
+  {
     "slug": "weight-stack-seated-leg-curl",
     "weightBasis": "total",
     "name": "Weight-Stack Seated Leg Curl",
@@ -865,6 +939,21 @@
     "aliases": [
       "Selectorized Seated Leg Curl",
       "Selectorised Seated Leg Curl"
+    ]
+  },
+  {
+    "slug": "weight-stack-single-leg-seated-leg-curl",
+    "weightBasis": "total",
+    "name": "Weight-Stack Single-Leg Seated Leg Curl",
+    "muscle": "Posterior chain",
+    "equipment": "Machine",
+    "requires": [
+      "seated-leg-curl.stack"
+    ],
+    "category": "Machine",
+    "aliases": [
+      "Selectorized Single-Leg Seated Leg Curl",
+      "Selectorised Single-Leg Seated Leg Curl"
     ]
   },
   {
@@ -1889,7 +1978,9 @@
     "name": "Machine Chest-Supported T-Bar Row/Retraction",
     "muscle": "Back",
     "equipment": "Machine",
-    "requires": ["t-bar-row"],
+    "requires": [
+      "t-bar-row"
+    ],
     "category": "Machine",
     "aliases": []
   },
@@ -2753,7 +2844,9 @@
       "dumbbells"
     ],
     "category": "Free Weights",
-    "aliases": ["Pinch Grip Curl"]
+    "aliases": [
+      "Pinch Grip Curl"
+    ]
   },
   {
     "slug": "db-curl",
@@ -3155,7 +3248,8 @@
       "1-Arm Bottom-Half Overhead Cable Tricep Extensions",
       "Overhead Triceps Extension",
       "1-Arm Overhead Cable Extension",
-      "1-Arm Overhead Cable Triceps Extension"
+      "1-Arm Overhead Cable Triceps Extension",
+      "Single-Arm Overhead Triceps Extension"
     ]
   },
   {
@@ -3784,6 +3878,20 @@
     ]
   },
   {
+    "slug": "single-leg-standing-calf-raise",
+    "weightBasis": "total",
+    "name": "Plate-Loaded Single-Leg Standing Calf Raise",
+    "muscle": "Calves",
+    "equipment": "Machine",
+    "requires": [
+      "standing-calf.plate"
+    ],
+    "category": "Machine",
+    "aliases": [
+      "Single-Leg Standing Calf Raise"
+    ]
+  },
+  {
     "slug": "weight-stack-standing-calf-raise",
     "weightBasis": "total",
     "name": "Weight-Stack Standing Calf Raise",
@@ -3796,6 +3904,21 @@
     "aliases": [
       "Selectorized Standing Calf Raise",
       "Selectorised Standing Calf Raise"
+    ]
+  },
+  {
+    "slug": "weight-stack-single-leg-standing-calf-raise",
+    "weightBasis": "total",
+    "name": "Weight-Stack Single-Leg Standing Calf Raise",
+    "muscle": "Calves",
+    "equipment": "Machine",
+    "requires": [
+      "standing-calf.stack"
+    ],
+    "category": "Machine",
+    "aliases": [
+      "Selectorized Single-Leg Standing Calf Raise",
+      "Selectorised Single-Leg Standing Calf Raise"
     ]
   },
   {
@@ -4599,6 +4722,35 @@
     "aliases": [
       "Selectorized Leg Curl",
       "Selectorised Leg Curl"
+    ]
+  },
+  {
+    "slug": "single-leg-leg-curl",
+    "weightBasis": "total",
+    "name": "Plate-Loaded Single-Leg Leg Curl",
+    "muscle": "Posterior chain",
+    "equipment": "Machine",
+    "requires": [
+      "lying-leg-curl.plate|seated-leg-curl.plate"
+    ],
+    "category": "Machine",
+    "aliases": [
+      "Single-Leg Leg Curl"
+    ]
+  },
+  {
+    "slug": "weight-stack-single-leg-leg-curl",
+    "weightBasis": "total",
+    "name": "Weight-Stack Single-Leg Leg Curl",
+    "muscle": "Posterior chain",
+    "equipment": "Machine",
+    "requires": [
+      "lying-leg-curl.stack|seated-leg-curl.stack"
+    ],
+    "category": "Machine",
+    "aliases": [
+      "Selectorized Single-Leg Leg Curl",
+      "Selectorised Single-Leg Leg Curl"
     ]
   },
   {

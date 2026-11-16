@@ -200,6 +200,9 @@ internal static class CatalogMatching
         yield return unbracketedWithoutTechnique;
         yield return Expand(unbracketedWithoutTechnique);
 
+        foreach (var sided in SidedSpellings(plain)) yield return sided;
+        foreach (var sided in SidedSpellings(unbracketed)) yield return sided;
+
         yield return Singular(plain);
         yield return Singular(Expand(plain));
         yield return Singular(withoutTechnique);
@@ -218,6 +221,35 @@ internal static class CatalogMatching
             yield return withoutMachine;
             yield return Singular(Expand(withoutMachine));
         }
+    }
+
+    private static readonly string[] LowerBodyWords =
+        ["leg", "calf", "calves", "squat", "lunge", "hip", "hamstring", "glute", "quad", "thrust", "deadlift", "step"];
+    private static readonly string[] UpperBodyWords =
+        ["arm", "curl", "row", "press", "extension", "triceps", "tricep", "biceps", "bicep", "pulldown", "pushdown",
+         "flye", "fly", "raise", "shrug", "pull", "kickback"];
+
+    /// One limb said three ways: "Single-Arm", "1-Arm" and "One-Arm" are the same words, and "Unilateral" says
+    /// the same of whichever limb the movement trains (a leg press is trained one leg at a time, a curl one arm).
+    /// A name that never says which limb is left alone.
+    private static IEnumerable<string> SidedSpellings(string normalized)
+    {
+        var padded = $" {normalized} ";
+        foreach (var limb in new[] { "arm", "leg" })
+        {
+            var forms = new[] { $"single {limb}", $"1 {limb}", $"one {limb}" };
+            var present = forms.FirstOrDefault(form => padded.Contains($" {form} ", StringComparison.Ordinal));
+            if (present is null) continue;
+            foreach (var form in forms.Where(form => form != present))
+                yield return padded.Replace($" {present} ", $" {form} ", StringComparison.Ordinal).Trim();
+        }
+        if (!padded.Contains(" unilateral ", StringComparison.Ordinal)) yield break;
+        var words = normalized.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        bool Names(string[] family) => words.Any(word => family.Contains(word) || family.Contains(Singular(word)));
+        var limbs = Names(LowerBodyWords) ? new[] { "leg" } : Names(UpperBodyWords) ? new[] { "arm" } : [];
+        foreach (var limb in limbs)
+            foreach (var form in new[] { $"single {limb}", $"1 {limb}", $"one {limb}" })
+                yield return padded.Replace(" unilateral ", $" {form} ", StringComparison.Ordinal).Trim();
     }
 
     /// The tail of a written name, for a library entry the name ends with: "Smith Machine Incline

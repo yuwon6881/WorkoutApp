@@ -153,6 +153,16 @@ public sealed class CatalogCoverageTests
         { "Banded Pushup", "Banded Push Up" },
         { "Seated Leg Curl Bottom-Half", "Plate-Loaded Seated Leg Curl" },
         { "WIDEGRIPLATPULLDOWN", "Wide-Grip Lat Pulldown" },
+        // "Unilateral" is the limb-neutral way to write single-leg or single-arm; the library names the limb.
+        { "UNILATERAL LEG PRESS", "Plate-Loaded Single-Leg Leg Press" },
+        { "UNILATERAL LEG CURL", "Plate-Loaded Single-Leg Leg Curl" },
+        { "Unilateral Lying Leg Curl", "Plate-Loaded Single-Leg Lying Leg Curl" },
+        { "UNILATERAL STANDING CALF RAISE", "Plate-Loaded Single-Leg Standing Calf Raise" },
+        { "Unilateral Leg Extension", "Plate-Loaded Single-Leg Leg Extension" },
+        { "Single Leg Leg Extension", "Plate-Loaded Single-Leg Leg Extension" },
+        { "One-Leg Leg Press", "Plate-Loaded Single-Leg Leg Press" },
+        { "SINGLE-ARM OVERHEAD TRICEPS EXTENSION", "Overhead Cable Triceps Extension" },
+        { "1-Arm Rope Triceps Extension", "Single-Arm Rope Triceps Extension" },
         { "BACKSQUAT", "Back Squat" },
         { "MEADOWSROW", "Meadows Row" }
     };
