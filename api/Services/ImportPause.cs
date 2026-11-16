@@ -45,15 +45,15 @@ internal static class ImportPause
     /// A file's coaching says a rep is paused, so the sets are pause sets the way a PDF's are: a paused catalog
     /// movement when the library spells one, otherwise each working set tagged. A set that already carries another
     /// technique keeps it, because a set has one type.
-    public static (Guid? Id, List<DraftSet> Sets) ForFile(Dictionary<string, Guid> library, string name, string? notes, Guid? id, List<DraftSet> sets)
+    public static (Guid? Id, List<DraftSet> Sets) ForFile(Dictionary<string, Guid> library, string name, string? notes, Guid? id, List<DraftSet> sets, bool preserveChoice = false)
     {
         if (!Requested(name, notes)) return (id, sets);
         var baseId = CatalogMatching.FindWhole(library, BaseName(name));
         var lastOnly = LastOnly(notes);
-        if (Variant(library, name) is { } variant && !lastOnly) return (variant, sets);
+        if (Variant(library, name) is { } variant && !lastOnly && (!preserveChoice || variant == id)) return (variant, sets);
         var marked = MarkWorkingSets(sets, notes);
         var kept = marked.Select((set, index) => SetTechniques.Of(sets[index].Notes) is null ? set : sets[index]).ToList();
-        return (lastOnly && baseId is not null ? baseId : id ?? baseId, kept);
+        return (preserveChoice ? id : lastOnly && baseId is not null ? baseId : id ?? baseId, kept);
     }
 
     public static DraftSet Mark(DraftSet set)

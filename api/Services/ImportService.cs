@@ -81,7 +81,7 @@ public sealed partial class ImportService(AppDb db, CatalogService catalog, Prog
         var issues = includeDraft && draft is not null ? ImportValidation.ReviewIssues(draft, edits) : [];
         // Reading notes are recorded as the import runs and are as much a part of the review as
         // the issues derived from the draft, so both reach the panel through one list.
-        issues = [.. FilterNotices(ReadNotices(import.NoticesJson), draft, edits), .. issues,
+        issues = [.. ImportNameChoices.Notices(draft, FilterNotices(ReadNotices(import.NoticesJson), draft, edits)), .. issues,
             .. (draft is null ? [] : ImportUncertaintyReview.Issues(draft))];
         issues = issues.Distinct().ToList();
         if (import.PromptVersion == ImportDraftAlternatives.ExternalPromptVersion)

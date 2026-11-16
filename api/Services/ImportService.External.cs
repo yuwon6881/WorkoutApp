@@ -24,7 +24,8 @@ public sealed partial class ImportService
         ExternalImportPath.At("$.program.name", () => Validation.Name(source!.Name, "Program name"));
         ExternalImportPath.At("$.program.sourceWeekDays", () => Validation.Require(source!.SourceWeekDays is null or >= 1 and <= ExternalImportLimits.MaxCycleDays, "Source cycle length must be between 1 and 14 days."));
         ExternalImportPath.At("$.program.days", () => Validation.Require(source!.Days!.Count is > 0 and <= ExternalImportLimits.MaxDays, "A program needs between 1 and 400 days."));
-        var (library, remembered) = await ImportNameChoices.Apply(db, await catalog.MatchIndexForActiveGym(ct), ct);
+        var library = await catalog.MatchIndexForActiveGym(ct);
+        var remembered = await ImportNameChoices.Apply(db, ct);
         var days = new List<DraftWorkout>();
         var exerciseErrors = new List<ExternalImportPath.FieldError>();
         var dayKeys = new Dictionary<string, Guid>(StringComparer.OrdinalIgnoreCase);
@@ -49,7 +50,7 @@ public sealed partial class ImportService
             foreach (var (exercise, index) in day!.Exercises!.Select((item, position) => (item, position)))
             {
                 var exercisePath = $"{dayPath}.exercises[{index}]";
-                var failures = ExternalImportPath.Collect(exercisePath, () => exercises.Add(ConvertExternalExercise(exercise, library, exercisePath)));
+                var failures = ExternalImportPath.Collect(exercisePath, () => exercises.Add(ConvertExternalExercise(exercise, library, remembered, exercisePath)));
                 exerciseErrors.AddRange(failures.Take(ExternalImportLimits.MaxReportedErrors - exerciseErrors.Count));
             }
             // A failed exercise is missing from the list, so superset adjacency can only be judged for a clean day.
@@ -100,7 +101,7 @@ public sealed partial class ImportService
             AlternativesJson = Json.Write(groups.FirstOrDefault()?.Members ?? []),
             NoticesJson = Json.Write(new[] { new ImportReviewIssue("external_source_unverified",
                 "WorkoutApp has not checked this import against the original source.", "info") }
-                .Concat(ImportNameChoices.Notice(draft, remembered)).ToList())
+                .Concat(ImportNameChoices.NoticeMarker(draft, remembered)).ToList())
         };
         UpdateCounters(import, draft);
         db.Imports.Add(import);
@@ -109,12 +110,12 @@ public sealed partial class ImportService
         return await Get(import.Id, ct);
     }
 
-    private static DraftExercise ConvertExternalExercise(ExternalExercise exercise, Dictionary<string, Guid> library, string path)
+    private static DraftExercise ConvertExternalExercise(ExternalExercise exercise, Dictionary<string, Guid> library, IReadOnlyDictionary<string, Guid> remembered, string path)
     {
-        return ExternalImportPath.At(path, () => ConvertExternalExerciseAt(exercise, library, path));
+        return ExternalImportPath.At(path, () => ConvertExternalExerciseAt(exercise, library, remembered, path));
     }
 
-    private static DraftExercise ConvertExternalExerciseAt(ExternalExercise exercise, Dictionary<string, Guid> library, string path)
+    private static DraftExercise ConvertExternalExerciseAt(ExternalExercise exercise, Dictionary<string, Guid> library, IReadOnlyDictionary<string, Guid> remembered, string path)
     {
         if (exercise is null) throw new DomainException("Add the missing exercise object.");
         ExternalImportPath.At(path + ".sourceName", () => Validation.Name(exercise.SourceName, "Exercise name", 160));
@@ -148,8 +149,9 @@ public sealed partial class ImportService
                 }
             });
         }
-        var link = CatalogMatching.FindWithDropped(library, exercise.SourceName);
-        var (matched, paused) = ImportPause.ForFile(library, exercise.SourceName, exercise.Notes, link?.Id, sets);
+        var hasChoice = remembered.TryGetValue(CatalogService.Normalize(exercise.SourceName), out var choice);
+        var link = hasChoice ? new CatalogMatching.Link(choice, null) : CatalogMatching.FindWithDropped(library, exercise.SourceName);
+        var (matched, paused) = ImportPause.ForFile(library, exercise.SourceName, exercise.Notes, link?.Id, sets, preserveChoice: hasChoice);
         var uncertainty = ExternalImportOptions.FlagDroppedWords(
             ExternalImportOptions.ForExercise(exercise.Uncertainty, library, matched), link?.Dropped, matched);
         return new DraftExercise(Guid.NewGuid(), exercise.SourceName, matched,

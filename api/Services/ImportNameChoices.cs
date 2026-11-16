@@ -15,43 +15,55 @@ namespace Workout.Api.Services;
 internal static class ImportNameChoices
 {
     internal const string NoticeCode = "remembered_exercise_link";
+    private sealed record AppliedRow(Guid ExerciseId, string NameKey);
 
-    /// The library index with this account's choices placed on top. A choice whose exercise has
-    /// left the library (an archived custom exercise) is skipped, so the name falls back to the
-    /// library's own match instead of linking to something the account can no longer use.
-    public static async Task<(Dictionary<string, Guid> Index, IReadOnlyDictionary<string, Guid> Applied)> Apply(
-        AppDb db, Dictionary<string, Guid> index, CancellationToken ct)
+    /// Active choices are looked up separately from the library's fallback matching. Archived
+    /// exercises are skipped, so their names fall back to the library's own match.
+    public static async Task<IReadOnlyDictionary<string, Guid>> Apply(AppDb db, CancellationToken ct)
     {
         var choices = await db.ExerciseNameChoices.AsNoTracking()
             .Select(choice => new { choice.NameKey, choice.ExerciseId }).ToListAsync(ct);
-        if (choices.Count == 0) return (index, new Dictionary<string, Guid>());
-        var available = index.Values.Where(id => id != CatalogMatching.Ambiguous).ToHashSet();
-        var output = new Dictionary<string, Guid>(index, StringComparer.Ordinal);
-        var applied = new Dictionary<string, Guid>(StringComparer.Ordinal);
-        foreach (var choice in choices.Where(choice => available.Contains(choice.ExerciseId)))
-        {
-            output[choice.NameKey] = choice.ExerciseId;
-            applied[choice.NameKey] = choice.ExerciseId;
-        }
-        return (output, applied);
+        if (choices.Count == 0) return new Dictionary<string, Guid>();
+        var shared = await CatalogMetadata.Read(db, ct);
+        var ids = choices.Select(choice => choice.ExerciseId).Distinct().ToList();
+        var customs = await db.CustomExercises.AsNoTracking()
+            .Where(exercise => ids.Contains(exercise.Id) && !exercise.Archived)
+            .Select(exercise => exercise.Id).ToListAsync(ct);
+        var available = customs.ToHashSet();
+        return choices.Where(choice => available.Contains(choice.ExerciseId) ||
+                shared.TryGetValue(choice.ExerciseId, out var exercise) && exercise.Active)
+            .ToDictionary(choice => choice.NameKey, choice => choice.ExerciseId, StringComparer.Ordinal);
     }
 
-    /// One informational review line naming the written names a remembered choice linked, so the
-    /// link is never silent. Empty when no choice was used.
-    public static IEnumerable<ImportReviewIssue> Notice(ImportDraft draft, IReadOnlyDictionary<string, Guid> applied)
+    /// Preserve the rows originally linked by a remembered choice, so notices follow review edits.
+    public static IEnumerable<ImportReviewIssue> NoticeMarker(ImportDraft draft, IReadOnlyDictionary<string, Guid> applied)
     {
-        if (applied.Count == 0) yield break;
-        var names = draft.Workouts.SelectMany(workout => workout.Exercises)
+        var rows = draft.Workouts.SelectMany(workout => workout.Exercises)
             .Where(exercise => exercise.ExerciseId is { } id
                 && applied.TryGetValue(CatalogService.Normalize(exercise.SourceName), out var chosen) && chosen == id)
-            .GroupBy(exercise => CatalogService.Normalize(exercise.SourceName), StringComparer.Ordinal)
-            .Select(group => group.First().SourceName.Trim())
-            .ToList();
-        if (names.Count == 0) yield break;
-        var subject = names.Count == 1 ? $"{names[0]} is" : $"{string.Join(", ", names)} are";
-        yield return new ImportReviewIssue(NoticeCode,
-            $"{subject} linked the way you linked {(names.Count == 1 ? "it" : "them")} in an earlier import, "
-            + "so progress continues from that exercise. Change a link here to choose differently next time.", "info");
+            .ToDictionary(exercise => exercise.LineId,
+                exercise => new AppliedRow(exercise.ExerciseId!.Value, CatalogService.Normalize(exercise.SourceName)));
+        if (rows.Count > 0) yield return new ImportReviewIssue(NoticeCode, "", "info", TargetField: Json.Write(rows));
+    }
+
+    public static IEnumerable<ImportReviewIssue> Notices(ImportDraft? draft, IEnumerable<ImportReviewIssue> notices)
+    {
+        foreach (var notice in notices)
+        {
+            if (notice.Code != NoticeCode) { yield return notice; continue; }
+            if (draft is null || string.IsNullOrEmpty(notice.TargetField)) continue;
+            var rows = Json.Read<Dictionary<Guid, AppliedRow>>(notice.TargetField);
+            var names = draft.Workouts.SelectMany(workout => workout.Exercises)
+                .Where(exercise => exercise.ExerciseId is { } id && rows.TryGetValue(exercise.LineId, out var chosen)
+                    && chosen.ExerciseId == id && chosen.NameKey == CatalogService.Normalize(exercise.SourceName))
+                .GroupBy(exercise => CatalogService.Normalize(exercise.SourceName), StringComparer.Ordinal)
+                .Select(group => group.First().SourceName.Trim()).ToList();
+            if (names.Count == 0) continue;
+            var subject = names.Count == 1 ? $"{names[0]} is" : $"{string.Join(", ", names)} are";
+            yield return new ImportReviewIssue(NoticeCode,
+                $"{subject} linked the way you linked {(names.Count == 1 ? "it" : "them")} in an earlier import, "
+                + "so progress continues from that exercise. Change a link here to choose differently next time.", "info");
+        }
     }
 
     /// Records the links the lifter changed in this review. A written name is learned only when

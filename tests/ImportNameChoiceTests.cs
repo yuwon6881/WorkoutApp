@@ -118,4 +118,66 @@ public sealed class ImportNameChoiceTests
 
         Assert.Equal([await h.ExerciseId("high-bar-squat")], (await Import(h, Program("High-Bar Squat"))).Linked);
     }
+
+    [Fact]
+    public async Task A_choice_does_not_change_fallback_matches_for_other_names()
+    {
+        await using var h = await Ready();
+        await h.Seed(new SeedExercise("incline-press", "Incline Press", "Chest", "Barbell", null));
+        var incline = await h.ExerciseId("incline-press");
+        await AcceptMapped(h, Program("Incline Press"), await h.ExerciseId("squat"));
+
+        var (linked, issues) = await Import(h, Program("Smith Machine Incline Press"));
+        Assert.Equal([incline], linked);
+        Assert.DoesNotContain(issues, issue => issue.Code == "remembered_exercise_link");
+    }
+
+    [Fact]
+    public async Task A_remembered_pause_choice_keeps_its_exercise_and_pause_prescription()
+    {
+        await using var h = await Ready();
+        await h.Seed(new SeedExercise("pause-squat", "Pause Squat", "Quads", "Barbell", null));
+        var squat = await h.ExerciseId("squat");
+        await AcceptMapped(h, Program("Pause Squat"), squat);
+
+        var view = await h.Imports().CreateExternalImport(Program("Pause Squat"), "program.json", default);
+        var exercise = view.Draft!.Workouts.Single().Exercises.Single();
+        Assert.Equal(squat, exercise.ExerciseId);
+        Assert.Contains("Pause set", exercise.Sets.Single().Notes);
+        Assert.Contains(view.ReviewIssues!, issue => issue.Code == "remembered_exercise_link");
+    }
+
+    [Fact]
+    public async Task Notice_tracks_the_current_mapping_and_returns_on_restore()
+    {
+        await using var h = await Ready();
+        var squat = await h.ExerciseId("squat");
+        await AcceptMapped(h, Program("High-Bar Squat"), squat);
+        var imports = h.Imports();
+        var view = await imports.CreateExternalImport(Program("High-Bar Squat"), "program.json", default);
+        var row = view.Draft!.Workouts.Single().Exercises.Single();
+        view = await imports.MapSlot(view.Id, row.LineId, await h.ExerciseId("high-bar-squat"), view.Revision, default);
+        Assert.DoesNotContain(view.ReviewIssues!, issue => issue.Code == "remembered_exercise_link");
+        view = await imports.MapSlot(view.Id, row.LineId, squat, view.Revision, default);
+        Assert.Contains(view.ReviewIssues!, issue => issue.Code == "remembered_exercise_link");
+    }
+
+    [Fact]
+    public async Task Notice_excludes_exercises_in_unselected_alternatives()
+    {
+        await using var h = await Ready();
+        await AcceptMapped(h, Program("High-Bar Squat"), await h.ExerciseId("squat"));
+        var json = Program(("Base", "High-Bar Squat"), ("Base", "Squat"));
+        var root = System.Text.Json.Nodes.JsonNode.Parse(json)!;
+        root["program"]!["alternativeGroups"] = System.Text.Json.Nodes.JsonNode.Parse("""
+            [{"id":"choice","kind":"program","members":[
+              {"id":"a","name":"A","dayKeys":["d0"]},
+              {"id":"b","name":"B","dayKeys":["d1"]}]}]
+            """);
+        var imports = h.Imports();
+        var view = await imports.CreateExternalImport(root.ToJsonString(), "program.json", default);
+        var group = Assert.Single(view.Draft!.AlternativeGroups!);
+        view = await imports.SelectAlternative(view.Id, group.Members[1].Id, default, group.Id);
+        Assert.DoesNotContain(view.ReviewIssues!, issue => issue.Code == "remembered_exercise_link");
+    }
 }
