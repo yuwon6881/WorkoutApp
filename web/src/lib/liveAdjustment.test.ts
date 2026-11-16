@@ -100,7 +100,29 @@ describe('withLiveAdjustment', () => {
     const draft = draftWith([set('a', 0, 60, 8), set('b', 1, 60, 8)]);
     const sets = adjust(logged(draft, 0, { reps: 10, rpe: 8, rir: '2' }));
     expect(sets[1].weightKg).toBe(60);
-    expect(sets[1].reps).toBe(10);
+    // Two reps better than planned: most of it carries, less the fatigue the first set costs the next.
+    expect(sets[1].reps).toBe(9);
+  });
+
+  describe('fatigue from the set before', () => {
+    // 80 kg x 8 planned at 1 RIR; the first set is logged at 2 RIR, a rep easier than planned.
+    const planned = plan({ repMin: 6, repMax: 10, rir: '1' });
+    const pair = () => draftWith([set('a', 0, 80, 8, { rpe: 9, rir: '1' }), set('b', 1, 80, 8, { rpe: 9, rir: '1' })], planned);
+
+    it('does not promise a rep more on the next set after a set a rep easier than planned', () => {
+      const sets = adjust(logged(pair(), 0, { reps: 8, rpe: 8, rir: '2' }));
+      expect(sets[1]).toMatchObject({ weightKg: 80, reps: 8, rir: '1' });
+    });
+
+    it('still asks for more once a set was clearly easier than planned', () => {
+      const sets = adjust(logged(pair(), 0, { reps: 8, rpe: 7, rir: '3' }));
+      expect(sets[1]).toMatchObject({ weightKg: 80, reps: 9, rir: '1' });
+    });
+
+    it('carries a set that fell short in full', () => {
+      const sets = adjust(logged(pair(), 0, { reps: 7, rpe: 9, rir: '1' }));
+      expect(sets[1].reps).toBe(7);
+    });
   });
 
   it('moves reps, never the load, on equipment set to progress through reps alone', () => {

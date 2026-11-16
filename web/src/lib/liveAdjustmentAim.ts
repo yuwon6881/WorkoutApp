@@ -29,6 +29,18 @@ const LOAD_REACH_STEPS = 8;
 /// set only a rep short still keeps its load when a step is worth several reps.
 const LOAD_CHANGE_WEIGHT = 0.5;
 
+/// How much of a set's surplus (it landed easier than planned) is expected again on the next set.
+/// Each set costs the next some reps at the same load, and a reserve read on a fresh set is usually
+/// generous, so a set logged 2 RIR against a 1 RIR plan is not a promise of one more rep next time:
+/// a small surplus carries at under half, and a larger one loses about a rep of fatigue, so a set
+/// far too light still moves the load. A shortfall is evidence of fatigue and is carried in full.
+const SMALL_SURPLUS_CARRY = 0.45;
+const FATIGUE_ALLOWANCE_REPS = 1.1;
+
+export function carriedDeviation(reps: number): number {
+  return reps > 0 ? Math.max(reps * SMALL_SURPLUS_CARRY, reps - FATIGUE_ALLOWANCE_REPS) : reps;
+}
+
 export function loadAxisFor(entry: LoadEntry, referenceKg: number | null | undefined, grid: LoadGrid): LoadAxis | null {
   if (!grid.availableLoadsKg?.length && grid.stepKg <= 0) return null;
   if (entry === 'external') return { total: load => load, candidates: planned => nearbyLoads(planned, grid, false) };

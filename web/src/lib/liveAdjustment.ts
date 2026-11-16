@@ -6,7 +6,7 @@ import { effortPatch, effortValue, loadIsEditable } from './workoutDraft';
 import { setKind, type SetKind } from './workoutSetTypes';
 import { hasOpenReps } from './setTarget';
 import { withEmptyLoadsFilled, type CopiedLoadsLog } from './emptyLoadFill';
-import { aimedInputs, deviationTrend, loadAxisFor, type Deviation, type FilledInputs, type LoadGrid, type RepPlan } from './liveAdjustmentAim';
+import { aimedInputs, carriedDeviation, deviationTrend, loadAxisFor, type Deviation, type FilledInputs, type LoadGrid, type RepPlan } from './liveAdjustmentAim';
 
 export type { FilledInputs, LoadGrid } from './liveAdjustmentAim';
 
@@ -206,7 +206,7 @@ export function withLiveAdjustment(
     const last = own?.at(-1);
     let next: FilledInputs | null;
     if (last) {
-      const projected = clampReps(base.reps, target) + target.goal + last.reps + (trends.get(kind) ?? 0) * (place - last.position);
+      const projected = clampReps(base.reps, target) + target.goal + carriedDeviation(last.reps) + (trends.get(kind) ?? 0) * (place - last.position);
       next = aimedInputs(base, target, projected, axis, trackRir);
     } else {
       next = kind === 'straight' ? base : followStraightLoad(exercise, sets, index, base, trackRir);
