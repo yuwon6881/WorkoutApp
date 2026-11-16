@@ -1,5 +1,5 @@
 import { useCallback, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
-import type { ExerciseEditing, UnsavedExercise } from '../lib/exerciseEditScope';
+import type { ExerciseEditing } from '../lib/exerciseEditScope';
 import { Copy, GripVertical, Plus, Trash2 } from 'lucide-react';
 import type { DraftWorkout, Exercise } from '../types';
 import { Button } from './ui/Button';
@@ -9,6 +9,8 @@ import { DayRow, DayDetailContent } from './ImportDayRow';
 import { DayEditor } from './ImportDayEditor';
 import { ReadOnlyDay } from './ReadOnlyDay';
 import { useEdgeAutoScroll } from './useEdgeAutoScroll';
+import { useDayBatchSave } from './useDayBatchSave';
+import { ExerciseBatchScopeModal } from './ExerciseBatchScopeModal';
 import { dayTitle, isGenericDayTitle } from '../lib/dayTitle';
 import type { ProgramStructureEditor } from './useProgramStructureEditor';
 import './ProgramDayList.css';
@@ -46,8 +48,6 @@ export function ProgramDayList({
   const pointer = useRef<{ id: number; startY: number; lineId: string; index: number; active: boolean } | null>(null);
   const [selectedMuscle, setSelectedMuscle] = useState<string | null>(null);
   const repRangeMemories = useRef(new Map<string, Map<number, number>>());
-  // Edits no one has saved yet. They outlive the day dialog so closing it asks before discarding.
-  const unsaved = useRef(new Map<string, UnsavedExercise>());
   const [discardPrompt, setDiscardPrompt] = useState<string | null>(null);
 
   const getRepRangeMemory = useCallback((exerciseLineId: string) => {
@@ -61,6 +61,10 @@ export function ProgramDayList({
 
   const days = week?.days ?? [];
   const openDayData = openDay ? days.find(d => d.lineId === openDay) : null;
+  // Edits no one has saved yet. They outlive the day dialog so closing it asks before discarding,
+  // and with several held they are saved together, with one question about where they reach.
+  const daySave = useDayBatchSave(openDayData?.exercises ?? [], editing);
+  const { unsaved } = daySave;
 
   const setDrag = useCallback((next: DragState | null) => {
     dragRef.current = next;
@@ -115,7 +119,7 @@ export function ProgramDayList({
   const lastScrollTop = useRef<number>(0);
 
   const closeModal = useCallback(() => {
-    if (unsaved.current.size > 0 && openDay) {
+    if (unsaved.size > 0 && openDay) {
       const modalBody = document.querySelector('.day-detail-modal-body');
       if (modalBody) {
         lastScrollTop.current = modalBody.scrollTop;
@@ -125,7 +129,7 @@ export function ProgramDayList({
     }
     setOpenDay(null);
     setSelectedMuscle(null);
-  }, [openDay, setOpenDay]);
+  }, [openDay, setOpenDay, unsaved]);
 
   // The day dialog never closed, so keeping on editing returns to exactly where the lifter was.
   const handleKeepEditing = useCallback(() => {
@@ -137,11 +141,11 @@ export function ProgramDayList({
   }, []);
 
   const handleDiscardChanges = useCallback(() => {
-    unsaved.current.clear();
+    unsaved.clear();
     setDiscardPrompt(null);
     setOpenDay(null);
     setSelectedMuscle(null);
-  }, [setOpenDay]);
+  }, [setOpenDay, unsaved]);
 
   if (!week) return null;
 
@@ -218,14 +222,20 @@ export function ProgramDayList({
     {discardPrompt && (
       <Modal title="Discard unsaved changes?" onClose={handleKeepEditing}>
         <div className="modal-body">
-          <p>{unsaved.current.size === 1 ? 'An exercise on this day has' : `${unsaved.current.size} exercises have`} changes that were not saved.</p>
+          <p>{unsaved.size === 1 ? 'An exercise on this day has' : `${unsaved.size} exercises have`} changes that were not saved.</p>
         </div>
         <div className="modal-actions">
           <Button variant="destructive" onClick={handleDiscardChanges}>Discard changes</Button>
+          {daySave.unsavedCount > 1 && <Button variant="secondary" onClick={() => { setDiscardPrompt(null); daySave.requestSave(); }}>
+            Save {daySave.unsavedCount} changes
+          </Button>}
           <Button variant="primary" onClick={handleKeepEditing}>Keep editing</Button>
         </div>
       </Modal>
     )}
+
+    {daySave.review && <ExerciseBatchScopeModal pending={daySave.review} busy={daySave.saving} error={daySave.error}
+      onConfirm={daySave.confirmReview} onCancel={daySave.cancelReview} />}
 
     {openDayData && !openDayData.isRestDay && (
       <Modal title={modalTitle} wide onClose={closeModal} className={`day-detail-modal ${readOnly || isDayLocked(openDayData.lineId) ? '' : 'import-day-modal'}`}>
@@ -236,7 +246,7 @@ export function ProgramDayList({
             day={openDayData}
             exercises={exercises}
             onChange={onDayChange}
-            editing={{ ...editing, unsaved: unsaved.current }}
+            editing={{ ...editing, unsaved }}
             onCustomExerciseCreated={onCustomExerciseCreated}
             restorableExerciseLineIds={restorableExerciseLineIds}
             onRestoreExercise={onRestoreExercise}
@@ -246,7 +256,11 @@ export function ProgramDayList({
             onMuscleSelect={setSelectedMuscle}
           />}
         </div>
-        <div className="modal-actions dismiss-only">
+        <div className={`modal-actions ${daySave.unsavedCount > 1 ? '' : 'dismiss-only'}`.trim()}>
+          {daySave.error && !daySave.review && <span className="error-text" role="alert">{daySave.error}</span>}
+          {daySave.unsavedCount > 1 && <Button variant="secondary" disabled={daySave.saving} onClick={daySave.requestSave}>
+            Save {daySave.unsavedCount} changes
+          </Button>}
           <Button variant="primary" onClick={closeModal}>Done</Button>
         </div>
       </Modal>

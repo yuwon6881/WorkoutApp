@@ -2,6 +2,7 @@ import { forwardRef, useCallback, useImperativeHandle, useMemo } from 'react';
 import { CalendarDays, RotateCcw, Trash2 } from 'lucide-react';
 import type { DraftWorkout, Exercise, ImportDraft } from '../types';
 import { applyExerciseEdit, countOccurrences, type ExerciseEditing } from '../lib/exerciseEditScope';
+import { applyExerciseEdits } from '../lib/exerciseBatchEdit';
 import { hasFinePointer } from '../lib/inputModality';
 import { Button } from './ui/Button';
 import { Field } from './ui/Field';
@@ -198,6 +199,7 @@ export const DraftOutline = forwardRef<DraftOutlineHandle, {
   // the same revision-checked write as the exercise itself.
   const editing = useMemo<Omit<ExerciseEditing, 'unsaved'>>(() => ({
     save: (base, edited, scope) => (onExerciseChange ?? onDraftChange)(applyExerciseEdit(normalizedDraft, base, edited, scope, exercises)),
+    saveAll: edits => (onExerciseChange ?? onDraftChange)(applyExerciseEdits(normalizedDraft, edits, exercises)),
     count: base => countOccurrences(normalizedDraft, base),
     keepWrittenName: editorMode === 'import'
   }), [editorMode, exercises, normalizedDraft, onDraftChange, onExerciseChange]);

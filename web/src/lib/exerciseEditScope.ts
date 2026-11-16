@@ -28,6 +28,8 @@ export type Occurrence = { workoutLineId: string; exercise: DraftExercise };
 export type ExerciseEditing = {
   /// Commits an edited exercise; any scope beyond the occurrence reaches the others too.
   save: (base: DraftExercise, edited: DraftExercise, scope: EditScope) => Promise<void>;
+  /// Commits several edited exercises in one write, each with its own scope, so none rewrites another.
+  saveAll: (edits: { base: DraftExercise; edited: DraftExercise; scope: EditScope }[]) => Promise<void>;
   count: (base: DraftExercise) => { block: number; program: number };
   /// An import keeps the page's written name when a library exercise is picked, since the name
   /// is what groups the occurrences; a scratch program has no page, so the name follows the pick.

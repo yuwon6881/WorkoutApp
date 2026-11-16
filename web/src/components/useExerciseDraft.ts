@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { DraftExercise } from '../types';
 import { editableSnapshot, type UnsavedExercise } from '../lib/exerciseEditScope';
+import { mergeEditedFields } from '../lib/exerciseBatchEdit';
 
 /// An exercise's edits, held apart from the saved exercise until the lifter saves them.
 ///
@@ -13,21 +14,19 @@ export function useExerciseDraft(saved: DraftExercise, unsaved: Map<string, Unsa
   const held = unsaved.get(saved.lineId);
   const [draft, setDraft] = useState<DraftExercise | null>(held && held.base === baseSnapshot ? held.draft : null);
 
-  // Only the editable fields come from the draft. Superset pairing and the rest of the row's
-  // identity are changed outside this editor, so they always follow the saved exercise.
-  const exercise: DraftExercise = draft
-    ? {
-      ...saved,
-      sourceName: draft.sourceName, exerciseId: draft.exerciseId, restSeconds: draft.restSeconds,
-      notes: draft.notes, sets: draft.sets, substitutions: draft.substitutions, demoUrl: draft.demoUrl
-    }
-    : saved;
+  const exercise: DraftExercise = draft ? mergeEditedFields(saved, draft) : saved;
   const dirty = draft !== null && editableSnapshot(exercise) !== baseSnapshot;
 
   useEffect(() => {
     if (dirty) unsaved.set(saved.lineId, { base: baseSnapshot, draft: exercise });
     else unsaved.delete(saved.lineId);
   });
+
+  // Saved by the day's combined save, or typed back to what is saved: a draft that no longer
+  // differs is dropped, or it would keep masking what is saved from then on.
+  useEffect(() => {
+    if (draft && !dirty) setDraft(null);
+  }, [draft, dirty]);
 
   return {
     exercise,

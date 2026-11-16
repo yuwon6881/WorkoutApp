@@ -7,7 +7,7 @@ import { DayEditor } from './ImportDayEditor';
 import { ReadOnlyDay } from './ReadOnlyDay';
 
 const editing: ExerciseEditing = {
-  save: async () => {}, count: () => ({ block: 0, program: 0 }), keepWrittenName: true, unsaved: new Map()
+  save: async () => {}, saveAll: async () => {}, count: () => ({ block: 0, program: 0 }), keepWrittenName: true, unsaved: new Map()
 };
 
 function makeExercise(override: Partial<Exercise> & { id: string; name: string; muscle: string }): Exercise {

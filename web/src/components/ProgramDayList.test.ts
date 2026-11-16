@@ -49,6 +49,7 @@ describe('ProgramDayList', () => {
     const onDayChange = vi.fn(async () => {});
     const editing = {
       save: vi.fn(async () => {}),
+      saveAll: vi.fn(async () => {}),
       count: () => ({ block: 0, program: 0 }),
       keepWrittenName: true
     };
