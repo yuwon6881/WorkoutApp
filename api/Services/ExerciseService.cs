@@ -17,7 +17,7 @@ public record CustomExerciseView(Guid Id, string Name, string Muscle, string Equ
     string WeightBasis = WeightBases.Total);
 
 public record ExerciseMetricPoint(DateOnly Date, Guid SessionId, string SessionName,
-    double? Estimated1RmKg, double? LoadKg, double? VolumeKg, int? Reps, bool Partial);
+    double? Estimated1RmKg, double? LoadKg, double? VolumeKg, int? Reps, bool Partial, string? Rir = null);
 
 public record ExerciseHistoryRow(Guid SessionId, string SessionName, DateOnly Date, int SetCount,
     double? VolumeKg, bool Partial, DateTime? FinishedAt, string? ProgramName = null);
@@ -35,7 +35,8 @@ public record ExerciseInsight(Guid Id, string Name, string Muscle, string Equipm
     double? ExternalLoadPrKg = null, double? AddedLoadPrKg = null, double? AssistanceReductionPrKg = null,
     double? SystemLoadPrKg = null, List<ExerciseHistoryClearView>? HistoryClears = null,
     string Category = ExerciseCategories.FreeWeights, string WeightBasis = WeightBases.Total,
-    string TrackingMode = TrackingModes.Reps, List<string>? SecondaryMuscles = null);
+    string TrackingMode = TrackingModes.Reps, List<string>? SecondaryMuscles = null,
+    List<RepMaxRecord>? RepMaxes = null);
 
 public record ExerciseClearPreview(Guid ExerciseId, string Name, int AffectedWorkouts, int AffectedSets,
     bool HasActiveWorkout, bool CanClear, string? ActiveWorkoutName = null);
@@ -214,7 +215,7 @@ public sealed partial class ExerciseService(AppDb db, IMemoryCache? cache = null
         var strengthSets = sets.Where(x => x.DurationSeconds is null && SetTechniques.IsStrengthEvidence(techniques[x.SessionExerciseId], x.Position)).ToList();
         var strengthIds = strengthSets.Select(x => x.Id).ToHashSet();
         var setsBySession = sets.ToLookup(x => byExercise[x.SessionExerciseId].SessionId);
-        var records = new List<(Guid SessionId, DateOnly Date, string Name, double? E1rm, double? Load, double? Volume, int? Reps, bool Partial)>();
+        var records = new List<(Guid SessionId, DateOnly Date, string Name, double? E1rm, double? Load, double? Volume, int? Reps, bool Partial, string? Rir)>();
         foreach (var group in rows.GroupBy(x => x.SessionId))
         {
             var session = sessions[group.Key];
@@ -232,7 +233,9 @@ public sealed partial class ExerciseService(AppDb db, IMemoryCache? cache = null
             var rep = best ?? groupStrength.Where(x => x.Reps is not null).OrderByDescending(x => x.Reps).FirstOrDefault();
             records.Add((group.Key, LocalDay(session.FinishedAt!.Value, zone), session.Name,
                 estimates.Count == 0 ? null : estimates.Max(), best == null ? null : RecordedLoad(best),
-                volume.Count == 0 ? null : volume.Sum(), rep?.Reps, partial));
+                volume.Count == 0 ? null : volume.Sum(), rep?.Reps, partial,
+                // The effort behind the row's own set, since it is what separates two rows that read the same load and reps.
+                rep is null ? null : ExerciseRepMaxes.ReserveText(rep.Rir, rep.Rpe)));
         }
         var chronological = records.OrderBy(x => x.Date).ToList();
         var history = records.OrderByDescending(x => x.Date).ThenByDescending(x => sessions[x.SessionId].FinishedAt).ToList();
@@ -257,7 +260,11 @@ public sealed partial class ExerciseService(AppDb db, IMemoryCache? cache = null
                 .OrderByDescending(x => x.Set.Reps).FirstOrDefault()
             : setRecords.OrderByDescending(x => x.Set.Reps).FirstOrDefault();
         var last = records.OrderByDescending(x => x.Date).FirstOrDefault();
-        var points = chronological.Select(x => new ExerciseMetricPoint(x.Date, x.SessionId, x.Name, x.E1rm, x.Load, x.Volume, x.Reps, x.Partial)).ToList();
+        var points = chronological.Select(x => new ExerciseMetricPoint(x.Date, x.SessionId, x.Name, x.E1rm, x.Load, x.Volume, x.Reps, x.Partial, x.Rir)).ToList();
+        // Rep maxes name a load, so they read only movements whose entered load is the load moved.
+        var repMaxes = meta.LoadModel == LoadModels.External
+            ? ExerciseRepMaxes.From(setRecords.Select(x => (x.Set, x.Load!.Value, LocalDay(x.Session.FinishedAt!.Value, zone))))
+            : [];
         var externalLoads = strengthSets.Where(x => byExercise[x.SessionExerciseId].LoadModel == LoadModels.External && x.WeightKg is not null).Select(x => x.WeightKg!.Value).ToList();
         var bodyweightSets = strengthSets.Where(x => byExercise[x.SessionExerciseId].LoadModel == LoadModels.FullBodyweight).ToList();
         var addedLoads = bodyweightSets.Where(x => x.ResistanceMode == ResistanceModes.Added && x.WeightKg is not null).Select(x => x.WeightKg!.Value).ToList();
@@ -279,7 +286,7 @@ public sealed partial class ExerciseService(AppDb db, IMemoryCache? cache = null
             addedLoads.Count == 0 ? null : addedLoads.Max(),
             assistanceLoads.Count == 0 ? null : assistanceLoads.Min(),
             systemLoads.Count == 0 ? null : systemLoads.Max(), clears,
-            meta.Category, meta.WeightBasis, meta.TrackingMode, meta.SecondaryMuscles);
+            meta.Category, meta.WeightBasis, meta.TrackingMode, meta.SecondaryMuscles, repMaxes);
     }
 
     // Weight basis, tracking mode and secondary muscles ride along so the details of an exercise

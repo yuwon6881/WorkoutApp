@@ -2,6 +2,7 @@ import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import type { ExerciseMetricPoint } from '../types';
+import { TrackRirContext } from '../lib/trackRir';
 import { ExerciseProgressTable } from './ExerciseProgressTable';
 
 const point = (n: number, over: Partial<ExerciseMetricPoint> = {}): ExerciseMetricPoint => ({
@@ -32,6 +33,23 @@ describe('ExerciseProgressTable', () => {
 
   it('shows no fold control when everything fits', () => {
     expect(render([point(1, { loadKg: 20 }), point(2, { loadKg: 22.5 })])).not.toContain('Show all');
+  });
+
+  it('shows the reserve behind each row, so equal loads and reps with different estimates explain themselves', () => {
+    const markup = render([
+      point(1, { estimated1RmKg: 120, loadKg: 100, reps: 5, rir: '3' }),
+      point(2, { estimated1RmKg: 125, loadKg: 100, reps: 5, rir: '1' })
+    ]);
+    expect(markup).toContain('data-label="RIR">3<');
+    expect(markup).toContain('data-label="RIR">1<');
+  });
+
+  it('leaves the RIR column out when no row has one or tracking is off', () => {
+    expect(render([point(1, { loadKg: 100, reps: 5 })])).not.toContain('>RIR<');
+    const off = renderToStaticMarkup(createElement(TrackRirContext.Provider, { value: false },
+      createElement(ExerciseProgressTable, { points: [point(1, { loadKg: 100, reps: 5, rir: '1' })],
+        formatDate: value => value, formatEstimate: kg, formatLoad: kg, formatVolume: kg })));
+    expect(off).not.toContain('>RIR<');
   });
 
   it('associates each displayed value with its heading and omits the verbose estimate note', () => {

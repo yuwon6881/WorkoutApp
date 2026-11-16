@@ -14,6 +14,7 @@ import { ExerciseHistoryClearing } from './ExerciseHistoryClearing';
 import { ExerciseLoadSettings } from './ExerciseLoadSettings';
 import { ExerciseProgressChart } from './ExerciseProgressChart';
 import { ExerciseProgressTable } from './ExerciseProgressTable';
+import { ExerciseRepMaxes } from './ExerciseRepMaxes';
 import { useExerciseInsight } from './useExerciseInsight';
 import { Button } from './ui/Button';
 import { Modal } from './ui/Modal';
@@ -199,6 +200,7 @@ export function ProgressPanel({ insight, unit, basis, range, onRange }: {
       {insight.assistanceReductionPrKg != null && <span>Lowest assistance <strong>{load(insight.assistanceReductionPrKg)}</strong></span>}
       {insight.systemLoadPrKg != null && <span>System load PR <strong>{load(insight.systemLoadPrKg)}</strong></span>}
     </div>}
+    {insight.repMaxes && <ExerciseRepMaxes repMaxes={insight.repMaxes} formatDate={dateLabel} formatLoad={load} />}
   </>;
 }
 

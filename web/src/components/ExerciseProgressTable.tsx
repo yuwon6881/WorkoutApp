@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { ExerciseMetricPoint } from '../types';
+import { useTrackRir } from '../lib/trackRir';
 import { Button } from './ui/Button';
 
 const collapsedRows = 6;
@@ -19,11 +20,14 @@ export function ExerciseProgressTable({ points, formatDate, formatEstimate, form
   formatVolume: (value: number | null | undefined) => string;
 }) {
   const [expanded, setExpanded] = useState(false);
+  const trackRir = useTrackRir();
   const allColumns: Column[] = [
     { key: 'estimated1rm', label: '1RM', cell: p => formatEstimate(p.estimated1RmKg), present: p => p.estimated1RmKg != null },
     { key: 'load', label: 'Load', cell: p => formatLoad(p.loadKg), present: p => p.loadKg != null },
     { key: 'volume', label: 'Volume', cell: p => `${formatVolume(p.volumeKg)}${p.partial ? ' *' : ''}`, present: p => p.volumeKg != null },
-    { key: 'reps', label: 'Reps', cell: p => String(p.reps ?? '—'), present: p => p.reps != null }
+    { key: 'reps', label: 'Reps', cell: p => String(p.reps ?? '—'), present: p => p.reps != null },
+    // The 1RM estimate reads the reserve, so two rows with the same load and reps differ by it.
+    { key: 'rir', label: 'RIR', cell: p => p.rir ?? '—', present: p => trackRir && p.rir != null }
   ];
   const columns = allColumns.filter(column => points.some(column.present));
   const newestFirst = [...points].reverse();
