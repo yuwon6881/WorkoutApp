@@ -26,10 +26,21 @@ internal sealed record PrescriptionDelta(List<int> Removed, Dictionary<int, Json
             var next = JsonSerializer.SerializeToNode(after[i], Json.Options)!.AsObject();
             var patch = new JsonObject();
             foreach (var field in next)
-                if (!JsonNode.DeepEquals(old[field.Key], field.Value)) patch[field.Key] = field.Value?.DeepClone();
+                if (!Same(field.Key, old[field.Key], field.Value)) patch[field.Key] = field.Value?.DeepClone();
             if (patch.Count > 0) patches[i] = patch;
         }
         return new(removed, patches, after.Skip(working.Count).ToList());
+    }
+
+    // Where a value came from is bookkeeping, and an empty note is no note: neither is a change to
+    // the program, so a set switched to another type and back does not count as edited.
+    private static readonly HashSet<string> Provenance = ["repsSource", "rpeSource", "restSource"];
+
+    private static bool Same(string field, JsonNode? before, JsonNode? after)
+    {
+        if (Provenance.Contains(field) || JsonNode.DeepEquals(before, after)) return true;
+        static bool Blank(JsonNode? node) => node is null || node is JsonValue value && value.TryGetValue<string>(out var text) && text.Length == 0;
+        return Blank(before) && Blank(after);
     }
 
     public List<SetPrescription> Apply(List<SetPrescription> current)
