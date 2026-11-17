@@ -132,7 +132,8 @@ public sealed partial class ExerciseService(AppDb db, IMemoryCache? cache = null
     {
         await using var gate = await MutationLock.Acquire(db, db.CurrentUser, ct);
         var meta = await Metadata(id, ct);
-        var rows = await FinishedExerciseRows(id, ct);
+        // Tracked, unlike the read-only uses: the rows' stored progression is reset below and must be saved.
+        var rows = await FinishedExerciseRowsQuery(id).AsTracking().ToListAsync(ct);
         // Checked again under the lock: a workout started since the preview cannot have its history cleared away.
         var reading = await OpenWorkoutReading(id, ct);
         Validation.Require(reading is null,

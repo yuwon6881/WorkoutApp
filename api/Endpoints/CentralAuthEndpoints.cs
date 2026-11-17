@@ -60,7 +60,6 @@ public static class CentralAuthEndpoints
         {
             var (state, connect) = ReadState(request, protection);
             response.Cookies.Delete(connect ? ConnectStateCookie : StateCookie, CookieOptions(environment, TimeSpan.Zero));
-            Validation.Require(FixedEquals(state.State, request.Query["state"]), "The central sign-in state did not match.", 400);
             var error = request.Query["error"]
                 .SelectMany(value => (value ?? string.Empty).Split(',', StringSplitOptions.RemoveEmptyEntries))
                 .FirstOrDefault(value => !string.IsNullOrWhiteSpace(value));
@@ -140,23 +139,25 @@ public static class CentralAuthEndpoints
         return await response.Content.ReadFromJsonAsync<JsonElement>(cancellationToken: ct);
     }
 
+    /// A sign-in and a Nutrition connection can both be under way (one abandoned in another tab), so
+    /// the callback belongs to the attempt whose state it returns, not to whichever cookie is present;
+    /// the other attempt is left to expire on its own.
     private static (LoginState State, bool Connect) ReadState(HttpRequest request, IDataProtectionProvider protection)
     {
-        var connectCookie = request.Cookies[ConnectStateCookie];
-        var loginCookie = request.Cookies[StateCookie];
-        try
-        {
-            if (!string.IsNullOrWhiteSpace(connectCookie))
-            {
-                var protector = protection.CreateProtector("workout-fitness-account-oidc-connect-v1");
-                return (JsonSerializer.Deserialize<LoginState>(protector.Unprotect(connectCookie)) ?? throw new InvalidOperationException(), true);
-            }
-            Validation.Require(!string.IsNullOrWhiteSpace(loginCookie), "The central sign-in state is invalid or expired.", 400);
-            var loginProtector = protection.CreateProtector("workout-fitness-account-oidc-state-v1");
-            return (JsonSerializer.Deserialize<LoginState>(loginProtector.Unprotect(loginCookie!)) ?? throw new InvalidOperationException(), false);
-        }
-        catch (Exception ex) when (ex is CryptographicException or JsonException or InvalidOperationException or FormatException)
-        { throw new DomainException("The central sign-in state is invalid or expired.", 400); }
+        var returned = request.Query["state"].ToString();
+        var connect = Unprotect(request.Cookies[ConnectStateCookie], protection, "workout-fitness-account-oidc-connect-v1");
+        if (connect is not null && FixedEquals(connect.State, returned)) return (connect, true);
+        var login = Unprotect(request.Cookies[StateCookie], protection, "workout-fitness-account-oidc-state-v1");
+        if (login is not null && FixedEquals(login.State, returned)) return (login, false);
+        Validation.Require(connect is not null || login is not null, "The central sign-in state is invalid or expired.", 400);
+        throw new DomainException("The central sign-in state did not match.", 400);
+    }
+
+    private static LoginState? Unprotect(string? cookie, IDataProtectionProvider protection, string purpose)
+    {
+        if (string.IsNullOrWhiteSpace(cookie)) return null;
+        try { return JsonSerializer.Deserialize<LoginState>(protection.CreateProtector(purpose).Unprotect(cookie)); }
+        catch (Exception ex) when (ex is CryptographicException or JsonException or FormatException) { return null; }
     }
 
     private static async Task<AppUser?> LocalUser(HttpRequest request, AppDb db, Guid? expected, CancellationToken ct)

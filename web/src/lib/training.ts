@@ -81,7 +81,8 @@ export const calculateEstimated1Rm = (weightKg: number | null, reps: number | nu
   } else {
     total = reps;
   }
-  if (reps === 1 && rpe === 10) return weightKg;
+  // A single taken at face value (to failure, or unrated) is the max itself.
+  if (reps === 1 && (rpe === undefined || rpe === null || rpe === 10)) return weightKg;
   return total > 12 ? null : weightKg * (1 + total / 30);
 };
 

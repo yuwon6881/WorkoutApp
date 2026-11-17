@@ -65,4 +65,26 @@ public sealed class ExerciseHistoryClearTests
         var cleared = await exercises.ClearHistory(bench, default);
         Assert.Equal(1, cleared.AffectedSets);
     }
+
+    [Fact]
+    public async Task Clearing_drops_the_stored_progression_of_the_finished_rows()
+    {
+        await using var h = await Harness.Create();
+        await h.SignIn();
+        await h.Seed(new SeedExercise("bench", "Bench", "Chest", "Barbell", null));
+        var bench = await h.ExerciseId("bench");
+        await FinishWorkout(h, bench, "Push A");
+        var finished = h.Db.SessionExercises.Single(x => x.ExerciseId == bench);
+        finished.ProgressionJson = "{\"reason\":\"from the cleared history\"}";
+        await h.Db.SaveChangesAsync();
+        var revision = finished.Revision;
+        h.Db.ChangeTracker.Clear();
+
+        await new ExerciseService(h.Db).ClearHistory(bench, default);
+
+        h.Db.ChangeTracker.Clear();
+        var stored = h.Db.SessionExercises.Single(x => x.ExerciseId == bench);
+        Assert.Equal("", stored.ProgressionJson);
+        Assert.Equal(revision + 1, stored.Revision);
+    }
 }

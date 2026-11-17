@@ -148,7 +148,8 @@ public static class Progression
             total = count;
         }
         if (total > MaxEstimatedReps) return null;
-        if (count == 1 && rpe == 10) return weight;
+        // A single taken at face value (to failure, or unrated) is the max itself.
+        if (count == 1 && (rpe is null || rpe == 10)) return weight;
         return weight * (1 + total / 30.0);
     }
 

@@ -24,19 +24,26 @@ internal sealed record PrescriptionDelta(List<int> Removed, Dictionary<int, Json
         {
             var old = JsonSerializer.SerializeToNode(working[i], Json.Options)!.AsObject();
             var next = JsonSerializer.SerializeToNode(after[i], Json.Options)!.AsObject();
-            var patch = new JsonObject();
-            foreach (var field in next)
-                if (!Same(field.Key, old[field.Key], field.Value)) patch[field.Key] = field.Value?.DeepClone();
             // Only a set's type (a warm-up flag or a technique written in its notes) is structure.
             // Its reps, load and effort targets are read from the program and history each session,
-            // so a difference in them alone is never a change worth offering to carry forward.
-            if (patch.ContainsKey(StructureFlag) || patch.ContainsKey(StructureNotes)) patches[i] = patch;
+            // so they are never carried, even beside a type change: another occurrence keeps its own.
+            // The one exception is the effort a type itself sets (a warm-up has none, AMRAP is to failure).
+            var structural = StructureFields.Where(field => !Same(field, old[field], next[field])).ToList();
+            if (structural.Count == 0) continue;
+            if (structural.Contains(StructureFlag) || IsAmrap(working[i]) != IsAmrap(after[i])) structural.AddRange(EffortFields);
+            var patch = new JsonObject();
+            foreach (var field in structural) patch[field] = next[field]?.DeepClone();
+            patches[i] = patch;
         }
         return new(removed, patches, after.Skip(working.Count).ToList());
     }
 
     private const string StructureFlag = "warmup";
-    private const string StructureNotes = "notes";
+    private static readonly string[] StructureFields = [StructureFlag, "notes"];
+    private static readonly string[] EffortFields = ["targetRpe", "rir"];
+
+    private static bool IsAmrap(SetPrescription set)
+        => set.Notes?.Contains("AMRAP", StringComparison.OrdinalIgnoreCase) == true;
 
     // Where a value came from is bookkeeping, and an empty note is no note: neither is a change to
     // the program, so a set switched to another type and back does not count as edited.

@@ -146,6 +146,9 @@ describe('strength estimate', () => {
     // Without RPE specified (uses reps at face value)
     expect(calculateEstimated1Rm(60, 5)).toBeCloseTo(60 * (1 + 5 / 30), 6);
     expect(calculateEstimated1Rm(60, 5, null)).toBeCloseTo(60 * (1 + 5 / 30), 6);
+    // An unrated single is taken at face value too: done as performed, it is the max, not 103%.
+    expect(calculateEstimated1Rm(100, 1)).toBeCloseTo(100, 6);
+    expect(calculateEstimated1Rm(100, 1, null)).toBeCloseTo(100, 6);
     // Boundary conditions
     expect(calculateEstimated1Rm(null, 5)).toBeNull();
     expect(calculateEstimated1Rm(60, 0)).toBeNull();

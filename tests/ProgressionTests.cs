@@ -35,6 +35,8 @@ public class ProgressionFormulaTests
         // Without RPE (reps at face value)
         Assert.Equal(60 * (1 + 5 / 30.0), Progression.Estimate1Rm(60, 5)!.Value, 6);
         Assert.Equal(60 * (1 + 5 / 30.0), Progression.Estimate1Rm(60, 5, null)!.Value, 6);
+        // An unrated single is taken at face value too: done as performed, it is the max, not 103%.
+        Assert.Equal(100, Progression.Estimate1Rm(100, 1)!.Value, 6);
         // Invalid boundaries
         Assert.Null(Progression.Estimate1Rm(null, 5));
         Assert.Null(Progression.Estimate1Rm(60, null));

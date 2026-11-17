@@ -84,10 +84,14 @@ export function withWarmups(draft: Session, exerciseIndex: number, steps: Warmup
     id: crypto.randomUUID(), position: 0, weightKg: null, reps: null, rpe: null, rir: null,
     done: false, warmup: true, resistanceMode: first?.resistanceMode
   }));
-  const addedPlans = steps.slice(0, adding).map(step => warmupPlan(step.reps, exercise.prescription[0], exercise));
-  const sets = [...added, ...exercise.sets];
-  const prescription = [...addedPlans, ...exercise.prescription];
+  // The ramp runs across the whole warm-up block, one step per position.
   const ramp = steps.slice(Math.max(0, steps.length - (adding + existing)));
+  // Sets are logged in order, so new warm-ups go after any already logged rather than in front of them.
+  let at = 0;
+  while (at < existing && exercise.sets[at].done) at += 1;
+  const addedPlans = ramp.slice(at, at + adding).map(step => warmupPlan(step.reps, exercise.prescription[0], exercise));
+  const sets = [...exercise.sets.slice(0, at), ...added, ...exercise.sets.slice(at)];
+  const prescription = [...exercise.prescription.slice(0, at), ...addedPlans, ...exercise.prescription.slice(at)];
   const filled = sets.map((set, index) => {
     const step = ramp[index];
     if (!step || index >= adding + existing || set.done) return { ...set, position: index };

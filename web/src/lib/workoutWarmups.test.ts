@@ -65,4 +65,19 @@ describe('withWarmups', () => {
     expect(next.sets.map(item => [item.warmup, item.weightKg])).toEqual([[true, 20], [true, 60], [true, 80], [false, 100]]);
     expect(next.sets[2].id).toBe('w1');
   });
+
+  it('adds new warm-ups after the ones already logged, so the logged ones stay first', () => {
+    const draft = draftWith([
+      set('w1', 20, { warmup: true, reps: 8, done: true }), set('w2', null, { warmup: true, reps: null }), set('a', 100)
+    ], [plan({ warmup: true }), plan({ warmup: true }), plan()]);
+    const four = [{ weightKg: 20, reps: 8 }, ...steps];
+    const next = withWarmups(draft, 0, four).exercises[0];
+    expect(next.sets.map(item => [item.id === 'w1' || item.id === 'w2' || item.id === 'a' ? item.id : 'new', item.done, item.weightKg]))
+      .toEqual([['w1', true, 20], ['new', false, 20], ['new', false, 60], ['w2', false, 80], ['a', false, 100]]);
+    expect(next.sets.map(item => item.position)).toEqual([0, 1, 2, 3, 4]);
+    expect(next.prescription.map(item => item.warmup)).toEqual([true, true, true, true, false]);
+    // No unlogged set comes before a logged one.
+    const firstOpen = next.sets.findIndex(item => !item.done);
+    expect(next.sets.slice(firstOpen).some(item => item.done)).toBe(false);
+  });
 });

@@ -188,6 +188,53 @@ public sealed class CentralAuthTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task A_stale_connection_attempt_does_not_break_the_next_sign_in_callback()
+    {
+        var tempDb = Path.Combine(Path.GetTempPath(), $"workout-test-{Guid.NewGuid():N}.db");
+        try
+        {
+            using var factory = new TestAppFactory(tempDb);
+            var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+            using var scope = factory.Services.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<AppDb>();
+            await db.Database.EnsureCreatedAsync();
+            var user = new AppUser { Id = Guid.NewGuid(), DisplayName = "Alice", IdentitySubject = "sub_test" };
+            db.Users.Add(user);
+            var token = Guid.NewGuid().ToString("N");
+            db.Sessions.Add(new AuthSession { Hash = AuthService.Hash(token), UserId = user.Id, Expires = DateTime.UtcNow.AddDays(1) });
+            await db.SaveChangesAsync();
+
+            // A Nutrition connection is started and abandoned, so its state cookie stays behind.
+            var connectRequest = new HttpRequestMessage(HttpMethod.Get, "/api/auth/central/connect");
+            connectRequest.Headers.Add("Cookie", $"{AuthService.Cookie}={token}");
+            var connectRes = await client.SendAsync(connectRequest);
+            var connectCookie = connectRes.Headers.GetValues("Set-Cookie").First(c => c.StartsWith("workout-oidc-connect-state=")).Split(';')[0];
+
+            // The lifter then signs in; the login callback carries the login state alongside the stale cookie.
+            var startRes = await client.GetAsync("/api/auth/central/start");
+            var loginCookie = startRes.Headers.GetValues("Set-Cookie").First(c => c.StartsWith("workout-oidc-state=")).Split(';')[0];
+            var loginState = Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(new Uri(startRes.Headers.Location!.ToString()).Query)["state"].ToString();
+
+            var callbackRequest = new HttpRequestMessage(HttpMethod.Get, $"/api/auth/central/callback?error=access_denied&state={loginState}");
+            callbackRequest.Headers.Add("Cookie", $"{connectCookie}; {loginCookie}");
+            var callbackRes = await client.SendAsync(callbackRequest);
+
+            Assert.Equal(HttpStatusCode.Redirect, callbackRes.StatusCode);
+            Assert.EndsWith("central_error=access_denied", callbackRes.Headers.Location!.ToString());
+            Assert.DoesNotContain("/settings", callbackRes.Headers.Location!.ToString());
+            // Only the attempt that answered is cleared; the other expires on its own.
+            var cleared = callbackRes.Headers.GetValues("Set-Cookie").ToArray();
+            Assert.Contains(cleared, c => c.StartsWith("workout-oidc-state="));
+            Assert.DoesNotContain(cleared, c => c.StartsWith("workout-oidc-connect-state="));
+        }
+        finally
+        {
+            SqliteConnection.ClearAllPools();
+            try { if (File.Exists(tempDb)) File.Delete(tempDb); } catch { /* best-effort cleanup */ }
+        }
+    }
+
+    [Fact]
     public async Task Central_callback_with_access_denied_redirects_to_connect_return_url()
     {
         var tempDb = Path.Combine(Path.GetTempPath(), $"workout-test-{Guid.NewGuid():N}.db");
