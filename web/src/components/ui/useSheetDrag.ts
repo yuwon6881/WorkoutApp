@@ -3,6 +3,7 @@ import type { PointerEvent as ReactPointerEvent, RefObject } from 'react';
 import { windowTier } from '../../lib/breakpoints';
 import { haptic } from '../../lib/platform';
 import { GestureVelocity } from '../../lib/gestureVelocity';
+import { onGestureInterrupted, releaseCapture } from './releaseCapture';
 
 const DISMISS_DISTANCE = 140;
 const DISMISS_VELOCITY = 0.6; // px per ms, a deliberate flick
@@ -40,9 +41,25 @@ export function useSheetDrag(ref: RefObject<HTMLDialogElement | null>, onDismiss
     element.style.transform = '';
   }, []);
 
+  // A drag the screen turning off cut short never gets its pointerup, and would otherwise keep the
+  // pointer captured by the sheet (so later taps on its fields click the sheet instead) and the
+  // sheet displaced.
+  const abandon = useCallback(() => {
+    const element = ref.current;
+    const current = drag.current;
+    drag.current = null;
+    cancelAnimationFrame(frame.current); frame.current = 0;
+    if (!element || !current) return;
+    releaseCapture(element, current.pointerId);
+    if (current.moved) reset(element, false);
+  }, [ref, reset]);
+  useEffect(() => onGestureInterrupted(abandon), [abandon]);
+
   const onPointerDown = useCallback((event: ReactPointerEvent<HTMLDialogElement>) => {
     const element = ref.current;
     const target = event.target as HTMLElement | null;
+    // A second finger joins a drag in progress; a first touch can only mean the earlier one is over.
+    if (drag.current && event.isPrimary !== false) abandon();
     if (!element || !target || windowTier() !== 'compact' || event.button !== 0 || drag.current?.moved) return;
     const rect = element.getBoundingClientRect();
     const onGrabStrip = event.clientY >= rect.top && event.clientY - rect.top < 24;
@@ -52,7 +69,7 @@ export function useSheetDrag(ref: RefObject<HTMLDialogElement | null>, onDismiss
     const velocity = new GestureVelocity();
     velocity.add(event.clientY, at);
     drag.current = { pointerId: event.pointerId, startY: event.clientY, lastPreDrag: { y: event.clientY, at }, velocity, moved: false };
-  }, [ref]);
+  }, [ref, abandon]);
 
   const onPointerMove = useCallback((event: ReactPointerEvent<HTMLDialogElement>) => {
     const element = ref.current;

@@ -81,6 +81,7 @@ function renderRow(mockSurface: { style: Record<string, string> }, actionsWidth 
 function pointerEvent(clientX: number, clientY: number, timeStamp: number, pointerId = 1) {
   return {
     pointerId,
+    isPrimary: pointerId === 1,
     pointerType: 'touch',
     button: 0,
     clientX,
@@ -212,5 +213,30 @@ describe('SwipeableRow drag isolation', () => {
     expect(nodes.surface.props['data-swipe-open']).toBe('true');
     expect(surfaceEl.style.transition).toBe('');
     expect(surfaceEl.style.transform).toBe('translate3d(-92px, 0, 0)');
+  });
+
+  // A swipe the screen turning off cut short never gets its pointerup; the next touch must start fresh.
+  it('starts a new swipe after one that never ended, and releases the old capture', () => {
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => { cb(0); return 1; });
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+
+    const release = vi.fn();
+    const surfaceEl = { style: { transform: '', transition: '' }, hasPointerCapture: () => true, releasePointerCapture: release };
+    let nodes = renderRow(surfaceEl);
+    const onDown = nodes.surface.props.onPointerDown as (e: import('react').PointerEvent<HTMLDivElement>) => void;
+    const onMove = nodes.surface.props.onPointerMove as (e: import('react').PointerEvent<HTMLDivElement>) => void;
+    const onUp = nodes.surface.props.onPointerUp as (e: import('react').PointerEvent<HTMLDivElement>) => void;
+
+    onDown(pointerEvent(200, 50, 0, 1));
+    onMove(pointerEvent(150, 50, 16, 1));
+    // No pointerup or pointercancel ever arrives. A later first touch is a different gesture.
+    const fresh = { ...pointerEvent(200, 50, 9000, 1), pointerId: 5, isPrimary: true } as unknown as import('react').PointerEvent<HTMLDivElement>;
+    onDown(fresh);
+    expect(release).toHaveBeenCalledWith(1);
+
+    onMove({ ...pointerEvent(150, 50, 9016, 5), isPrimary: true } as never);
+    onUp({ ...pointerEvent(100, 50, 9032, 5), isPrimary: true } as never);
+    nodes = renderRow(surfaceEl);
+    expect(nodes.surface.props['data-swipe-open']).toBe('true');
   });
 });

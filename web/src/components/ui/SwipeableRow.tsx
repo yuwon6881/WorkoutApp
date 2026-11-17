@@ -2,6 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProp
 import { useWindowTier } from '../../lib/breakpoints';
 import { haptic } from '../../lib/platform';
 import { classifyGesture, settleOpen } from '../../lib/rowSwipe';
+import { onGestureInterrupted, releaseCapture } from './releaseCapture';
 
 type SwipeableRowProps = {
   children: ReactNode;
@@ -77,8 +78,32 @@ export function SwipeableRow({
     setOpen(false);
   }, []);
 
+  // A swipe the screen turning off cut short never gets its pointerup: the row would stay captured
+  // (later taps on the fields inside it click the row instead) and refuse every new swipe.
+  const abandonGesture = useCallback(() => {
+    const current = pointer.current;
+    if (!current) return;
+    pointer.current = null;
+    cancelAnimationFrame(frame.current); frame.current = 0;
+    releaseCapture(surface.current, current.id);
+    if (!current.tracking) return;
+    draggingRef.current = false;
+    setDragging(false);
+    if (surface.current) {
+      surface.current.style.transition = '';
+      surface.current.style.transform = `translate3d(${open ? -actionsWidth : 0}px, 0, 0)`;
+    }
+    dragOffset.current = open ? -actionsWidth : 0;
+  }, [actionsWidth, open]);
+  useEffect(() => onGestureInterrupted(abandonGesture), [abandonGesture]);
+
   const handlePointerDown = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
-    if ((event.pointerType === 'mouse' && event.button !== 0) || pointer.current?.tracking) return;
+    if (event.pointerType === 'mouse' && event.button !== 0) return;
+    // A second finger joins a swipe in progress; a first touch can only mean the earlier one is over.
+    if (pointer.current?.tracking) {
+      if (event.isPrimary === false) return;
+      abandonGesture();
+    }
     pointer.current = {
       id: event.pointerId,
       startX: event.clientX,
@@ -88,7 +113,7 @@ export function SwipeableRow({
       velocity: 0,
       tracking: false
     };
-  }, []);
+  }, [abandonGesture]);
 
   const handlePointerMove = useCallback((event: ReactPointerEvent<HTMLDivElement>) => {
     const current = pointer.current;

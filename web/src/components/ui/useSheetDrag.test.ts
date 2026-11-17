@@ -28,6 +28,8 @@ function createDialog(reducedMotion = true) {
     offsetHeight: 600,
     getBoundingClientRect: () => ({ top: 100 }),
     setPointerCapture: vi.fn(),
+    hasPointerCapture: vi.fn(() => true),
+    releasePointerCapture: vi.fn(),
     matchMedia: reducedMotion
   };
 }
@@ -47,6 +49,7 @@ function pointer(type: string, clientY: number, timeStamp: number, target = targ
     type,
     button: 0,
     pointerId,
+    isPrimary: pointerId === 1,
     clientY,
     timeStamp,
     target
@@ -126,5 +129,21 @@ describe('useSheetDrag', () => {
     handlers.onPointerUp(pointer('pointerup', 260, 32, targetNode(true), 1));
 
     expect(onDismiss).toHaveBeenCalledTimes(1);
+  });
+
+  // The screen turning off mid-drag can end the touch without a pointerup. The next first touch,
+  // wherever it lands on the sheet, must not leave the sheet holding the old pointer.
+  it('lets go of a stale drag when a new touch starts anywhere on the sheet', () => {
+    const dialog = createDialog(true);
+    const handlers = mountHook(dialog, vi.fn());
+
+    handlers.onPointerDown(pointer('pointerdown', 100, 0, targetNode(true), 1));
+    handlers.onPointerMove(pointer('pointermove', 160, 16, targetNode(true), 1));
+    expect(dialog.style.transform).toBe('translateY(60px)');
+
+    handlers.onPointerDown({ ...pointer('pointerdown', 300, 5000, targetNode(false), 7), isPrimary: true } as never);
+
+    expect(dialog.releasePointerCapture).toHaveBeenCalledWith(1);
+    expect(dialog.style.transform).toBe('');
   });
 });
