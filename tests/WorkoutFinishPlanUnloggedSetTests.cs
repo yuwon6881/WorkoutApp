@@ -93,7 +93,7 @@ public sealed class WorkoutFinishPlanUnloggedSetTests
         var session = await SwappedSession(rig, removeThird: true);
 
         var preview = await rig.H.Workouts.PreviewFinishPlan(session.Id, default);
-        Assert.Contains("sets and reps", preview.Changes);
+        Assert.Contains("sets and set types", preview.Changes);
         var plan = new FinishPlanUpdateInput("program", preview.ChangesHash, preview.ProgramRevision, preview.DayRevisions);
         await rig.H.Workouts.Finish(session.Id, session.Revision, default, planUpdate: plan);
 

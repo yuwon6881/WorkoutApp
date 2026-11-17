@@ -22,20 +22,35 @@ public sealed class PrescriptionDeltaTests
     [Fact]
     public void A_real_change_is_still_a_change()
     {
-        Assert.True(PrescriptionDelta.Between([Set()], [Set(reps: 6)]).Changed);
         Assert.True(PrescriptionDelta.Between([Set()], [Set(notes: "Myo-reps")]).Changed);
+        Assert.True(PrescriptionDelta.Between([Set()], [Set() with { Warmup = true }]).Changed);
         Assert.True(PrescriptionDelta.Between([Set()], [Set(), Set()]).Changed);
         Assert.True(PrescriptionDelta.Between([Set(), Set()], [Set()]).Changed);
     }
 
     [Fact]
-    public void A_provenance_difference_is_not_carried_into_the_program()
+    public void Reps_load_and_effort_targets_are_never_a_plan_change()
     {
-        var delta = PrescriptionDelta.Between([Set(), Set()], [Set(reps: 6, rpeSource: "userEdited"), Set()]);
+        Assert.False(PrescriptionDelta.Between([Set()], [Set(reps: 6)]).Changed);
+        Assert.False(PrescriptionDelta.Between([Set()], [Set() with { RepMax = 12, TargetRpe = 9, Rir = "0", LoadText = "80 kg" }]).Changed);
+    }
 
-        var patched = delta.Apply([Set(), Set()]);
+    [Fact]
+    public void A_changed_set_type_carries_with_the_effort_it_writes_but_not_provenance()
+    {
+        var delta = PrescriptionDelta.Between([Set(), Set()], [Set(notes: "Myo-reps", rpeSource: "userEdited"), Set()]);
+
+        var patched = delta.Apply([Set(reps: 6), Set(reps: 6)]);
 
         Assert.Equal("extracted", patched[0].RpeSource);
+        Assert.Equal("Myo-reps", patched[0].Notes);
         Assert.Equal(6, patched[0].RepMin);
+    }
+
+    [Fact]
+    public void A_set_added_or_removed_is_still_structure_whatever_its_reps()
+    {
+        Assert.True(PrescriptionDelta.Between([Set()], [Set(), Set(reps: 12)]).Changed);
+        Assert.True(PrescriptionDelta.Between([Set(), Set(reps: 12)], [Set()]).Changed);
     }
 }

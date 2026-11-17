@@ -54,12 +54,12 @@ public sealed class WorkoutFinishPlanTests
     }
 
     [Fact]
-    public async Task A_changed_rep_target_preserves_the_other_days_effort_taper()
+    public async Task A_changed_set_type_preserves_the_other_days_rep_range_and_effort_taper()
     {
         await using var h = await Harness.Create();
         var edited = await Prepare(h);
         var exercise = edited.Exercises[0];
-        var prescription = exercise.Prescription.Select(set => set with { RepMin = 9, RepMax = 11 }).ToList();
+        var prescription = exercise.Prescription.Select(set => set with { Notes = "Myo-reps" }).ToList();
         edited = await h.Workouts.Save(edited.Id, new SessionInput(null,
             [new SessionExerciseInput(exercise.ExerciseId, exercise.Name, exercise.Note, prescription,
                 exercise.Sets.Select(set => new SetInput(set.WeightKg, set.Reps, set.Rpe, set.Done, Id: set.Id, Rir: set.Rir)).ToList(), Id: exercise.Id)], edited.Revision, null), default);
@@ -69,8 +69,9 @@ public sealed class WorkoutFinishPlanTests
         var other = await h.Db.Templates.SingleAsync(t => t.ProgramId == edited.ProgramId && t.Week == 2);
         var row = await h.Db.TemplateExercises.SingleAsync(e => e.TemplateId == other.Id);
         var set = Json.Read<List<SetPrescription>>(row.SetsJson).Single();
-        Assert.Equal(9, set.RepMin);
-        Assert.Equal(11, set.RepMax);
+        Assert.Equal("Myo-reps", set.Notes);
+        Assert.Equal(6, set.RepMin);
+        Assert.Equal(8, set.RepMax);
         Assert.Equal("3", set.Rir);
     }
 

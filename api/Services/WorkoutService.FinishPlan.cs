@@ -66,7 +66,7 @@ public sealed partial class WorkoutService
             if (edit.Library) changes.Add("library exercise");
             if (edit.Note) changes.Add("notes");
             if (edit.Rest) changes.Add("rest timer");
-            if (edit.Sets.Changed) changes.Add("sets and reps");
+            if (edit.Sets.Changed) changes.Add("sets and set types");
         }
         var hash = Fingerprint(edits.Select(e => new { SessionExerciseId = e.Exercise.Id, HomeId = e.Home.Id, e.Exercise.ExerciseId,
             e.Exercise.NameSnapshot, e.Exercise.Note, e.Exercise.RestSeconds, e.Exercise.PrescriptionJson }).ToList());

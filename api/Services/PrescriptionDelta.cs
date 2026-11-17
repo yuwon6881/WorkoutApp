@@ -27,10 +27,16 @@ internal sealed record PrescriptionDelta(List<int> Removed, Dictionary<int, Json
             var patch = new JsonObject();
             foreach (var field in next)
                 if (!Same(field.Key, old[field.Key], field.Value)) patch[field.Key] = field.Value?.DeepClone();
-            if (patch.Count > 0) patches[i] = patch;
+            // Only a set's type (a warm-up flag or a technique written in its notes) is structure.
+            // Its reps, load and effort targets are read from the program and history each session,
+            // so a difference in them alone is never a change worth offering to carry forward.
+            if (patch.ContainsKey(StructureFlag) || patch.ContainsKey(StructureNotes)) patches[i] = patch;
         }
         return new(removed, patches, after.Skip(working.Count).ToList());
     }
+
+    private const string StructureFlag = "warmup";
+    private const string StructureNotes = "notes";
 
     // Where a value came from is bookkeeping, and an empty note is no note: neither is a change to
     // the program, so a set switched to another type and back does not count as edited.
