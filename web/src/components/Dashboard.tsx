@@ -4,7 +4,7 @@ import { NextWorkoutHero } from './NextWorkoutHero';
 const TrainingCalendar = lazy(() => import('./TrainingCalendar').then(module => ({ default: module.TrainingCalendar })));
 const WorkoutHistory = lazy(() => import('./WorkoutHistory').then(module => ({ default: module.WorkoutHistory })));
 import './Dashboard.css';
-import { CalendarSkeleton } from './DashboardTrainingSkeleton';
+import { CalendarCardSkeleton } from './CalendarCardSkeleton';
 import { HistoryRowsSkeleton, RecentWorkoutsSkeleton } from './RecentWorkoutsSkeleton';
 import { Modal } from './ui/Modal';
 
@@ -62,7 +62,7 @@ export function Dashboard({
           />
         </div>
         <div className="overview-calendar-column">
-          <Suspense fallback={<CalendarSkeleton />}>
+          <Suspense fallback={<CalendarCardSkeleton label="Loading training overview" />}>
             <TrainingCalendar
               onSession={onSession}
               program={program}

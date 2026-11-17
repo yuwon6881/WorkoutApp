@@ -36,6 +36,47 @@
   .recent-skeleton-title { height: 20px; }
   .recent-skeleton-stats { grid-column: 1 / -1; }
 }
-/* The calendar card's own placeholder (DashboardTrainingSkeleton.tsx), shown while its code loads, is 357 px
-   tall in the desktop column where the real card is 378, so the page below it would drop as the card arrives. */
-@media (min-width: 1024px) { .training-calendar-card[aria-busy="true"] { min-height: 378px; } }
+
+/* The calendar card's placeholder (components/CalendarCardSkeleton.tsx): the boot shell, the lazy
+   Overview and the calendar's own Suspense fallback all draw it. It is as tall as the real card
+   (measured on the real page: 311, 331 and 378 px) so the page below it does not move when the card
+   arrives; any extra height at 1024+ is spread between the rows, as the real card does. Its classes
+   are its own: TrainingCalendar.css loads lazily and must never restyle a placeholder. */
+.panel.calendar-skeleton {
+  display: flex; flex-direction: column; justify-content: space-between; gap: 14px;
+  padding: 16px 8px; margin: 0; box-sizing: border-box; overflow: hidden;
+  min-height: 311px; background: var(--surface); border: 1px solid var(--card-border);
+  border-radius: var(--radius); box-shadow: var(--shadow);
+}
+.calendar-skeleton > * { flex: none; }
+.cal-sk-head { display: flex; align-items: center; gap: 10px; padding-inline: 4px; }
+.cal-sk-ring { width: 44px; height: 44px; flex: none; border-radius: 50% !important; }
+.cal-sk-title { display: flex; flex-direction: column; gap: 6px; min-width: 0; flex: 1 1 auto; }
+.cal-sk-title-line { width: 110px; max-width: 100%; height: 18px; }
+.cal-sk-subtitle-line { width: 140px; max-width: 100%; height: 14px; }
+.cal-sk-range { width: 118px; height: 36px; flex: none; margin-left: auto; }
+.cal-sk-week {
+  display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 2px; padding: 4px 2px;
+  background: var(--surface-raised); border-radius: calc(var(--radius-control) + 4px);
+}
+/* The strip is a sunken track, so its marks sit on --surface-hover rather than blending into it. */
+.cal-sk-week .skeleton { background: var(--surface-hover); }
+.cal-sk-day { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; min-width: 0; height: 72px; }
+.cal-sk-weekday { width: 24px; height: 12px; }
+.cal-sk-date { width: 30px; height: 30px; border-radius: 50% !important; }
+.cal-sk-status { width: 8px; height: 8px; border-radius: 50% !important; }
+.cal-sk-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.cal-sk-stats .skeleton-stat { min-height: 76px; border-radius: 14px; }
+.cal-sk-legend { width: 220px; max-width: 70%; height: 14px; align-self: center; }
+@media (min-width: 640px) {
+  .panel.calendar-skeleton { padding: 20px 22px; min-height: 331px; }
+  .cal-sk-head { padding-inline: 0; }
+  .cal-sk-range { width: 140px; height: 40px; }
+  .cal-sk-week { gap: 6px; padding: 4px; }
+  .cal-sk-stats .skeleton-stat { min-height: 80px; }
+  .cal-sk-legend { align-self: flex-start; }
+}
+@media (min-width: 1024px) {
+  .panel.calendar-skeleton { min-height: 378px; }
+  .cal-sk-range { width: 120px; height: 36px; }
+}

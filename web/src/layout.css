@@ -77,55 +77,29 @@
 .skeleton-hero-title { width: 62%; height: 30px; }
 .skeleton-hero-line { width: 44%; height: 16px; }
 .skeleton-hero-button { width: 180px; height: 48px; margin-top: 8px; }
-.skeleton-section-title { width: 140px; height: 20px; margin-bottom: 14px; }
 .app-loading-quick-start { display: grid; gap: 16px; padding: 24px; }
 .app-loading-quick-start > div { display: grid; gap: 16px; }
 .app-loading-quick-start .skeleton-hero-line { width: 80%; height: 40px; }
 .app-loading-quick-start .skeleton-hero-button { margin: 0; height: 44px; }
 @media (max-width: 639px) { .app-loading-quick-start .skeleton-hero-button { width: 100%; } }
 .app-loading .overview-main-column { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
-/* The hero and calendar placeholders are as tall as the real cards (measured on the real page), so the
-   Recent workouts section under them sits where it will and does not jump when the cards arrive. */
+/* The hero placeholder is as tall as the real card (measured on the real page), so the Recent workouts
+   section under it sits where it will and does not jump when the card arrives. The calendar
+   placeholder's shape is in skeletons.css. */
 .app-loading .app-loading-quick-start { min-height: 201px; gap: 12px; padding: 20px 24px; }
 .app-loading .app-loading-quick-start .skeleton-hero-line { height: 16px; }
-.app-loading .training-calendar-card { min-height: 311px; }
 @media (min-width: 640px) {
   .app-loading .app-loading-quick-start { min-height: 218px; }
-  .app-loading .training-calendar-card { min-height: 331px; }
 }
 @media (min-width: 1024px) {
   .app-loading .overview-hero-calendar-grid { align-items: stretch; }
   .app-loading .app-loading-quick-start { flex: 1 1 auto; }
-  .app-loading .training-calendar-card { min-height: 378px; }
 }
 @media (max-width: 639px) {
   .app-loading .overview-main-column { display: contents; }
   .app-loading .app-loading-quick-start { order: 1; }
   .app-loading .overview-calendar-column { order: 2; }
 }
-.app-loading-week-summary { display: flex; align-items: center; gap: 10px; margin-bottom: 0; }
-.app-loading-week-summary > div { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.app-loading .app-loading-week-summary .skeleton-section-title,
-.app-loading .app-loading-week-summary .skeleton-subtitle { margin: 0; }
-.skeleton-week-ring { width: 44px; height: 44px; flex: none; border-radius: 50% !important; }
-@media (max-width: 639px) {
-  .app-loading .app-loading-week-summary { display: flex; align-items: center; gap: 10px; margin-bottom: 0; }
-  .skeleton-week-ring { width: 44px; height: 44px; }
-}
-/* Reserve rows before the lazy calendar/stat styles arrive; otherwise seven days stack. */
-.app-loading .app-loading-week { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; margin-bottom: 14px; }
-.app-loading-week .skeleton-day { min-height: 78px; border-radius: var(--radius-control) !important; }
-/* The week's totals sit inside the calendar card, under its days. */
-.app-loading .progress-stats {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 0 12px;
-  padding-top: 14px;
-  border-top: 1px solid var(--border);
-  box-sizing: border-box;
-}
-.app-loading .progress-stats > * { grid-column: auto; }
-.skeleton-stat { min-height: 52px; }
 .app-loading-bottom-nav { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 60px minmax(0, 1fr) minmax(0, 1fr); align-items: center; gap: 0; padding: 4px; }
 .skeleton-bottom-item { height: 56px; border-radius: 14px !important; }
 .skeleton-bottom-action { width: 56px; height: 56px; border-radius: 50% !important; }

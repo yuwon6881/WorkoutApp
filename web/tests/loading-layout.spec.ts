@@ -195,7 +195,7 @@ test('the Overview placeholders sit where the loaded page does, so nothing jumps
     await page.setViewportSize({ width, height: 1000 });
     await page.goto('/');
     await expect(page.getByRole('region', { name: 'Recent workouts' }).locator('.history-row').first()).toBeVisible();
-    const loaded = await overviewGeometry(page, '.training-calendar-card');
+    const loaded = await overviewGeometry(page, '.training-calendar-card, .calendar-skeleton');
 
     // The boot shell: the page's own HTML, painted before the app's code has run. Blocking the app
     // bundle leaves exactly that frame on screen.
@@ -204,7 +204,7 @@ test('the Overview placeholders sit where the loaded page does, so nothing jumps
     try {
       await page.goto('/', { waitUntil: 'domcontentloaded' });
       await expect(page.locator('.app-loading-shell .recent-skeleton')).toBeVisible();
-      const shell = await overviewGeometry(page, '.training-calendar-card');
+      const shell = await overviewGeometry(page, '.training-calendar-card, .calendar-skeleton');
       expect(Math.abs(shell.gridTop - loaded.gridTop), `${width}px boot grid top`).toBeLessThanOrEqual(3);
       // Stacked, the calendar is its own height; side by side it stretches to the next-workout card.
       if (width < 1024) expect(Math.abs(shell.calendarHeight - loaded.calendarHeight), `${width}px boot calendar height`).toBeLessThanOrEqual(6);
@@ -217,7 +217,7 @@ test('the Overview placeholders sit where the loaded page does, so nothing jumps
     try {
       await page.goto('/', { waitUntil: 'domcontentloaded' });
       await expect(page.locator('.view-skeleton-overview .recent-skeleton')).toBeVisible();
-      const view = await overviewGeometry(page, '.training-calendar-card');
+      const view = await overviewGeometry(page, '.training-calendar-card, .calendar-skeleton');
       expect(Math.abs(view.gridTop - loaded.gridTop), `${width}px placeholder grid top`).toBeLessThanOrEqual(3);
       if (width < 1024) expect(Math.abs(view.calendarHeight - loaded.calendarHeight), `${width}px placeholder calendar height`).toBeLessThanOrEqual(6);
     } finally {

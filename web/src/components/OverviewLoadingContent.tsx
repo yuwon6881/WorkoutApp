@@ -1,8 +1,6 @@
 import { Skeleton } from './ui/Skeleton';
 import { RecentWorkoutsSkeleton } from './RecentWorkoutsSkeleton';
-
-const WEEK_DAYS = 7;
-const STATS = 3;
+import { CalendarCardSkeleton } from './CalendarCardSkeleton';
 
 /// Everything the Overview shows before its data arrives. The boot shell and the lazy view's
 /// placeholder both draw exactly this (inside an `.app-loading` element), so the first frame and the
@@ -32,18 +30,7 @@ export function OverviewLoadingContent() {
         </div>
 
         <div className="overview-calendar-column">
-          <section className="panel training-calendar-card" aria-hidden="true">
-            <div className="app-loading-week-summary">
-              <Skeleton className="skeleton-week-ring" />
-              <div><Skeleton className="skeleton-section-title" /><Skeleton className="skeleton-subtitle" /></div>
-            </div>
-            <div className="calendar-days-grid app-loading-week">
-              {Array.from({ length: WEEK_DAYS }, (_, index) => <Skeleton key={index} className="skeleton-day" />)}
-            </div>
-            <div className="stats-grid progress-stats" aria-hidden="true">
-              {Array.from({ length: STATS }, (_, index) => <Skeleton key={index} className="skeleton-stat" />)}
-            </div>
-          </section>
+          <CalendarCardSkeleton />
         </div>
       </div>
 
