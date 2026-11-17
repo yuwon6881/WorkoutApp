@@ -607,18 +607,17 @@ for (const theme of ['dark', 'light']) {
     await screenshot('expanded-import-range');
     await prescriptionCard.getByRole('button', { name: 'Exact', exact: true }).click();
     await prescriptionCard.getByRole('textbox', { name: 'Description', exact: true }).fill('Responsive exercise edit preview');
-    await expect(prescriptionCard.locator('[data-import-save-bar]')).toBeVisible();
+    await expect(page.locator('.day-detail-modal').getByRole('button', { name: 'Save changes', exact: true })).toBeVisible();
     await screenshot('exercise-save-controls');
-    await prescriptionCard.getByRole('button', { name: 'Save changes', exact: true }).click();
-    const exerciseScope = page.getByRole('dialog', { name: 'Apply these changes to', exact: true });
+    await page.locator('.day-detail-modal').getByRole('button', { name: 'Save changes', exact: true }).click();
+    const exerciseScope = page.getByRole('dialog', { name: /Save changes to \d+ exercises?/ });
     await expect(exerciseScope).toBeVisible();
     await exerciseScope.locator('.exercise-scope-option').first().click();
     await expect(exerciseScope.getByRole('radio', { name: /This occurrence only/ })).toBeChecked();
     await screenshot('exercise-edit-scope');
     await exerciseScope.getByRole('button', { name: 'Back', exact: true }).click();
-    await prescriptionCard.getByRole('button', { name: 'Cancel', exact: true }).click();
-    await expect(prescriptionCard.locator('[data-import-save-bar]')).toBeHidden();
     await page.getByRole('button', { name: 'Close dialog', exact: true }).click();
+    await page.getByRole('button', { name: 'Discard changes', exact: true }).click();
 
     await navigate(page, 'Overview');
     await screenshot('progress');

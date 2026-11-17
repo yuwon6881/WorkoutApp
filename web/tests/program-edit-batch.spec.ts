@@ -40,11 +40,11 @@ test('several exercises edited on one day are saved together with one question a
     await page.getByRole('button', { name: 'Push A', exact: true }).click();
     const day = page.locator('.day-detail-modal');
     await expect(day).toBeVisible();
-    // One edited exercise has its own Save; the combined one waits for a second.
+    // The same day-level Save is available for one edit or several.
     await chooseRest(day, page, bench.name, '3m');
-    await expect(day.getByRole('button', { name: /^Save \d+ changes$/ })).toHaveCount(0);
+    await expect(day.getByRole('button', { name: 'Save changes', exact: true })).toBeVisible();
     await chooseRest(day, page, row.name, '2m');
-    const saveAll = day.getByRole('button', { name: 'Save 2 changes', exact: true });
+    const saveAll = day.getByRole('button', { name: 'Save changes', exact: true });
     await expect(saveAll).toBeVisible();
 
     await saveAll.click();
@@ -57,7 +57,7 @@ test('several exercises edited on one day are saved together with one question a
     await expect(review).toBeHidden({ timeout: 30000 });
 
     // Nothing is left unsaved on the day, so closing it does not ask about discarding.
-    await expect(day.locator('[data-import-save-bar]')).toHaveCount(0);
+    await expect(day.getByRole('button', { name: 'Save changes', exact: true })).toHaveCount(0);
     // A phone's sheet drops a footer that holds only Done, so the header's close is used everywhere.
     await day.getByRole('button', { name: 'Close dialog', exact: true }).click();
     await expect(page.getByRole('dialog', { name: 'Discard unsaved changes?', exact: true })).toHaveCount(0);

@@ -8,11 +8,9 @@ const COLLAPSED_ROWS = 5;
 
 /// What must be settled before the program can be created: unmapped exercises and review items,
 /// each with a button that jumps to the place in the draft it points to.
-export function ImportReviewIssues({ rows, onFocusIssue, onUseListedEffort, busy }: {
+export function ImportReviewIssues({ rows, onFocusIssue }: {
   rows: AttentionRow[];
   onFocusIssue: (target: ImportIssueTarget) => void;
-  onUseListedEffort?: (target: ImportIssueTarget) => void;
-  busy?: boolean;
 }) {
   const [showAll, setShowAll] = useState(false);
   if (rows.length === 0) return null;
@@ -58,12 +56,6 @@ export function ImportReviewIssues({ rows, onFocusIssue, onUseListedEffort, busy
                     <strong className="irev-issue-title" title={row.title}>{row.title}</strong>
                   </div>
                   {row.message && <span className="irev-issue-message">{row.message}</span>}
-                  {row.useListedEffort && <span className="irev-issue-message">Use the listed RIR to keep those targets and remove any conflicting AMRAP labels. The source note is kept.</span>}
-                  {row.useListedEffort && onUseListedEffort && <Button variant="secondary" className="irev-effort-action" disabled={busy}
-                    aria-label={`Use listed RIR for ${row.exerciseName ?? 'this exercise'}`}
-                    onClick={() => onUseListedEffort(row.target)}>
-                    Use listed RIR{row.exerciseName ? ` for ${row.exerciseName}` : ''}
-                  </Button>}
                 </div>
                 <div className="irev-cell irev-cell--source" role="cell">
                   <span className="irev-source-text">{row.detail}</span>

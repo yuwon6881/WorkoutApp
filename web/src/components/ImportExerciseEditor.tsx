@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { AlertTriangle, ArrowLeftRight, Check, Dumbbell, Link2, Loader2, Plus, RotateCcw, Timer, Trash2, Unlink2 } from 'lucide-react';
+import { AlertTriangle, ArrowLeftRight, Dumbbell, Link2, Loader2, Plus, RotateCcw, Timer, Trash2, Unlink2 } from 'lucide-react';
 import type { CustomExerciseCreated, DraftExercise, DraftSet, Exercise } from '../types';
 import { restOptions } from '../lib/training';
 import { customAsExercise, draftExerciseName, isPlaceholderName, selectDraftExercise } from '../lib/draftExerciseSwap';
@@ -29,9 +29,7 @@ import { SupersetModal } from './SupersetModal';
 import { SupersetPosition } from './SupersetTag';
 import { useTrackRir } from '../lib/trackRir';
 import type { ExerciseEditing } from '../lib/exerciseEditScope';
-import { ExerciseScopeModal } from './ExerciseScopeModal';
 import { useExerciseDraft } from './useExerciseDraft';
-import { useExerciseSave } from './useExerciseSave';
 import { exercisesForWrittenName } from '../lib/machineVariants';
 import {
   type SetType,
@@ -64,13 +62,12 @@ export function ExerciseEditor({ exercise: saved, exercises, allDayExercises, re
   onRestore?: () => Promise<void>;
 }) {
   const trackRir = useTrackRir();
-  const { exercise, setExercise: onChange, dirty, discard, acknowledgeSave } = useExerciseDraft(saved, editing.unsaved);
+  const { exercise, setExercise: onChange, dirty, discard } = useExerciseDraft(saved, editing.unsaved);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [customOpen, setCustomOpen] = useState(false);
   const [supersetModalOpen, setSupersetModalOpen] = useState(false);
   const [isRestoring, setIsRestoring] = useState(false);
   const [restoreError, setRestoreError] = useState<string | null>(null);
-  const { isSaving, saveError, setSaveError, scopeRequest, setScopeRequest, requestSave, commit } = useExerciseSave(saved, exercise, editing, () => acknowledgeSave(exercise));
   const editSet = (index: number, patch: Partial<DraftSet>) =>
     onChange({ ...exercise, sets: exercise.sets.map((set, current) => current === index ? { ...set, ...patch } : set) });
 
@@ -112,7 +109,7 @@ export function ExerciseEditor({ exercise: saved, exercises, allDayExercises, re
   const savedRestorable = Boolean(canRestore && onRestore);
   const restoreAvailable = savedRestorable || dirty;
   const handleRestore = async () => {
-    if (isRestoring || isSaving) return;
+    if (isRestoring) return;
     if (!savedRestorable || !onRestore) {
       discard();
       return;
@@ -175,7 +172,7 @@ export function ExerciseEditor({ exercise: saved, exercises, allDayExercises, re
               </MenuItem>
             )}
             {restoreAvailable && (
-              <MenuItem disabled={isRestoring || isSaving} onClick={() => void handleRestore()}>
+              <MenuItem disabled={isRestoring} onClick={() => void handleRestore()}>
                 <RotateCcw size={14} />
                 <span>Restore default</span>
               </MenuItem>
@@ -201,7 +198,7 @@ export function ExerciseEditor({ exercise: saved, exercises, allDayExercises, re
         <div className="import-fields iex-meta-group">
           <div className="field import-library-field iex-library-field">
             <Button variant="secondary" className="import-library-trigger iex-library-trigger" aria-haspopup="dialog" data-import-field="library"
-              disabled={isRestoring || isSaving}
+              disabled={isRestoring}
               aria-describedby={!exercise.exerciseId ? `${exercise.lineId}-library-status` : undefined}
               aria-label={`Library exercise for ${title}`} onClick={() => setPickerOpen(true)}>
               <Dumbbell size={15} />
@@ -357,28 +354,6 @@ export function ExerciseEditor({ exercise: saved, exercises, allDayExercises, re
         </div>
       </div>
     </div>
-
-    {(dirty || saveError) && !scopeRequest && (
-      <div className="import-exercise-save-bar iex-save-bar" data-import-save-bar={exercise.lineId}>
-        <span className="import-exercise-save-state iex-save-state" role="status">
-          {saveError ?? 'Unsaved changes'}
-        </span>
-        <Button variant="tertiary" className="iex-cancel-btn" disabled={isSaving} onClick={() => { setSaveError(null); discard(); }}>Cancel</Button>
-        <Button variant="primary" className="iex-save-btn" disabled={isSaving || !dirty} onClick={requestSave}>
-          {isSaving ? <Loader2 size={15} className="spin" /> : <Check size={15} />}Save changes
-        </Button>
-      </div>
-    )}
-
-    {scopeRequest && <ExerciseScopeModal
-      exerciseName={saved.sourceName}
-      changes={scopeRequest.changes}
-      counts={scopeRequest.counts}
-      busy={isSaving}
-      error={saveError}
-      onConfirm={scope => void commit(scope)}
-      onCancel={() => setScopeRequest(null)}
-    />}
 
     {pickerOpen && <Modal title={`Choose exercise for ${title.length > 32 ? `${title.slice(0, 30)}…` : title}`} wide onClose={() => setPickerOpen(false)}>
       <div className="modal-body import-library-picker">

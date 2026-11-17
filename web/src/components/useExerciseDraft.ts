@@ -32,10 +32,7 @@ export function useExerciseDraft(saved: DraftExercise, unsaved: Map<string, Unsa
     exercise,
     dirty,
     setExercise: (next: DraftExercise) => setDraft(next),
-    /// Drops the edits, after they were saved or when the lifter cancels them.
-    discard: () => setDraft(null),
-    /// A slow save must not clear edits the lifter typed after submitting it.
-    acknowledgeSave: (submitted: DraftExercise) => setDraft(current =>
-      current && editableSnapshot(current) !== editableSnapshot(submitted) ? current : null)
+    /// Drops the held edits, as Restore default does when the exercise has no saved default.
+    discard: () => setDraft(null)
   };
 }

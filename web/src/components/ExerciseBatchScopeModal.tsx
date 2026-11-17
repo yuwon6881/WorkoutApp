@@ -39,10 +39,10 @@ export function ExerciseBatchScopeModal({ pending, busy, error, onConfirm, onCan
     return choice === 'shared' ? rest : { ...rest, [lineId]: choice };
   });
 
-  return <Modal title={`Save changes to ${pending.length} exercises`} onClose={onCancel}>
+  return <Modal title={`Save changes to ${pending.length} ${pending.length === 1 ? 'exercise' : 'exercises'}`} onClose={onCancel}>
     <div className="modal-body exercise-scope-body">
       <p>
-        Some of these exercises appear more than once. Only what you changed is carried over,
+        {pending.length === 1 ? 'This exercise appears' : 'Some of these exercises appear'} more than once. Only what you changed is carried over,
         so the other occurrences keep their own sets, rest and notes.
       </p>
       <fieldset className="exercise-scope-options" disabled={busy}>
@@ -70,7 +70,7 @@ export function ExerciseBatchScopeModal({ pending, busy, error, onConfirm, onCan
       <Button variant="tertiary" disabled={busy} onClick={onCancel}>Back</Button>
       <Button variant="primary" disabled={busy}
         onClick={() => onConfirm(pending.map(item => ({ base: item.base, edited: item.edited, scope: overrides[item.base.lineId] ?? scope })))}>
-        Save {pending.length} exercises
+        Save {pending.length} {pending.length === 1 ? 'exercise' : 'exercises'}
       </Button>
     </div>
   </Modal>;

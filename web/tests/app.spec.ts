@@ -429,11 +429,11 @@ test('one weight unit switch sticks and shows that unit\'s gym steps', async ({ 
 /// change should go; the default (the same block) is what a mapping always did before.
 async function saveExerciseChanges(page: Page, within: Locator, shot?: string) {
   await within.getByRole('button', { name: 'Save changes', exact: true }).click();
-  const scope = page.getByRole('dialog', { name: 'Apply these changes to', exact: true });
+  const scope = page.getByRole('dialog', { name: /Save changes to \d+ exercises?/ });
   const asked = await scope.waitFor({ state: 'visible', timeout: 2000 }).then(() => true, () => false);
   if (asked) {
     if (shot) await page.screenshot({ path: join(screenshotsDirectory, shot) });
-    await scope.getByRole('button', { name: 'Save changes', exact: true }).click();
+    await scope.getByRole('button', { name: /Save \d+ exercises?/ }).click();
     await expect(scope).toBeHidden({ timeout: 30000 });
   }
 }
@@ -1152,9 +1152,9 @@ test('create a custom multi-block program and cap each week at fourteen schedule
     await picker.getByRole('button', { name: 'Map Barbell bench press', exact: true }).click();
     await expect(picker).toBeHidden();
     // The pick is held until saved, so the day stays unmapped as far as the program is concerned.
-    await expect(page.locator('[data-import-save-bar]')).toBeVisible();
+    await expect(page.locator('.day-detail-modal').getByRole('button', { name: 'Save changes', exact: true })).toBeVisible();
     await saveExerciseChanges(page, page.locator('.day-detail-modal'));
-    await expect(page.locator('[data-import-save-bar]')).toBeHidden();
+    await expect(page.locator('.day-detail-modal').getByRole('button', { name: 'Save changes', exact: true })).toBeHidden();
     await expect(page.getByRole('button', { name: 'Library exercise for Barbell bench press', exact: true })).toBeVisible();
     await page.locator('.day-detail-modal').getByRole('button', { name: 'Close dialog', exact: true }).click();
 

@@ -19,8 +19,6 @@ export type AttentionRow = {
   action: string;
   ariaLabel: string;
   target: ImportIssueTarget;
-  useListedEffort?: boolean;
-  exerciseName?: string;
 };
 
 /// Unmapped exercises first, then every review issue that is more than a note.
@@ -46,9 +44,6 @@ export function buildAttentionRows(view: ImportView, draft: ImportDraft | null):
       detail: `${issue.sourcePage ? `p.${issue.sourcePage} · ` : ''}${importIssueCopy(issue.code, issue.message).hint}`,
       action: 'Fix',
       ariaLabel: `Fix issue: ${issue.message}`,
-      useListedEffort: issue.code === 'effort_instruction_conflict' && issue.setIndex != null,
-      exerciseName: draft?.workouts.find(day => day.lineId === issue.workoutLineId)?.exercises
-        .find(exercise => exercise.lineId === issue.exerciseLineId)?.sourceName,
       target: {
         sourcePage: issue.sourcePage, workoutLineId: issue.workoutLineId, exerciseLineId: issue.exerciseLineId,
         setIndex: issue.setIndex, targetField: issue.targetField

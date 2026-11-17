@@ -30,7 +30,7 @@ const draft: ImportDraft = ensureStructureIds({ programName: 'Powerbuilding revi
       : [set('normal', index === 4 ? 45 : 8)] }))
 })) });
 
-test('chooses the listed RIR without reselecting each target', async ({ page }, info) => {
+test('opens an issue at the exercise and saves a manual resolution', async ({ page }, info) => {
   await signIn(page, 'e2e-responsive');
   const launch = await (await page.request.get('/api/bootstrap/launch')).json();
   const exercise = { ...draft.workouts[0].exercises[0], notes: 'Push these all very hard. Go to true failure.',
@@ -51,11 +51,7 @@ test('chooses the listed RIR without reselecting each target', async ({ page }, 
     const payload = route.request().postDataJSON() as { days: typeof reviewDraft.workouts; revision: number };
     expect(payload.revision).toBe(1);
     const saved = payload.days[0].exercises[0];
-    expect(saved.notes).toContain('Use the listed effort targets');
-    expect(saved.notes).toContain('Go to true failure.');
-    expect(saved.sets.slice(1).map(item => [item.rir, item.targetRpe, item.notes])).toEqual([
-      ['1', 9, null], ['1', 9, null], ['1', 9, null]
-    ]);
+    expect(saved.notes).toBe('Follow the listed effort targets.');
     view = { ...view, revision: 2, acceptable: true, reviewIssues: [], draft: { ...reviewDraft, workouts: payload.days } };
     await route.fulfill({ json: view });
   });
@@ -66,20 +62,66 @@ test('chooses the listed RIR without reselecting each target', async ({ page }, 
   const rirControl = rirField.locator('.rpe-control');
   await expect(rirControl).toHaveClass(/issue-focus/);
   await expect(rirField).not.toHaveClass(/issue-focus/);
-  await expect(rirControl).toBeInViewport();
+  // The exercise heading is what Fix brings to the top; on a phone the card's library, muscle and
+  // note rows can push the highlighted set below the fold, where the lifter scrolls on to it.
+  await expect(dayModal.locator('[data-import-exercise="exercise-0-0"] .iex-name')).toBeInViewport();
+  if (info.project.name === 'desktop') await expect(rirControl).toBeInViewport();
   const geometry = await rirControl.evaluate(element => ({
     radius: parseFloat(getComputedStyle(element).borderTopLeftRadius),
     width: element.getBoundingClientRect().width
   }));
   expect(geometry.radius).toBeGreaterThanOrEqual(geometry.width / 2);
   await page.screenshot({ path: info.outputPath('rir-highlight.png') });
+  await expect(page.getByRole('button', { name: /Use listed RIR/ })).toHaveCount(0);
+  const card = dayModal.locator('[data-import-exercise="exercise-0-0"]');
+  const position = await card.evaluate(el => ({ top: el.getBoundingClientRect().top, bodyTop: el.closest('.day-detail-modal-body')!.getBoundingClientRect().top }));
+  expect(position.top - position.bodyTop).toBeLessThan(30);
+  await card.getByRole('textbox', { name: 'Description' }).fill('Follow the listed effort targets.');
+  await dayModal.getByRole('button', { name: 'Save changes', exact: true }).click();
   await dayModal.getByRole('button', { name: 'Close dialog', exact: true }).click();
-  const action = page.getByRole('button', { name: 'Use listed RIR for BACK SQUAT' });
-  await expect(action).toBeVisible();
-  await action.click();
   await expect(page.getByText('The effort instructions disagree')).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Accept and create program' })).toBeEnabled();
 });
+
+for (const motion of ['reduce', 'no-preference'] as const) {
+  test.describe(`issue on a later exercise with many sets (${motion} motion)`, () => {
+    test.use({ reducedMotion: motion });
+    test('stops with the exercise heading at the top', async ({ page }) => {
+      await signIn(page, 'e2e-responsive');
+      const launch = await (await page.request.get('/api/bootstrap/launch')).json();
+      const longSets = Array.from({ length: 9 }, () => set('normal', 8));
+      const day = { ...draft.workouts[0], exercises: draft.workouts[0].exercises.slice(0, 4)
+        .map(exercise => ({ ...exercise, sets: longSets })) };
+      const view: ImportView = { id: '00000000-0000-4000-8000-000000000093', status: 'ready', stage: 'done',
+        fileName: 'Long.json', pages: 0, error: '', created: '2026-10-14T00:00:00Z', model: 'external',
+        unresolvedCount: 0, draft: { ...draft, workouts: [day] }, unresolved: [], acceptable: false, programId: null, revision: 1,
+        reviewIssues: [{ code: 'effort_instruction_conflict', message: 'The effort on the last sets disagrees with the note.',
+          severity: 'warning', workoutLineId: day.lineId, exerciseLineId: 'exercise-0-2', setIndex: 7, targetField: 'targetRpe' }] };
+      launch.exercises = catalog;
+      launch.preferences = { ...launch.preferences, trackRir: true };
+      await page.route('**/api/bootstrap/launch', route => route.fulfill({ json: { ...launch, imports: [view] } }));
+      await page.route('**/api/exercises', route => route.fulfill({ json: catalog }));
+      await page.route('**/api/imports', route => route.fulfill({ json: [view] }));
+      await page.route(`**/api/imports/${view.id}`, route => route.fulfill({ json: view }));
+      await page.goto('/import');
+      await page.getByRole('button', { name: /Fix issue: The effort on the last sets/ }).click();
+      const dayModal = page.getByRole('dialog').filter({ has: page.locator('.day-detail-modal-body') });
+      const card = dayModal.locator('[data-import-exercise="exercise-0-2"]');
+      await expect(card).toBeVisible();
+      // Let any smooth scroll finish before measuring where it stopped.
+      await page.waitForTimeout(1200);
+      const offset = await card.evaluate(el => {
+        let scroller: HTMLElement | null = el.parentElement;
+        while (scroller && !(scroller.scrollHeight > scroller.clientHeight && /(auto|scroll)/.test(getComputedStyle(scroller).overflowY))) scroller = scroller.parentElement;
+        const top = scroller ? scroller.getBoundingClientRect().top : 0;
+        return el.getBoundingClientRect().top - top;
+      });
+      expect(offset).toBeGreaterThanOrEqual(-1);
+      expect(offset).toBeLessThan(40);
+      await expect(card.locator('.iex-name')).toBeInViewport();
+    });
+  });
+}
 
 for (const theme of ['dark', 'light']) {
   test(`import review geometry and editing in ${theme}`, async ({ page }, info) => {
@@ -215,7 +257,8 @@ for (const theme of ['dark', 'light']) {
     await expect(picker.getByRole('button', { name: 'Swap Plate Pinch' })).toBeVisible();
     await picker.getByRole('button', { name: 'Swap Plate Pinch' }).click();
     await expect(first.locator('.iex-name')).toHaveText('Plate Pinch');
-    await first.locator('.iex-save-bar').getByRole('button', { name: 'Cancel', exact: true }).click();
+    await first.getByRole('button', { name: 'Actions for Plate Pinch' }).click();
+    await page.getByRole('menuitem', { name: 'Restore default' }).click();
     await expect(first.locator('.iex-name')).toHaveText('Back Squat');
     const badgeBounds = (await badges.boundingBox())!;
     const libraryBounds = (await library.boundingBox())!;
@@ -245,8 +288,7 @@ for (const theme of ['dark', 'light']) {
     expect(await dialog.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
     await first.locator('.iex-prescription-toolbar').scrollIntoViewIfNeeded();
     await page.screenshot({ path: info.outputPath(`prescriptions-${theme}.png`) });
-    await first.locator('.iex-save-bar').getByRole('button', { name: 'Cancel', exact: true }).click();
-    await expect(first.locator('.iex-save-bar')).toHaveCount(0);
     await dialog.getByRole('button', { name: 'Close dialog', exact: true }).click();
+    await page.getByRole('button', { name: 'Discard changes', exact: true }).click();
   });
 }

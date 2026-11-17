@@ -226,8 +226,8 @@ export function ProgramDayList({
         </div>
         <div className="modal-actions">
           <Button variant="destructive" onClick={handleDiscardChanges}>Discard changes</Button>
-          {daySave.unsavedCount > 1 && <Button variant="secondary" onClick={() => { setDiscardPrompt(null); daySave.requestSave(); }}>
-            Save {daySave.unsavedCount} changes
+          {daySave.unsavedCount > 0 && <Button variant="secondary" onClick={() => { setDiscardPrompt(null); daySave.requestSave(); }}>
+            Save changes
           </Button>}
           <Button variant="primary" onClick={handleKeepEditing}>Keep editing</Button>
         </div>
@@ -256,12 +256,13 @@ export function ProgramDayList({
             onMuscleSelect={setSelectedMuscle}
           />}
         </div>
-        <div className={`modal-actions ${daySave.unsavedCount > 1 ? '' : 'dismiss-only'}`.trim()}>
+        <div className={`modal-actions ${daySave.unsavedCount > 0 ? '' : 'dismiss-only'}`.trim()}>
           {daySave.error && !daySave.review && <span className="error-text" role="alert">{daySave.error}</span>}
-          {daySave.unsavedCount > 1 && <Button variant="secondary" disabled={daySave.saving} onClick={daySave.requestSave}>
-            Save {daySave.unsavedCount} changes
+          {/* Edits are held until this one save, so it leads while anything is unsaved. */}
+          <Button variant={daySave.unsavedCount > 0 ? 'secondary' : 'primary'} onClick={closeModal}>Done</Button>
+          {daySave.unsavedCount > 0 && <Button variant="primary" disabled={daySave.saving} onClick={daySave.requestSave}>
+            {daySave.saving ? 'Saving…' : 'Save changes'}
           </Button>}
-          <Button variant="primary" onClick={closeModal}>Done</Button>
         </div>
       </Modal>
     )}

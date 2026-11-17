@@ -248,41 +248,6 @@
   }
 }
 
-/* Save / Cancel bar */
-:root .import-exercise.iex-card .iex-save-bar {
-  display: flex !important;
-  flex-wrap: wrap !important;
-  align-items: center !important;
-  justify-content: flex-end !important;
-  gap: 10px !important;
-  margin-top: 16px !important;
-  padding-top: 14px !important;
-  border-top: 1px solid var(--section-border) !important;
-}
-
-:root .import-exercise.iex-card .iex-save-state {
-  margin-right: auto !important;
-  font-size: var(--font-secondary) !important;
-  font-weight: 650 !important;
-  color: var(--amber) !important;
-}
-
-:root .import-exercise.iex-card .iex-save-bar .button {
-  min-height: 40px !important;
-  height: 40px !important;
-  padding: 0 16px !important;
-  border-radius: var(--radius-control) !important;
-  font-size: var(--font-secondary) !important;
-  font-weight: 650 !important;
-}
-
-@media (max-width: 639px) {
-  :root .import-exercise.iex-card .iex-save-bar .button {
-    min-height: 44px !important;
-    height: 44px !important;
-  }
-}
-
 /* Touch targets: 44 px below 1024 px and 36 px from there up, for every control of the card. The
    rules above size controls for the denser desktop layout with long, important selectors, so
    these repeat :root to outrank them. */
@@ -331,13 +296,6 @@
     min-width: 44px !important;
     min-height: 44px !important;
     margin: -12px -12px -12px 0 !important;
-  }
-}
-
-@media (max-width: 1023px) {
-  :root:root:root:root .import-exercise.iex-card .iex-save-bar .button {
-    min-height: 44px !important;
-    height: 44px !important;
   }
 }
 

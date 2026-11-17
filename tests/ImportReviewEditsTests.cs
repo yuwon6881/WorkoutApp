@@ -8,7 +8,7 @@ namespace Workout.Tests;
 public sealed class ImportReviewEditsTests
 {
     [Fact]
-    public void Choosing_listed_effort_clears_the_review_and_restoring_the_source_brings_it_back()
+    public void Editing_away_the_effort_conflict_clears_the_review_and_restoring_the_source_brings_it_back()
     {
         var original = Exercise("Push these all very hard. Go to true failure.",
             Set(10) with { TargetRpe = 9, Rir = "1", Notes = "To failure / AMRAP" });

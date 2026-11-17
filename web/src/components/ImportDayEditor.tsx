@@ -70,6 +70,7 @@ export function DayEditor({
 
   const handleRemoveExercise = (lineId: string) => {
     if (draft.exercises.length <= 1) return;
+    editing.unsaved.delete(lineId);
     const unlinked = unlinkExercise(
       draft.exercises.map(e => ({ ...e, id: e.lineId })),
       lineId

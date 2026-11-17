@@ -26,8 +26,6 @@ export type Occurrence = { workoutLineId: string; exercise: DraftExercise };
 
 /// What the exercise editor needs from whoever owns the draft document.
 export type ExerciseEditing = {
-  /// Commits an edited exercise; any scope beyond the occurrence reaches the others too.
-  save: (base: DraftExercise, edited: DraftExercise, scope: EditScope) => Promise<void>;
   /// Commits several edited exercises in one write, each with its own scope, so none rewrites another.
   saveAll: (edits: { base: DraftExercise; edited: DraftExercise; scope: EditScope }[]) => Promise<void>;
   count: (base: DraftExercise) => { block: number; program: number };

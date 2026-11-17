@@ -39,6 +39,13 @@ describe('ExerciseBatchScopeModal', () => {
     expect(markup).not.toContain('Where to apply the changes to Deadlift');
   });
 
+  it('uses singular wording for one edited exercise', () => {
+    const markup = render([pendingEdit('Squat', { block: 1, program: 1 })]);
+    expect(markup).toContain('Save changes to 1 exercise');
+    expect(markup).toContain('Save 1 exercise');
+    expect(markup).toContain('This exercise appears more than once');
+  });
+
   it('offers only the choices that would change something', () => {
     const blockIsProgram = render([pendingEdit('Squat', { block: 2, program: 2 }), pendingEdit('Row', { block: 0, program: 0 })]);
     expect(blockIsProgram).toContain('Same block');

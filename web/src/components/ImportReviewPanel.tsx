@@ -10,7 +10,6 @@ import { ImportReviewIssues } from './ImportReviewIssues';
 import { GymSwitcher } from './GymSwitcher';
 import { useGymAvailabilityCheck } from '../lib/gymAvailability';
 import { writtenMovementKey } from '../lib/draftExerciseSwap';
-import { useListedEffort } from '../lib/importEffortResolution';
 import './ImportReview.css';
 import './ImportUncertainty.css';
 
@@ -139,17 +138,7 @@ export const ImportReviewPanel = forwardRef<HTMLElement, {
         </section>
       )}
 
-      <ImportReviewIssues rows={attentionRows.map(row => {
-        const exercise = draft.workouts.find(day => day.lineId === row.target.workoutLineId)?.exercises
-          .find(item => item.lineId === row.target.exerciseLineId);
-        return { ...row, useListedEffort: !!row.useListedEffort && !!exercise && !!useListedEffort(exercise) };
-      })} onFocusIssue={onFocusIssue} busy={busy} onUseListedEffort={target => {
-        const day = draft.workouts.find(item => item.lineId === target.workoutLineId);
-        const exercise = day?.exercises.find(item => item.lineId === target.exerciseLineId);
-        const resolved = exercise && useListedEffort(exercise);
-        if (day && resolved) onApplyOption?.({ ...draft, workouts: draft.workouts.map(item => item.lineId === day.lineId
-          ? { ...item, exercises: item.exercises.map(entry => entry.lineId === resolved.lineId ? resolved : entry) } : item) });
-      }} />
+      <ImportReviewIssues rows={attentionRows} onFocusIssue={onFocusIssue} />
       {hasUncertainty && (() => {
         const uncertaintyIssues = (view.reviewIssues ?? []).filter(issue => issue.code === 'external_uncertainty');
         return (
