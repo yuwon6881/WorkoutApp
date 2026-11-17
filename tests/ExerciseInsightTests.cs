@@ -106,6 +106,24 @@ public sealed class ExerciseInsightTests
     }
 
     [Fact]
+    public async Task An_unrated_set_is_estimated_on_the_chart_as_it_is_in_session_records()
+    {
+        // Session records and %1RM loads read an unrated set at face value; the strength chart must
+        // not drop the same set, or a record could be announced that the chart never shows.
+        var (h, templateId, benchId) = await Ready();
+        await using var owned = h;
+        var session = await h.Workouts.Start(templateId, null, default);
+        await h.Workouts.Save(session.Id, new SessionInput(null,
+            [new SessionExerciseInput(benchId, "Bench press", null, [Harness.Set(5, 8)], [new SetInput(70, 5, null, true)])],
+            session.Revision, null), default);
+        await h.Workouts.Finish(session.Id, null, default);
+
+        var insight = await new ExerciseService(h.Db).Insight(benchId, "all", 0, 20, default);
+
+        Assert.Equal(Progression.Estimate1Rm(70, 5), Assert.Single(insight.Points).Estimated1RmKg);
+    }
+
+    [Fact]
     public async Task Dates_follow_the_readers_time_zone_rather_than_utc()
     {
         // Finished at 23:30 UTC on 10 March, which is already 11 March in Kuala Lumpur (UTC+8).

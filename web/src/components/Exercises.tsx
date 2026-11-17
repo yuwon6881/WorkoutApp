@@ -13,6 +13,7 @@ import { ChipScroller } from './ui/ChipScroller';
 import { GymAvailabilityBadge } from './GymAvailabilityBadge';
 import { useGymAvailabilityCheck } from '../lib/gymAvailability';
 import { muscleThumbTarget } from '../lib/muscleThumbTarget';
+import { trainsMuscle } from '../lib/muscles';
 import { MuscleThumbSprite, MuscleThumbUse } from './MuscleThumbSprite';
 import { exercisesForWrittenName } from '../lib/machineVariants';
 import './Exercises.css';
@@ -99,7 +100,7 @@ export function ExerciseLibrary({ exercises, onSelect, exclude = emptyIds, added
   const filtered = useMemo(() => exercises.filter(e => !excluded.has(e.id)
     && (source === 'all' || (source === 'custom' ? e.isCustom : !e.isCustom))
     && (category === 'all' || getExerciseCategory(e) === category)
-    && (muscle === 'All muscles' || [e.muscle, ...(e.secondaryMuscles ?? [])].some(value => value.toLowerCase() === muscle.toLowerCase()))
+    && (muscle === 'All muscles' || trainsMuscle(e, muscle))
     && searchScores.has(e.id)), [exercises, exclude, currentExerciseId, source, category, muscle, searchScores]);
   const ranks = useMemo(() => exerciseRanks(filtered, exercises, current, preferredNames), [filtered, exercises, current, preferredNames]);
   const checkGym = useGymAvailabilityCheck();

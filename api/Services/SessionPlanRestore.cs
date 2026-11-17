@@ -117,7 +117,7 @@ public static class SessionPlanRestore
                 row.Reps = snapshot.Reps;
                 row.DurationSeconds = null;
                 row.Rpe = snapshot.Rpe;
-                row.Rir = null;
+                row.Rir = snapshot.Rir;
                 row.Warmup = snapshot.Warmup;
                 row.SuggestionJson = snapshot.SuggestionJson;
                 row.ResistanceMode = snapshot.ResistanceMode;

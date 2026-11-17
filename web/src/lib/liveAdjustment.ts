@@ -26,9 +26,11 @@ export function withLoggedSetEdit(draft: Session, ei: number, si: number, patch:
   if (!exercise?.sets[si] || ('weightKg' in patch && !loadIsEditable(exercise))) return null;
   const edited = { ...draft, exercises: draft.exercises.map((item, index) => index === ei
     ? { ...item, sets: item.sets.map((set, setIndex) => setIndex === si ? { ...set, ...patch } : set) } : item) };
-  const isResult = patch.done === true || 'weightKg' in patch || 'reps' in patch || 'rpe' in patch || 'rir' in patch;
+  // Unticking a set takes back what it taught the later sets, so they are re-aimed from what is still logged.
+  const unlogged = patch.done === false && exercise.sets[si].done;
+  const isResult = patch.done === true || unlogged || 'weightKg' in patch || 'reps' in patch || 'rpe' in patch || 'rir' in patch;
   if (!isResult) return edited;
-  const adjusted = withLiveAdjustment(edited, ei, si, exerciseLoadGrid(exercise, catalog, unit), trackRir, filled, copied);
+  const adjusted = withLiveAdjustment(edited, ei, si, exerciseLoadGrid(exercise, catalog, unit), trackRir, filled, copied, unlogged);
   return withEmptyLoadsFilled(adjusted, ei, si, copied);
 }
 
@@ -169,11 +171,11 @@ function loggedDeviations(exercise: SessionExercise, reading: Reading, baselines
 /// are still blank (or hold a load copied into them, or this adjustment's last fill).
 export function withLiveAdjustment(
   draft: Session, exerciseIndex: number, setIndex: number, grid: LoadGrid, trackRir: boolean, filled: FilledInputsLog,
-  copied: CopiedLoadsLog = new Map()
+  copied: CopiedLoadsLog = new Map(), unlogged = false
 ): Session {
   const exercise = draft.exercises[exerciseIndex];
   const logged = exercise?.sets[setIndex];
-  if (!exercise || !logged?.done || isTimedExercise(exercise) || !steerable(exercise, setIndex)) return draft;
+  if (!exercise || !(logged?.done || unlogged) || isTimedExercise(exercise) || !steerable(exercise, setIndex)) return draft;
   const entry = loadEntryFor(exercise);
   const reading: Reading = { entry, referenceKg: draft.bodyWeight?.referenceKg, trackRir };
   const axis = loadAxisFor(entry, reading.referenceKg, grid);
@@ -195,9 +197,18 @@ export function withLiveAdjustment(
     const target = repPlan(plan);
     const prefill = baseInputs(set, plan, trackRir);
     const base = prefill ?? baselines.get(kind);
-    if (!target || !base || base.reps === null) return;
     const current = inputsOf(set);
     const lastFilled = filled.get(set.id);
+    if (!target || !base || base.reps === null) {
+      // A first time whose only logged set was unticked has nothing left to steer from: what that
+      // set filled in goes back to blank.
+      if (!prefill && lastFilled && holds(current, lastFilled)) {
+        filled.delete(set.id);
+        changed = true;
+        sets[index] = { ...set, ...blankInputs(set) };
+      }
+      return;
+    }
     // Only a set still holding the program's fill (or, with no history, still blank), or the last
     // adjustment's, is the app's to move.
     const untouched = prefill ? holds(current, prefill) : isBlank(set, copied);
@@ -219,6 +230,13 @@ export function withLiveAdjustment(
   });
   if (!changed) return draft;
   return { ...draft, exercises: draft.exercises.map((item, index) => index === exerciseIndex ? { ...item, sets } : item) };
+}
+
+/// What a set with no history shows before anything is filled: the program's reps, if the server shows them.
+function blankInputs(set: LoggedSet): FilledInputs {
+  const suggestion = set.suggestion;
+  const shownTarget = suggestion && !suggestion.sourceSessionId && !suggestion.sourceDate ? suggestion.suggestedReps : null;
+  return { weightKg: null, reps: shownTarget, rpe: null, rir: null };
 }
 
 /// A set with no history the lifter has not filled: no effort, no reps beyond the program's target the

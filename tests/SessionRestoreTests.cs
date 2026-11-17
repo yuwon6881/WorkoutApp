@@ -49,6 +49,24 @@ public sealed class SessionRestoreTests
     }
 
     [Fact]
+    public void Plan_restore_returns_an_unlogged_set_to_its_starting_reserve()
+    {
+        // "5+" cannot be read back from an RPE, so the snapshot keeps the reserve the set started with.
+        var baseline = new SessionExerciseBaseline(null, "Bench", "", Json.Write(new List<SetPrescription> { Harness.Set(8, 10) }),
+            "", "[]", LoadModels.External, "", [new BaselineSetSnapshot(0, 1, 60, 8, null, false, "{}", ResistanceModes.External, null, "5+")]);
+        var edited = new CompletedSet { Position = 0, Done = false, WeightKg = 80, Reps = 3, Rir = "0", Rpe = 10 };
+
+        SessionPlanRestore.ApplyTo(SessionPlanRestore.Apply(baseline, [edited]), Guid.NewGuid(), Guid.NewGuid(), _ => { });
+
+        Assert.Equal("5+", edited.Rir);
+        Assert.Null(edited.Rpe);
+    }
+
+    [Fact]
+    public void A_snapshot_from_before_reserves_were_kept_reads_as_none()
+        => Assert.Null(Json.Read<BaselineSetSnapshot>("""{"position":0,"workingSetOrdinal":1,"weightKg":60,"reps":8,"rpe":null,"warmup":false,"suggestionJson":"","resistanceMode":"external","systemLoadKg":null}""")!.Rir);
+
+    [Fact]
     public void Plan_restore_brings_back_a_removed_warmup_without_borrowing_the_logged_working_set()
     {
         var baseline = new SessionExerciseBaseline(null, "Bench", "", Json.Write(new List<SetPrescription> { Warmup(), Harness.Set(8, 10) }),

@@ -34,7 +34,9 @@ export function useAfterLog({ unit, advance, onAdvance }: {
       })
     });
     const exercise = logged.exercises[exerciseIndex];
-    const pr = checkLivePr(exercise, setIndex);
+    const sameLift = exercise.exerciseId
+      ? logged.exercises.filter((item, i) => i !== exerciseIndex && item.exerciseId === exercise.exerciseId) : [];
+    const pr = checkLivePr(exercise, setIndex, sameLift);
     if (pr !== null) {
       const loadStr = pr.isRepsOnly || pr.loadKg === null ? '' : ` at ${showWeight(pr.loadKg, unit)}`;
       const strength = `est. 1RM ${showWeight(pr.e1rm, unit)}`;

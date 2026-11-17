@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Exercise } from '../types';
-import { getWorkoutMuscles } from './muscles';
+import { getWorkoutMuscles, trainsMuscle } from './muscles';
 
 describe('getWorkoutMuscles', () => {
   const catalog: Exercise[] = [
@@ -83,5 +83,17 @@ describe('getWorkoutMuscles', () => {
 
   it('returns empty array when no items provided', () => {
     expect(getWorkoutMuscles([], catalog)).toEqual([]);
+  });
+});
+
+describe('trainsMuscle', () => {
+  const rdl = { name: 'Romanian Deadlift', muscle: 'Posterior chain', secondaryMuscles: ['Back'] };
+
+  it('finds a movement filed under a muscle group by each muscle of the group', () => {
+    expect(trainsMuscle(rdl, 'Hamstrings')).toBe(true);
+    expect(trainsMuscle(rdl, 'Glutes')).toBe(true);
+    expect(trainsMuscle(rdl, 'Posterior chain')).toBe(true);
+    expect(trainsMuscle(rdl, 'back')).toBe(true);
+    expect(trainsMuscle(rdl, 'Chest')).toBe(false);
   });
 });

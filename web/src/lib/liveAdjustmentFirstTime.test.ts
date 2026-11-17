@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { LoggedSet, Session, SetPrescription } from '../types';
-import { withLiveAdjustment, type CopiedLoadsLog, type FilledInputsLog, type LoadGrid } from './liveAdjustment';
+import { withLiveAdjustment, withLoggedSetEdit, type CopiedLoadsLog, type FilledInputsLog, type LoadGrid } from './liveAdjustment';
 
 const grid: LoadGrid = { stepKg: 2.5, availableLoadsKg: null };
 
@@ -35,6 +35,17 @@ describe('withLiveAdjustment on a movement with no history', () => {
     const sets = withLiveAdjustment(logged(fresh(), 0, { weightKg: 60, reps: 10, rpe: 8, rir: '2' }), 0, 0, grid, true, new Map()).exercises[0].sets;
     expect(sets[1]).toMatchObject({ weightKg: 60, reps: 10, rir: '2' });
     expect(sets[2]).toMatchObject({ weightKg: 60, reps: 10, rir: '2' });
+  });
+
+  it('empties what the first logged set filled in when that set is unticked', () => {
+    const filled: FilledInputsLog = new Map();
+    const first = withLoggedSetEdit(fresh(), 0, 0, { done: true, weightKg: 60, reps: 10, rpe: 8, rir: '2' }, [], 'kg', true, filled)!;
+    expect(first.exercises[0].sets[1]).toMatchObject({ weightKg: 60, reps: 10 });
+    const unticked = withLoggedSetEdit(first, 0, 0, { done: false }, [], 'kg', true, filled)!;
+    // The reps and effort it set go; the load the set still holds keeps filling empty loads, as typing one does.
+    expect(unticked.exercises[0].sets.slice(1)).toMatchObject([
+      { weightKg: 60, reps: null, rpe: null, rir: null }, { weightKg: 60, reps: null, rpe: null, rir: null }
+    ]);
   });
 
   it('asks fewer reps at the target reserve after a first set taken closer to failure', () => {

@@ -18,7 +18,10 @@ export function normalizeSearchText(value: string) {
 function termsOf(text: string): Terms {
   const words = normalizeSearchText(text).split(' ').filter(Boolean);
   // Joined neighbours only ever match by prefix, so "lup" cannot be found inside "pull up".
-  return { words, joined: words.slice(1).map((word, index) => words[index] + word) };
+  const joined = words.slice(1).map((word, index) => words[index] + word);
+  // A written plural is also listed by its singular, so "calf" finds Calves as "calves" finds Calf.
+  const singulars = words.flatMap(word => singularForms(word)).filter(form => form.length >= 3 && !words.includes(form));
+  return { words: [...words, ...singulars], joined };
 }
 
 export function buildExerciseSearchIndex(exercise: SearchFields): ExerciseSearchIndex {
@@ -29,8 +32,16 @@ export function buildExerciseSearchIndex(exercise: SearchFields): ExerciseSearch
   };
 }
 
-function singular(token: string) {
-  return token.length > 2 && token.endsWith('s') && !token.endsWith('ss') ? token.slice(0, -1) : token;
+/// The singulars a plural may stand for, most specific first: "flies" is "fly", "calves" is
+/// "calf", "presses" is "press", and a plain "-s" is dropped ("ups" is "up").
+function singularForms(token: string): string[] {
+  if (token.length <= 2 || !token.endsWith('s') || token.endsWith('ss')) return [];
+  const forms: string[] = [];
+  if (token.length > 4 && token.endsWith('ies')) forms.push(`${token.slice(0, -3)}y`);
+  if (token.length > 4 && token.endsWith('ves')) forms.push(`${token.slice(0, -3)}f`);
+  if (token.length > 3 && token.endsWith('es')) forms.push(token.slice(0, -2));
+  forms.push(token.slice(0, -1));
+  return forms;
 }
 
 /// One substitution, insertion, deletion, or swap of two neighbouring letters.
@@ -53,9 +64,7 @@ function termMatches(terms: Terms, token: string, forgiving: boolean) {
   if (hit(token)) return true;
   // A plural ("ups") falls back to its singular; a short singular must be a whole word so that
   // "abs" does not start matching every word containing "ab".
-  const root = singular(token);
-  if (root === token) return false;
-  return root.length < 3 ? terms.words.includes(root) : hit(root);
+  return singularForms(token).some(root => root.length < 3 ? terms.words.includes(root) : hit(root));
 }
 
 /// Lower is better; undefined is no match. A hit in the name beats one in an alias, which beats

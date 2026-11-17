@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { LoggedSet, Session, SetPrescription, SetProgressionSuggestion } from '../types';
-import { targetReserve, withLiveAdjustment, type FilledInputsLog, type LoadGrid } from './liveAdjustment';
+import { targetReserve, withLiveAdjustment, withLoggedSetEdit, type FilledInputsLog, type LoadGrid } from './liveAdjustment';
 
 const grid: LoadGrid = { stepKg: 2.5, availableLoadsKg: null };
 
@@ -79,6 +79,28 @@ describe('withLiveAdjustment', () => {
       const second = withLiveAdjustment(logged(first, 1, { weightKg: first.exercises[0].sets[1].weightKg, reps: 16, rpe: 9, rir: '1' }), 0, 1, grid, true, filled);
       expect(second.exercises[0].sets[2]).toMatchObject({ weightKg: 27.5, reps: 16, rir: '1' });
     });
+  });
+
+  it('returns the later sets to the program fill when the set that moved them is unticked', () => {
+    const filled: FilledInputsLog = new Map();
+    const harder = withLoggedSetEdit(three(), 0, 0, { done: true, reps: 8, rpe: 10, rir: '0' }, [], 'kg', true, filled)!;
+    expect(harder.exercises[0].sets[1].weightKg).toBeLessThan(60);
+    const unticked = withLoggedSetEdit(harder, 0, 0, { done: false }, [], 'kg', true, filled)!;
+    expect(unticked.exercises[0].sets.slice(1)).toMatchObject([
+      { weightKg: 60, reps: 10, rir: '2' }, { weightKg: 60, reps: 10, rir: '2' }
+    ]);
+  });
+
+  it('re-aims from the sets still logged when a later one is unticked', () => {
+    const four = draftWith([0, 1, 2, 3].map(i => set(`s${i}`, i, 60, 10)));
+    const filled: FilledInputsLog = new Map();
+    const first = withLoggedSetEdit(four, 0, 0, { done: true, reps: 9, rpe: 8, rir: '2' }, [], 'kg', true, filled)!;
+    const second = withLoggedSetEdit(first, 0, 1, { done: true, reps: 8, rpe: 10, rir: '0' }, [], 'kg', true, filled)!;
+    const unticked = withLoggedSetEdit(second, 0, 1, { done: false }, [], 'kg', true, filled)!;
+    // Only the first set's one-rep miss is left to follow.
+    expect(unticked.exercises[0].sets.slice(2)).toMatchObject([
+      { weightKg: 60, reps: 9, rir: '2' }, { weightKg: 60, reps: 9, rir: '2' }
+    ]);
   });
 
   it('lowers the load for the next sets after a much harder set', () => {

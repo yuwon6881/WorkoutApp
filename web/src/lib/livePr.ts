@@ -61,17 +61,23 @@ function previousRepBest(exercise: SessionExercise, current: LoadKey): number | 
   return matches.length ? Math.max(...matches.map(record => record.reps)) : undefined;
 }
 
-export function checkLivePr(exercise: SessionExercise, setIndex: number): LivePrResult | null {
+/// `sameLiftElsewhere` holds the session's other rows of the same exercise: a set logged there
+/// today is already the bar to beat, as the server reads one exercise across its rows.
+export function checkLivePr(exercise: SessionExercise, setIndex: number, sameLiftElsewhere: SessionExercise[] = []): LivePrResult | null {
   const set = exercise.sets[setIndex];
   if (!set || !set.done || !isStrengthSet(exercise, set)) return null;
+  const others = [
+    ...exercise.sets.filter((_, idx) => idx !== setIndex).map(other => ({ row: exercise, set: other })),
+    ...sameLiftElsewhere.flatMap(row => row.sets.map(other => ({ row, set: other })))
+  ].filter(({ set: other }) => other.done);
 
   // 1. Check e1RM PR
   let isE1rmPr = false;
   const estimate = setEstimate(exercise, set);
   if (exercise.previousBestE1rmKg != null && estimate !== null && estimate > exercise.previousBestE1rmKg + 1e-4) {
-    const earlierEstimates = exercise.sets
-      .filter((other, idx) => idx !== setIndex && other.done && !other.warmup)
-      .map(other => setEstimate(exercise, other) ?? 0);
+    const earlierEstimates = others
+      .filter(({ set: other }) => !other.warmup)
+      .map(({ row, set: other }) => setEstimate(row, other) ?? 0);
     if (!earlierEstimates.some(val => val >= estimate - 1e-4)) {
       isE1rmPr = true;
     }
@@ -83,13 +89,13 @@ export function checkLivePr(exercise: SessionExercise, setIndex: number): LivePr
   if (loadInfo !== null && set.reps != null && set.reps > 0) {
     const prevRepBest = previousRepBest(exercise, loadInfo);
     if (prevRepBest !== undefined && set.reps > prevRepBest) {
-      const earlierRepsAtLoad = exercise.sets
-        .filter((other, idx) => idx !== setIndex && other.done && isStrengthSet(exercise, other))
-        .filter(other => {
-          const otherInfo = getLoadKey(exercise, other);
+      const earlierRepsAtLoad = others
+        .filter(({ row, set: other }) => isStrengthSet(row, other))
+        .filter(({ row, set: other }) => {
+          const otherInfo = getLoadKey(row, other);
           return otherInfo !== null && sameRecordLoad(otherInfo, loadInfo);
         })
-        .map(other => other.reps ?? 0);
+        .map(({ set: other }) => other.reps ?? 0);
       if (!earlierRepsAtLoad.some(val => val >= set.reps!)) {
         isRepPr = true;
       }

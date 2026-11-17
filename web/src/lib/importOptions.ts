@@ -42,11 +42,19 @@ function mapMovement(draft: ImportDraft, exercise: DraftExercise, option: Import
   };
 }
 
+/// The reserve a target RPE names, written as the editor writes it: 5 or more as 5+, a half step as none.
+function reserveFor(targetRpe: number): string | null {
+  const reserve = 10 - targetRpe;
+  if (reserve >= 5) return '5+';
+  return Number.isInteger(reserve) && reserve >= 0 ? String(reserve) : null;
+}
+
 function setReps(set: DraftSet, option: ImportOption): DraftSet {
   return {
     ...set,
     ...(option.repMin != null && option.repMax != null ? { repMin: option.repMin, repMax: option.repMax } : {}),
-    ...(option.targetRpe != null ? { targetRpe: option.targetRpe } : {}),
+    // The reserve is shown ahead of the RPE, so it is rewritten to match rather than left to contradict it.
+    ...(option.targetRpe != null ? { targetRpe: option.targetRpe, rir: reserveFor(option.targetRpe) } : {}),
     uncertainty: set.uncertainty ? settled(set.uncertainty) : set.uncertainty
   };
 }

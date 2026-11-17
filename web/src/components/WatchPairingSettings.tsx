@@ -4,6 +4,7 @@ import { api } from '../lib/api';
 import type { WatchDevice } from '../types';
 import { Button } from './ui/Button';
 import { Field } from './ui/Field';
+import { formatPairingCode, isCompletePairingCode } from '../lib/watchPairingCode';
 import './WatchPairingSettings.css';
 
 export function WatchPairingSettings({ accountId, notify }: { accountId: string; notify: (message: string) => void }) {
@@ -53,8 +54,6 @@ export function WatchPairingSettings({ accountId, notify }: { accountId: string;
     }
   }
 
-  const codeLength = code.replace(/[^a-z0-9]/gi, '').length;
-
   return (
     <div className="watch-pairing">
       <form className="watch-pairing-form" onSubmit={event => void approve(event)}>
@@ -62,10 +61,10 @@ export function WatchPairingSettings({ accountId, notify }: { accountId: string;
           Enter the 8-character code shown on your watch (expires in 5 min).
         </p>
         <div className="watch-pairing-inputs">
-          <Field label="Watch pairing code" name="watch-pairing-code" value={code} maxLength={9} autoComplete="off"
+          <Field label="Watch pairing code" name="watch-pairing-code" value={code} autoComplete="off"
             autoCapitalize="characters" spellCheck={false} placeholder="ABCD-EFGH" aria-describedby="watch-pairing-help"
-            onChange={event => setCode(event.target.value.toUpperCase())} />
-          <Button type="submit" variant="primary" disabled={busy || codeLength !== 8}>
+            onChange={event => setCode(formatPairingCode(event.target.value))} />
+          <Button type="submit" variant="primary" disabled={busy || !isCompletePairingCode(code)}>
             {busy ? 'Connecting…' : 'Connect watch'}
           </Button>
         </div>

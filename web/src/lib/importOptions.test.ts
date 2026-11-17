@@ -51,6 +51,17 @@ describe('import options', () => {
     expect(effort.workouts[0].exercises[0].sets[0].repMin).toBe(8);
   });
 
+  it('writes the reserve an effort option means, so an older RIR cannot outrank it', () => {
+    const options = [{ label: 'RPE 9', targetRpe: 9 }, { label: 'RPE 8.5', targetRpe: 8.5 }];
+    const draft = draftOf(exercise('a', { sets: [set({ rir: '3', uncertainty: { flag: true, reason: 'Conflict', options } })] }));
+    const at = { workoutLineId: 'd0', exerciseLineId: 'a', setIndex: 0 };
+    const whole = applyImportOption(draft, at, options[0], library)!.workouts[0].exercises[0].sets[0];
+    expect([whole.targetRpe, whole.rir]).toEqual([9, '1']);
+    // A half-step RPE has no whole reserve to name, so the stale one is cleared and the RPE stands.
+    const half = applyImportOption(draft, at, options[1], library)!.workouts[0].exercises[0].sets[0];
+    expect([half.targetRpe, half.rir]).toEqual([8.5, null]);
+  });
+
   it('does nothing for an option that cannot be applied', () => {
     const draft = draftOf(exercise('a'));
     expect(applyImportOption(draft, { workoutLineId: 'd0', exerciseLineId: 'a' }, { label: 'No id' }, library)).toBeNull();

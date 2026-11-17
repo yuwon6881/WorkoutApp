@@ -29,7 +29,9 @@ public record BaselineSetSnapshot(
     bool Warmup,
     string SuggestionJson,
     string ResistanceMode,
-    double? SystemLoadKg);
+    double? SystemLoadKg,
+    // The reserve the set started with; "5+" cannot be read back from an RPE. Absent in older snapshots.
+    string? Rir = null);
 
 public sealed partial class WorkoutService
 {
@@ -37,7 +39,7 @@ public sealed partial class WorkoutService
     {
         var baselineSets = sets.OrderBy(s => s.Position).Select(s => new BaselineSetSnapshot(
             s.Position, s.WorkingSetOrdinal, s.WeightKg, s.Reps, s.Rpe,
-            s.Warmup, s.SuggestionJson, s.ResistanceMode, s.SystemLoadKg)).ToList();
+            s.Warmup, s.SuggestionJson, s.ResistanceMode, s.SystemLoadKg, s.Rir)).ToList();
 
         return Json.Write(new SessionExerciseBaseline(
             exercise.ExerciseId, exercise.NameSnapshot, exercise.Note, exercise.PrescriptionJson,

@@ -100,6 +100,17 @@ describe('live personal bests', () => {
     expect(pr?.e1rm).toBeCloseTo(91, 1);
   });
 
+  it('counts sets already logged in another slot of the same exercise today', () => {
+    // A heavier top set earlier in the session, then the same lift again later as a second row.
+    const first = exercise([set({ weightKg: 70, reps: 8, rpe: 9 })], 80, { '65': 6 });
+    const second = { ...exercise([set({ weightKg: 65, reps: 7, rpe: 9 })], 80, { '65': 6 }), id: 'e2' };
+    expect(checkLivePr(second, 0)?.kind).toBe('both');
+    expect(checkLivePr(second, 0, [first])?.kind).toBe('reps');
+    // A rep best at the same load in the earlier row is the one to beat too.
+    const earlierReps = exercise([set({ weightKg: 65, reps: 8, rpe: 10 })], 200, { '65': 6 });
+    expect(checkLivePr(second, 0, [earlierReps])).toBeNull();
+  });
+
   it('does not award rep PR on tie', () => {
     const ex = exercise([set({ weightKg: 60, reps: 8, rpe: 8 })], 100, { '60': 8 });
     const pr = checkLivePr(ex, 0);

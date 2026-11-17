@@ -227,7 +227,8 @@ public sealed partial class ExerciseService(AppDb db, IMemoryCache? cache = null
             var volume = groupSets.Where(x => x.DurationSeconds is null).Select(x => (Load: RecordedLoad(x), x.Reps)).Where(x => x.Load is not null && x.Reps is not null)
                 .Select(x => x.Load!.Value * x.Reps!.Value).ToList();
             var groupStrength = groupSets.Where(x => strengthIds.Contains(x.Id)).ToList();
-            var estimates = groupStrength.Select(x => Progression.E1rm(RecordedLoad(x), x.Reps, x.Rpe)).Where(x => x is not null).Select(x => x!.Value).ToList();
+            // The same optional-effort estimate as session records and %1RM loads, so an unrated set counts here too.
+            var estimates = groupStrength.Select(x => Progression.Estimate1Rm(RecordedLoad(x), x.Reps, x.Rpe)).Where(x => x is not null).Select(x => x!.Value).ToList();
             var best = groupStrength.Where(x => RecordedLoad(x) is not null).OrderByDescending(x => RecordedLoad(x)).ThenByDescending(x => x.Reps).FirstOrDefault();
             // The row reads as one set: the heaviest load with its own reps, never reps from a lighter
             // back-off set. Only a session with no load to show falls back to its most reps.

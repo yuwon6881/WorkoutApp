@@ -114,3 +114,12 @@ export function getWorkoutMuscles(items: ExerciseLike[], catalog: Exercise[]): s
 
   return [...result].sort((a, b) => a.localeCompare(b));
 }
+
+/// Whether a movement trains a muscle the library filter names. The catalog files some movements
+/// under a group ("Posterior chain"), so the group's own muscles (Hamstrings, Glutes) find them too.
+export function trainsMuscle(exercise: Pick<Exercise, 'name' | 'muscle' | 'secondaryMuscles'>, muscle: string): boolean {
+  const wanted = muscle.trim().toLowerCase();
+  return [exercise.muscle, ...(exercise.secondaryMuscles ?? [])].filter(Boolean).some(label =>
+    label.toLowerCase() === wanted
+    || normalizeCatalogMuscle(label, exercise.name).some(member => member.toLowerCase() === wanted));
+}

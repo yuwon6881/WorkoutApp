@@ -9,7 +9,9 @@ const catalog = [
   { id: 'neutral', name: 'Neutral-Grip Pullup', aliases: [], equipment: 'Bodyweight', muscle: 'Back' },
   { id: 'pulldown', name: 'Lat Pulldown', aliases: [], equipment: 'Cable', muscle: 'Back' },
   { id: 'bench', name: 'Barbell Bench Press', aliases: [], equipment: 'Barbell', muscle: 'Chest', secondaryMuscles: ['Triceps'] },
-  { id: 'dumbbell-press', name: 'Dumbbell Shoulder Press', aliases: [], equipment: 'Dumbbell', muscle: 'Shoulders' }
+  { id: 'dumbbell-press', name: 'Dumbbell Shoulder Press', aliases: [], equipment: 'Dumbbell', muscle: 'Shoulders' },
+  { id: 'calf-raise', name: 'Standing Calf Raise', aliases: [], equipment: 'Machine', muscle: 'Calves' },
+  { id: 'fly', name: 'Cable Fly', aliases: [], equipment: 'Cable', muscle: 'Chest' }
 ];
 
 const indexes = new Map(catalog.map(exercise => [exercise.id, buildExerciseSearchIndex(exercise)]));
@@ -52,6 +54,15 @@ describe('exercise search', () => {
     expect(ids('barbel')).toEqual(['bench']);
     expect(ids('bench pres')).toEqual(['bench']);
     expect(ids('zzzzz')).toEqual([]);
+  });
+
+  it('reads -es, -ies and -ves plurals and finds a singular inside a plural name', () => {
+    expect(ids('presses')).toEqual(['bench', 'dumbbell-press']);
+    expect(ids('benches')).toEqual(['bench']);
+    expect(ids('flies')).toEqual(['fly']);
+    // A muscle written as a plural is found by its singular, and the other way round.
+    expect(ids('calf')).toEqual(['calf-raise']);
+    expect(ids('calves')).toEqual(['calf-raise']);
   });
 
   it('treats an empty query as matching everything', () => {
