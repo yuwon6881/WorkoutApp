@@ -22,6 +22,9 @@ public sealed class CatalogMatchingTests
         Assert.Equal(await h.ExerciseId("pinch-grip-dumbbell-curl"), await h.Catalog.Match("PINCH GRIP CURL", default));
         Assert.Equal(await h.ExerciseId("machine-chest-supported-t-bar-row-retraction"),
             await h.Catalog.Match("MACHINE CHEST-SUPPORTED T-BAR ROW/RETRACTION", default));
+        Assert.Equal(await h.ExerciseId("barbell-pin-press"), await h.Catalog.Match("BARBELL PIN BENCH PRESS", default));
+        Assert.Equal(await h.ExerciseId("barbell-pin-press"), await h.Catalog.Match("PIN BENCH PRESS", default));
+        Assert.NotEqual(await h.ExerciseId("barbell-pin-press"), await h.Catalog.Match("BARBELL BENCH PRESS", default));
     }
     private static async Task<(Harness h, CatalogService catalog)> Library()
     {

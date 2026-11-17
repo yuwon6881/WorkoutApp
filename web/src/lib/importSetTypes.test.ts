@@ -9,6 +9,12 @@ const set = (patch: Partial<DraftSet>): DraftSet => ({
 } as DraftSet);
 
 describe('importSetTypes', () => {
+  it('recognizes an imported tempo marker and preserves its prescription when edited', () => {
+    const imported = set({ repMin: 10, repMax: 12, tempo: '4-second lowering phase', notes: 'Tempo set' });
+    expect(getSetType(imported)).toBe('tempo');
+    expect(getSetType({ ...imported, ...applySetType(imported, 'tempo') })).toBe('tempo');
+    expect(applySetType(imported, 'normal').notes).toBeNull();
+  });
   it('round trips a pause set without changing its reps', () => {
     const original = set({ repMin: 8, repMax: 10, notes: null });
     const paused = { ...original, ...applySetType(original, 'pause') };

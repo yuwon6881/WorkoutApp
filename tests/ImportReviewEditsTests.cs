@@ -7,6 +7,20 @@ namespace Workout.Tests;
 /// at, and comes back when that edit is undone or the draft is restored.
 public sealed class ImportReviewEditsTests
 {
+    [Fact]
+    public void Choosing_listed_effort_clears_the_review_and_restoring_the_source_brings_it_back()
+    {
+        var original = Exercise("Push these all very hard. Go to true failure.",
+            Set(10) with { TargetRpe = 9, Rir = "1", Notes = "To failure / AMRAP" });
+        var baseline = Draft(original);
+        Assert.Contains(Issues(baseline, baseline), issue => issue.Code == "effort_instruction_conflict");
+        var edited = WithExercise(baseline, exercise => exercise with {
+            Notes = "Use the listed effort targets for these sets. Source note: " + exercise.Notes,
+            Sets = [.. exercise.Sets.Select(set => set with { Notes = null })]
+        });
+        Assert.DoesNotContain(Issues(baseline, edited), issue => issue.Code == "effort_instruction_conflict");
+        Assert.Contains(Issues(baseline, baseline), issue => issue.Code == "effort_instruction_conflict");
+    }
     private const string TwentyOneRepInstructions =
         "FIRST 7 REPS BOTTOM HALF OF ROM, NEXT 7 REPS TOP HALF OF ROM, LAST 7 REPS FULL ROM";
 

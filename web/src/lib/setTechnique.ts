@@ -12,7 +12,8 @@ const PATTERNS: Array<[SetTechnique, RegExp]> = [
   ['lengthenedPartials', /\b(?:lengthened|long[- ]length)\s+partials?\b/i],
   ['integratedPartials', /\bintegrated\s+partials?\b/i],
   ['partials', /\bpartials?\b|\bhalf[- ]?rom\b|\bhalf\s+reps?\b/i],
-  ['pause', /\bpause set\b/i]
+  ['pause', /\bpause set\b/i],
+  ['tempo', /\btempo set\b/i]
 ];
 
 export function setTechnique(prescription: Pick<SetPrescription, 'notes' | 'warmup'> | null | undefined): SetTechnique | null {

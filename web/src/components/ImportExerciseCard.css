@@ -3,6 +3,7 @@
 
 /* Card surface */
 :root .import-exercise.iex-card {
+  scroll-margin-top: 12px;
   margin: 0 0 14px;
   padding: 16px;
   border: 1px solid var(--card-border);

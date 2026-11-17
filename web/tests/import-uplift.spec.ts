@@ -30,6 +30,57 @@ const draft: ImportDraft = ensureStructureIds({ programName: 'Powerbuilding revi
       : [set('normal', index === 4 ? 45 : 8)] }))
 })) });
 
+test('chooses the listed RIR without reselecting each target', async ({ page }, info) => {
+  await signIn(page, 'e2e-responsive');
+  const launch = await (await page.request.get('/api/bootstrap/launch')).json();
+  const exercise = { ...draft.workouts[0].exercises[0], notes: 'Push these all very hard. Go to true failure.',
+    sets: [set('warmup'), ...Array.from({ length: 3 }, () => ({ ...set('amrap'), targetRpe: 9, rir: '1' }))] };
+  const reviewDraft = { ...draft, workouts: [{ ...draft.workouts[0], exercises: [exercise] }] };
+  let view: ImportView = { id: '00000000-0000-4000-8000-000000000092', status: 'ready', stage: 'done',
+    fileName: 'Review.json', pages: 0, error: '', created: '2026-10-14T00:00:00Z', model: 'external',
+    unresolvedCount: 0, draft: reviewDraft, unresolved: [], acceptable: false, programId: null, revision: 1,
+    reviewIssues: [{ code: 'effort_instruction_conflict', message: 'The coaching says every set goes to failure, but the printed effort prescribes reps in reserve.',
+      severity: 'warning', workoutLineId: 'day-0', exerciseLineId: 'exercise-0-0', setIndex: 1, targetField: 'targetRpe' }] };
+  launch.exercises = catalog;
+  launch.preferences = { ...launch.preferences, trackRir: true };
+  await page.route('**/api/bootstrap/launch', route => route.fulfill({ json: { ...launch, imports: [view] } }));
+  await page.route('**/api/exercises', route => route.fulfill({ json: catalog }));
+  await page.route('**/api/imports', route => route.fulfill({ json: [view] }));
+  await page.route(`**/api/imports/${view.id}`, route => route.fulfill({ json: view }));
+  await page.route(`**/api/imports/${view.id}/days`, async route => {
+    const payload = route.request().postDataJSON() as { days: typeof reviewDraft.workouts; revision: number };
+    expect(payload.revision).toBe(1);
+    const saved = payload.days[0].exercises[0];
+    expect(saved.notes).toContain('Use the listed effort targets');
+    expect(saved.notes).toContain('Go to true failure.');
+    expect(saved.sets.slice(1).map(item => [item.rir, item.targetRpe, item.notes])).toEqual([
+      ['1', 9, null], ['1', 9, null], ['1', 9, null]
+    ]);
+    view = { ...view, revision: 2, acceptable: true, reviewIssues: [], draft: { ...reviewDraft, workouts: payload.days } };
+    await route.fulfill({ json: view });
+  });
+  await page.goto('/import');
+  await page.getByRole('button', { name: /Fix issue: The coaching says every set goes to failure/ }).click();
+  const dayModal = page.getByRole('dialog').filter({ has: page.locator('.day-detail-modal-body') });
+  const rirField = dayModal.locator('[data-import-field="targetRpe"][data-import-set-index="1"]').filter({ visible: true });
+  const rirControl = rirField.locator('.rpe-control');
+  await expect(rirControl).toHaveClass(/issue-focus/);
+  await expect(rirField).not.toHaveClass(/issue-focus/);
+  await expect(rirControl).toBeInViewport();
+  const geometry = await rirControl.evaluate(element => ({
+    radius: parseFloat(getComputedStyle(element).borderTopLeftRadius),
+    width: element.getBoundingClientRect().width
+  }));
+  expect(geometry.radius).toBeGreaterThanOrEqual(geometry.width / 2);
+  await page.screenshot({ path: info.outputPath('rir-highlight.png') });
+  await dayModal.getByRole('button', { name: 'Close dialog', exact: true }).click();
+  const action = page.getByRole('button', { name: 'Use listed RIR for BACK SQUAT' });
+  await expect(action).toBeVisible();
+  await action.click();
+  await expect(page.getByText('The effort instructions disagree')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Accept and create program' })).toBeEnabled();
+});
+
 for (const theme of ['dark', 'light']) {
   test(`import review geometry and editing in ${theme}`, async ({ page }, info) => {
     await signIn(page, 'e2e-responsive');
@@ -40,6 +91,7 @@ for (const theme of ['dark', 'light']) {
       acceptable: true, programId: null, reviewIssues: [
         { code: 'external_uncertainty', message: 'BACK SQUAT: Working sets are printed as a range (1-3); used the lowest set count (1)', severity: 'info', sourcePage: 3, workoutLineId: 'day-0', exerciseLineId: 'exercise-0-0' },
         { code: 'external_uncertainty', message: 'BACK SQUAT: Check the movement', severity: 'info', sourcePage: 3, workoutLineId: 'day-0', exerciseLineId: 'exercise-0-0' },
+        { code: 'external_uncertainty', message: 'WIDE-GRIP LAT PULLDOWN: Check the movement', severity: 'info', sourcePage: 3, workoutLineId: 'day-0', exerciseLineId: 'exercise-0-2' },
         { code: 'external_uncertainty', message: 'BACK SQUAT, set 2: Check reps', severity: 'info', sourcePage: 3, workoutLineId: 'day-0', exerciseLineId: 'exercise-0-0', setIndex: 1 },
         { code: 'external_uncertainty', message: 'Check the set count', severity: 'info' }
       ], revision: 1 };
@@ -90,9 +142,24 @@ for (const theme of ['dark', 'light']) {
     await expect(restField).not.toHaveClass(/issue-focus/);
     await expect(exerciseCard).toBeInViewport();
     await page.waitForTimeout(350);
+    const cardTop = await exerciseCard.evaluate(card => {
+      const body = card.closest('.day-detail-modal-body')!;
+      return card.getBoundingClientRect().top - body.getBoundingClientRect().top;
+    });
+    expect(cardTop).toBeGreaterThanOrEqual(0);
+    expect(cardTop).toBeLessThanOrEqual(32);
     await page.screenshot({ path: join(screenshotDir, `${info.project.name}-inspect-exercise-${theme}.png`) });
     await dayModal.getByRole('button', { name: 'Close dialog', exact: true }).click();
     await expect(dayModal).toBeHidden();
+
+    await page.getByRole('button', { name: /Inspect WIDE-GRIP LAT PULLDOWN: Check the movement/i }).click();
+    const laterCard = dayModal.locator('[data-import-exercise="exercise-0-2"]');
+    await expect(laterCard).toHaveClass(/issue-focus/);
+    const laterTop = await laterCard.evaluate(card => card.getBoundingClientRect().top
+      - card.closest('.day-detail-modal-body')!.getBoundingClientRect().top);
+    expect(laterTop).toBeGreaterThanOrEqual(0);
+    expect(laterTop).toBeLessThanOrEqual(32);
+    await dayModal.getByRole('button', { name: 'Close dialog', exact: true }).click();
 
     await acknowledge.check();
     await page.evaluate(() => { document.querySelector('.irev-uncertainty')?.scrollIntoView({ block: 'center' }); });

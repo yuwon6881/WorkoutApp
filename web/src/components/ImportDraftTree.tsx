@@ -125,7 +125,7 @@ export const DraftOutline = forwardRef<DraftOutlineHandle, {
           control = weekNode ?? null;
         } else if (target.targetField) {
           const matchingFields = [...scope.querySelectorAll<HTMLElement>('[data-import-field]')]
-            .filter(node => node.dataset.importField === target.targetField);
+            .filter(node => node.dataset.importField === target.targetField && node.getClientRects().length > 0);
           const field = (target.setIndex != null
             ? matchingFields.find(node => node.dataset.importSetIndex === String(target.setIndex) || node.querySelector(`[data-import-set-index="${target.setIndex}"]`))
             : null) ?? matchingFields[0];
@@ -142,7 +142,9 @@ export const DraftOutline = forwardRef<DraftOutlineHandle, {
               ? field
               : field.querySelector<HTMLElement>('input,button,textarea,[tabindex]');
             destination = field;
-            highlight = field;
+            highlight = target.targetField === 'targetRpe'
+              ? field.querySelector<HTMLElement>('.rpe-control') ?? field
+              : field;
           }
         } else if (target.setIndex != null) {
           const setRowContent = scope.querySelector<HTMLElement>(`[data-import-set-index="${target.setIndex}"]`);
@@ -167,7 +169,11 @@ export const DraftOutline = forwardRef<DraftOutlineHandle, {
         }
 
         if (!scrolled) {
-          destination.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
+          const exerciseCard = destination === exerciseNode;
+          destination.scrollIntoView({
+            behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth',
+            block: exerciseCard ? 'start' : 'center', inline: 'nearest'
+          });
           scrolled = true;
         }
         // On a phone a focused text field raises the keyboard over the issue being shown; the
