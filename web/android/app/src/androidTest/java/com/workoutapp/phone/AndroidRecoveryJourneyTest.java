@@ -12,6 +12,7 @@ import androidx.test.platform.app.InstrumentationRegistry;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
+import org.json.JSONObject;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
@@ -33,19 +34,8 @@ public class AndroidRecoveryJourneyTest {
         assumeWebViewRunsTheBundle();
         try (ActivityScenario<MainActivity> scenario = ActivityScenario.launch(MainActivity.class)) {
             AtomicReference<MainActivity> original = new AtomicReference<>();
-            java.lang.reflect.Method hasListeners = com.getcapacitor.Plugin.class.getDeclaredMethod("hasListeners", String.class);
-            hasListeners.setAccessible(true);
-            java.util.concurrent.atomic.AtomicBoolean ready = new java.util.concurrent.atomic.AtomicBoolean();
-            long deadline = SystemClock.elapsedRealtime() + 30000;
-            while (!ready.get() && SystemClock.elapsedRealtime() < deadline) {
-                scenario.onActivity(activity -> {
-                    original.set(activity);
-                    try { ready.set((Boolean) hasListeners.invoke(activity.getBridge().getPlugin("App").getInstance(), "backButton")); }
-                    catch (Exception failure) { throw new AssertionError(failure); }
-                });
-                SystemClock.sleep(100);
-            }
-            assertTrue("The bundled web app installed its Back handler", ready.get());
+            awaitPluginListener(scenario, "App", "backButton");
+            scenario.onActivity(original::set);
             // pressBack() throws NoActivityResumedException when the app minimizes, which is the
             // behavior under test.
             androidx.test.espresso.Espresso.pressBackUnconditionally();
@@ -74,27 +64,26 @@ public class AndroidRecoveryJourneyTest {
         assumeWebViewRunsTheBundle();
         Context context = InstrumentationRegistry.getInstrumentation().getTargetContext();
         try (ActivityScenario<MainActivity> scenario = ActivityScenario.launch(MainActivity.class)) {
-            assertTrue(awaitPageResult(scenario, "Boolean(window.Capacitor?.nativeCallback)", "true"));
+            awaitPluginListener(scenario, "App", "backButton");
             String sessionId = "instrumentation-set-session";
             String token = "instrumentation-set-token";
             evaluate(scenario, """
                     window.setNotificationTaps = [];
                     Capacitor.nativeCallback('WorkoutPlugin', 'addListener', { eventName: 'logSet' },
                         tap => window.setNotificationTaps.push(tap.token));
-                    Capacitor.nativePromise('WorkoutPlugin', 'syncWorkout', {
-                        sessionId: 'instrumentation-set-session', epoch: 'instrumentation-set-page',
-                        sequence: 1, setCard: { token: 'instrumentation-set-token', title: 'Bench · Set 1', values: '60 kg × 8' }
-                    }).then(() => { window.setNotificationReady = true; });
                     """);
-            assertTrue(awaitPageResult(scenario, "window.setNotificationReady", "true"));
-            RestSnapshot snapshot = WorkoutRecoveryStore.get(context).getRestSnapshot();
-            assertNotNull(snapshot);
-            assertEquals(sessionId, snapshot.sessionId);
+            awaitPluginListener(scenario, "WorkoutPlugin", "logSet");
+            // Set up the notification without starting a foreground service from the test.
+            RestSnapshot snapshot = new RestSnapshot(sessionId, "", RestSnapshot.IDLE, 0, 0,
+                    0, 0, 0, false, false, false, "instrumentation-set-page", 1);
+            assertNotNull(WorkoutRecoveryStore.get(context).saveRestSnapshotIfNewer(snapshot));
+            NotificationSetLogging.publish(sessionId, new JSONObject()
+                    .put("token", token).put("title", "Bench · Set 1").put("values", "60 kg × 8"));
             NotificationSetLogging.Card card = NotificationSetLogging.offer(snapshot, System.currentTimeMillis());
             assertNotNull(card);
             card.intent(context).send();
             card.intent(context).send();
-            assertTrue(awaitPageResult(scenario, "window.setNotificationTaps.length", "1"));
+            assertTrue("One notification event reached the page", awaitPageResult(scenario, "window.setNotificationTaps.length", "1"));
             InstrumentationRegistry.getInstrumentation().waitForIdleSync();
             assertEquals("\"" + token + "\"", evaluate(scenario, "window.setNotificationTaps.join(',')"));
         } finally {
@@ -102,6 +91,24 @@ public class AndroidRecoveryJourneyTest {
             WorkoutRecoveryStore.get(context).clearRestSnapshot();
             WorkoutForegroundService.stop(context);
         }
+    }
+
+    private static void awaitPluginListener(ActivityScenario<MainActivity> scenario, String plugin, String event) throws Exception {
+        java.lang.reflect.Method hasListeners = com.getcapacitor.Plugin.class.getDeclaredMethod("hasListeners", String.class);
+        hasListeners.setAccessible(true);
+        java.util.concurrent.atomic.AtomicBoolean ready = new java.util.concurrent.atomic.AtomicBoolean();
+        long deadline = SystemClock.elapsedRealtime() + 30_000;
+        do {
+            scenario.onActivity(activity -> {
+                com.getcapacitor.Plugin instance = activity.getBridge().getPlugin(plugin).getInstance();
+                if (instance == null) return;
+                try { ready.set((Boolean) hasListeners.invoke(instance, event)); }
+                catch (ReflectiveOperationException failure) { throw new AssertionError(failure); }
+            });
+            if (ready.get()) return;
+            SystemClock.sleep(100);
+        } while (SystemClock.elapsedRealtime() < deadline);
+        fail(plugin + " did not register " + event);
     }
 
     private static boolean awaitPageResult(ActivityScenario<MainActivity> scenario, String script, String expected) throws Exception {
