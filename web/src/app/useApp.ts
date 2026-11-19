@@ -17,6 +17,8 @@ import { sameWorkoutEdits } from '../lib/workoutRecoveryComparison';
 import { clearRecovery, setConflict, startRecovery, reconcileReopenedWorkout } from '../lib/workoutRecoveryAccess';
 import type { DevicePreferences, WorkoutRecoveryRecord } from '../lib/workoutRecovery';
 import { forgetSessionDetail } from '../lib/sessionDetailLoad';
+import { clearStartupReloadAttempt, reloadStartupOnce } from '../lib/startupRetry';
+import { StartupStorageTimeoutError, waitForStartupStorage } from '../lib/startupWait';
 
 // Running set stopwatches exist only once a workout has loaded their module, so clearing them
 // waits for it rather than putting the stopwatch store in the entry chunk.
@@ -110,6 +112,14 @@ export function useApp(): AppState {
 
   const load = useCallback(async () => {
     const epoch = ++loadEpoch.current;
+    const handleStartupTimeout = (message: string) => {
+      if (epoch !== loadEpoch.current) return;
+      loadEpoch.current++;
+      setLoading(false);
+      setError(message);
+      queue.set('failed', message);
+      reloadStartupOnce();
+    };
     const preferenceAtStart = preferenceVersion.current;
     // A read that starts while a preference save is queued or in flight can carry the previous
     // preferences, so it must not replace the ones on screen.
@@ -132,7 +142,9 @@ export function useApp(): AppState {
       setRecovery(local);
     }).catch(() => undefined);
     try {
-      const [previousAccountId, shell] = await Promise.all([getLastAccountId().catch(() => null), api.launch()]);
+      const [previousAccountId, shell] = await Promise.all([
+        waitForStartupStorage(getLastAccountId().catch(() => null)), api.launch()
+      ]);
       if (epoch !== loadEpoch.current) return;
       validatedAccountId = shell.account.id;
       if (mutationAccount.current !== null && mutationAccount.current !== shell.account.id) queue.clear();
@@ -161,42 +173,57 @@ export function useApp(): AppState {
       const deviceId = getWorkoutPushDeviceId();
       await retireWorkoutPushAfterAccountSwitch(previousAccountId, next.account.id, deviceId,
         deviceId ? () => api.unregisterRestAlertDevice(deviceId) : undefined, deleteWorkoutPushToken);
-      await cachedRecovery;
+      await waitForStartupStorage(cachedRecovery);
       let local: WorkoutRecoveryRecord | null = null;
       try {
-        await setLastAccount(next.account.id);
-        local = await getRecovery(next.account.id);
-      } catch { /* local recovery is optional for reading server-backed training */ }
+        await waitForStartupStorage(setLastAccount(next.account.id));
+        if (epoch !== loadEpoch.current) return;
+        local = await waitForStartupStorage(getRecovery(next.account.id));
+      } catch (failure) {
+        if (failure instanceof StartupStorageTimeoutError) throw failure;
+        /* Local recovery is optional for reading server-backed training. */
+      }
+      if (epoch !== loadEpoch.current) return;
       if (local && next.activeWorkout?.id === local.sessionId) {
-        local = await reconcileReopenedWorkout(local, next.activeWorkout, next.account, next.preferences);
+        local = await waitForStartupStorage(reconcileReopenedWorkout(local, next.activeWorkout, next.account, next.preferences));
+        if (epoch !== loadEpoch.current) return;
       } else if (local && !next.activeWorkout?.active && local.operations.some(operation => operation.type === 'finish')) {
         // A prior finish may have reached the API before the browser closed. Replay its exact
         // mutation identity after the UI mounts; the server acknowledges an exact retry.
       } else if (local && next.activeWorkout && local.sessionId !== next.activeWorkout.id && local.operations.length > 0) {
         const previous = await api.getWorkout(local.sessionId).catch(() => null);
-        local = await setConflict(next.account.id, true, previous ?? undefined) ?? local;
+        local = await waitForStartupStorage(setConflict(next.account.id, true, previous ?? undefined)) ?? local;
+        if (epoch !== loadEpoch.current) return;
       } else if (local && next.activeWorkout && local.sessionId !== next.activeWorkout.id && !sameWorkoutEdits(local.draft, local.serverSession)) {
         const previous = await api.getWorkout(local.sessionId).catch(() => null);
-        local = await setConflict(next.account.id, true, previous ?? undefined) ?? local;
+        local = await waitForStartupStorage(setConflict(next.account.id, true, previous ?? undefined)) ?? local;
+        if (epoch !== loadEpoch.current) return;
       } else if (local && !next.activeWorkout?.active && !local.operations.some(operation => operation.type === 'finish')) {
         if (!sameWorkoutEdits(local.draft, local.serverSession) || local.operations.length > 0) {
           const previous = await api.getWorkout(local.sessionId).catch(() => null);
-          local = await setConflict(next.account.id, true, previous ?? local.serverSession) ?? local;
+          local = await waitForStartupStorage(setConflict(next.account.id, true, previous ?? local.serverSession)) ?? local;
+          if (epoch !== loadEpoch.current) return;
         } else {
-          await clearRecovery(next.account.id).catch(() => undefined);
+          try { await waitForStartupStorage(clearRecovery(next.account.id)); }
+          catch (failure) { if (failure instanceof StartupStorageTimeoutError) throw failure; }
+          if (epoch !== loadEpoch.current) return;
           local = null;
         }
       } else if (next.activeWorkout) {
         try {
-          await startRecovery({
+          await waitForStartupStorage(startRecovery({
             accountId: next.account.id, displayName: next.account.displayName, sessionId: next.activeWorkout.id,
             draft: next.activeWorkout, serverSession: next.activeWorkout, preferences: next.preferences,
             activeIndex: 0
-          });
-          local = await getRecovery(next.account.id);
-        } catch { local = null; /* storage failure must not block online training */ }
+          }));
+          if (epoch !== loadEpoch.current) return;
+          local = await waitForStartupStorage(getRecovery(next.account.id));
+        } catch (failure) {
+          if (failure instanceof StartupStorageTimeoutError) throw failure;
+          local = null; /* Storage failure must not block online training. */
+        }
       }
-      const devicePreferences = await loadDevicePreferences(next.account.id);
+      const devicePreferences = await waitForStartupStorage(loadDevicePreferences(next.account.id));
       if (epoch !== loadEpoch.current) return;
       if (workoutVersion.current === workoutAtStart) setRecovery(local);
       setDevicePreferencesState(devicePreferences);
@@ -215,8 +242,13 @@ export function useApp(): AppState {
       setData(next); setResourceError(''); setError(''); setSignedOut(false);
       saveLaunchSnapshot(shell); markSignedInDevice();
       if (!queue.unsaved) queue.clear();
+      clearStartupReloadAttempt();
     } catch (failure) {
       if (epoch !== loadEpoch.current) return;
+      if (failure instanceof StartupStorageTimeoutError) {
+        handleStartupTimeout(failure.message);
+        return;
+      }
       const problem = failure instanceof ApiError ? failure : new ApiError('Could not load your training.', -1);
       if (problem.signedOut) mutationAccount.current = null;
       if (problem.signedOut) { clearLaunchSnapshot(); forgetSignedInDevice(); confirmDevice(); viewReadCache.reset(); clearStopwatches(); forgetSessionDetail(); pendingPreferences.current = null; setPreferencePending(false); validatedAccountId = null; resetGoogleHealthState(); await setLastAccount(null).catch(() => undefined); setRecovery(null); setSignedOut(true); setData(null); setError(''); queue.clear(); queue.set('signed-out'); }
@@ -227,11 +259,17 @@ export function useApp(): AppState {
         setError(problem.message);
         if (problem.offline) {
           try {
-            const local = await getLastRecovery();
+            const local = await waitForStartupStorage(getLastRecovery());
             setRecovery(local);
             if (local) mutationAccount.current = local.accountId;
-            if (local) setDevicePreferencesState(await loadDevicePreferences(local.accountId));
-          } catch { setRecovery(null); }
+            if (local) setDevicePreferencesState(await waitForStartupStorage(loadDevicePreferences(local.accountId)));
+          } catch (localFailure) {
+            if (localFailure instanceof StartupStorageTimeoutError) {
+              handleStartupTimeout(localFailure.message);
+              return;
+            }
+            setRecovery(null);
+          }
         }
         queue.set(problem.offline ? 'offline' : 'failed', problem.message);
       }

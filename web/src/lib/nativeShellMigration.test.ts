@@ -3,7 +3,7 @@ import { isNative } from './platform';
 import { prepareNativeShell } from './nativeShellMigration';
 
 vi.mock('./platform', () => ({ isNative: vi.fn() }));
-afterEach(() => { vi.unstubAllGlobals(); vi.clearAllMocks(); });
+afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); vi.clearAllMocks(); });
 
 it('leaves browser service workers and storage untouched', async () => {
   vi.mocked(isNative).mockReturnValue(false);
@@ -19,6 +19,7 @@ it('retires only the native origin worker and its precache before mounting', asy
   const foreign = vi.fn();
   const reload = vi.fn();
   vi.stubGlobal('location', { origin: 'https://workout.example', reload });
+  vi.stubGlobal('sessionStorage', memoryStorage());
   vi.stubGlobal('navigator', { serviceWorker: { controller: {}, getRegistrations: vi.fn().mockResolvedValue([
     { active: { scriptURL: 'https://workout.example/sw.js' }, unregister },
     { active: { scriptURL: 'https://another.example/sw.js' }, unregister: foreign }
@@ -69,7 +70,9 @@ it('records a clean pass so later launches skip it', async () => {
 it('does not record the pass that reloads, so the clean pass after the reload does', async () => {
   vi.mocked(isNative).mockReturnValue(true);
   const storage = memoryStorage();
+  const session = memoryStorage();
   vi.stubGlobal('localStorage', storage);
+  vi.stubGlobal('sessionStorage', session);
   vi.stubGlobal('location', { origin: 'https://workout.example', reload: vi.fn() });
   vi.stubGlobal('navigator', { serviceWorker: { controller: {}, getRegistrations: vi.fn().mockResolvedValue([
     { active: { scriptURL: 'https://workout.example/sw.js' }, unregister: vi.fn().mockResolvedValue(true) }
@@ -77,6 +80,7 @@ it('does not record the pass that reloads, so the clean pass after the reload do
   vi.stubGlobal('caches', { keys: vi.fn().mockResolvedValue([]), delete: vi.fn() });
   expect(await prepareNativeShell()).toBe(false);
   expect(storage.values.has('workout-native-shell-retired')).toBe(false);
+  expect(session.values.get('workout-startup-reload')).toBe('1');
 });
 
 it('still runs the cleanup when browser storage is unavailable', async () => {
@@ -91,4 +95,41 @@ it('still runs the cleanup when browser storage is unavailable', async () => {
   vi.stubGlobal('caches', { keys: vi.fn().mockResolvedValue([]), delete: vi.fn() });
   expect(await prepareNativeShell()).toBe(true);
   expect(registrations).toHaveBeenCalledOnce();
+});
+
+it('bounds a stalled native worker scan and ignores its late result', async () => {
+  vi.useFakeTimers();
+  vi.mocked(isNative).mockReturnValue(true);
+  const storage = memoryStorage();
+  const session = memoryStorage();
+  vi.stubGlobal('localStorage', storage);
+  vi.stubGlobal('sessionStorage', session);
+  const reload = vi.fn();
+  vi.stubGlobal('location', { origin: 'https://workout.example', reload });
+  let resolveRegistrations!: (value: { active: { scriptURL: string }; unregister: ReturnType<typeof vi.fn> }[]) => void;
+  const registrations = new Promise<{ active: { scriptURL: string }; unregister: ReturnType<typeof vi.fn> }[]>(resolve => {
+    resolveRegistrations = resolve;
+  });
+  const getRegistrations = vi.fn(() => registrations);
+  vi.stubGlobal('navigator', { serviceWorker: { controller: null, getRegistrations } });
+  const cacheKeys = vi.fn().mockResolvedValue([]);
+  vi.stubGlobal('caches', { keys: cacheKeys, delete: vi.fn() });
+
+  const flight = prepareNativeShell();
+  await vi.advanceTimersByTimeAsync(10_001);
+
+  await expect(flight).resolves.toBe(false);
+  expect(reload).toHaveBeenCalledOnce();
+  expect(session.values.get('workout-startup-reload')).toBe('1');
+  expect(storage.values.has('workout-native-shell-retired')).toBe(false);
+
+  const retry = prepareNativeShell();
+  await vi.advanceTimersByTimeAsync(10_001);
+  await expect(retry).resolves.toBe(true);
+  expect(reload).toHaveBeenCalledOnce();
+
+  resolveRegistrations([{ active: { scriptURL: 'https://workout.example/sw.js' }, unregister: vi.fn() }]);
+  await Promise.resolve();
+  expect(cacheKeys).not.toHaveBeenCalled();
+  expect(storage.values.has('workout-native-shell-retired')).toBe(false);
 });
