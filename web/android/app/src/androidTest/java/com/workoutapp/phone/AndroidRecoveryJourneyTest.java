@@ -70,6 +70,60 @@ public class AndroidRecoveryJourneyTest {
         } finally { store.deleteRecovery(account); }
     }
 
+    @Test public void setNotificationBroadcastReachesTheOpenWebViewOnce() throws Exception {
+        assumeWebViewRunsTheBundle();
+        Context context = InstrumentationRegistry.getInstrumentation().getTargetContext();
+        try (ActivityScenario<MainActivity> scenario = ActivityScenario.launch(MainActivity.class)) {
+            assertTrue(awaitPageResult(scenario, "Boolean(window.Capacitor?.nativeCallback)", "true"));
+            String sessionId = "instrumentation-set-session";
+            String token = "instrumentation-set-token";
+            evaluate(scenario, """
+                    window.setNotificationTaps = [];
+                    Capacitor.nativeCallback('WorkoutPlugin', 'addListener', { eventName: 'logSet' },
+                        tap => window.setNotificationTaps.push(tap.token));
+                    Capacitor.nativePromise('WorkoutPlugin', 'syncWorkout', {
+                        sessionId: 'instrumentation-set-session', epoch: 'instrumentation-set-page',
+                        sequence: 1, setCard: { token: 'instrumentation-set-token', title: 'Bench · Set 1', values: '60 kg × 8' }
+                    }).then(() => { window.setNotificationReady = true; });
+                    """);
+            assertTrue(awaitPageResult(scenario, "window.setNotificationReady", "true"));
+            RestSnapshot snapshot = WorkoutRecoveryStore.get(context).getRestSnapshot();
+            assertNotNull(snapshot);
+            assertEquals(sessionId, snapshot.sessionId);
+            NotificationSetLogging.Card card = NotificationSetLogging.offer(snapshot, System.currentTimeMillis());
+            assertNotNull(card);
+            card.intent(context).send();
+            card.intent(context).send();
+            assertTrue(awaitPageResult(scenario, "window.setNotificationTaps.length", "1"));
+            InstrumentationRegistry.getInstrumentation().waitForIdleSync();
+            assertEquals("\"" + token + "\"", evaluate(scenario, "window.setNotificationTaps.join(',')"));
+        } finally {
+            NotificationSetLogging.publish(null, null);
+            WorkoutRecoveryStore.get(context).clearRestSnapshot();
+            WorkoutForegroundService.stop(context);
+        }
+    }
+
+    private static boolean awaitPageResult(ActivityScenario<MainActivity> scenario, String script, String expected) throws Exception {
+        long deadline = SystemClock.elapsedRealtime() + 15_000;
+        do {
+            if (expected.equals(evaluate(scenario, script))) return true;
+            SystemClock.sleep(100);
+        } while (SystemClock.elapsedRealtime() < deadline);
+        return false;
+    }
+
+    private static String evaluate(ActivityScenario<MainActivity> scenario, String script) throws Exception {
+        AtomicReference<String> value = new AtomicReference<>();
+        CountDownLatch done = new CountDownLatch(1);
+        scenario.onActivity(activity -> activity.getBridge().getWebView().evaluateJavascript(script, result -> {
+            value.set(result);
+            done.countDown();
+        }));
+        assertTrue(done.await(5, TimeUnit.SECONDS));
+        return value.get();
+    }
+
     @Test public void actualRendererTerminationCreatesAFreshWebViewAndPreservesRecovery() throws Exception {
         org.junit.Assume.assumeTrue(Build.VERSION.SDK_INT >= 29);
         Context context = InstrumentationRegistry.getInstrumentation().getTargetContext();

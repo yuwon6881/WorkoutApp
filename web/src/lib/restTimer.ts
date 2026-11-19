@@ -4,6 +4,7 @@ import { hasNativeWorkoutStore, isNative, nativeKeepAwake, notificationPermissio
 import type { NativeRestAction } from './platform';
 import { REST_ALERTS_CHANGED_EVENT } from './restAlertDelivery';
 import { recoveredRestState } from './recoveredRestState';
+import type { NativeSetCard } from './notificationSetLogging';
 
 /// Rest uses a deadline so its display stays accurate when the browser suspends the page. The
 /// local record is scoped to the signed-in account and active workout; it is never an authority
@@ -41,6 +42,7 @@ export class RestTimer {
   private clock: WorkoutClock | null = null;
   // Keyed by workout: the workout screen can report it before the shell scopes the timer.
   private nextUp: { sessionId: string; text: string | null } | null = null;
+  private setCard: { sessionId: string; card: NativeSetCard } | null = null;
   // The last rest the server confirmed, so a skip made on another device can end the same rest here.
   private serverGeneration: string | null = null;
 
@@ -117,6 +119,12 @@ export class RestTimer {
   setNextUp(sessionId: string, text: string | null): void {
     if (this.nextUp?.sessionId === sessionId && this.nextUp.text === text) return;
     this.nextUp = { sessionId, text };
+    if (this.sessionId === sessionId) this.syncNative();
+  }
+
+  setNotificationSetCard(sessionId: string, card: NativeSetCard | null): void {
+    if (!card && this.setCard?.sessionId !== sessionId) return;
+    this.setCard = card ? { sessionId, card } : null;
     if (this.sessionId === sessionId) this.syncNative();
   }
 
@@ -299,7 +307,7 @@ export class RestTimer {
   /// deadline until it is skipped or replaced, so the service can still alert for it while the
   /// page is hidden; the service itself treats a long-past deadline as already finished.
   private syncNative(): void {
-    syncNativeWorkout({ sessionId: this.sessionId, rest: this.state, clock: this.clock, options: this.options, nextUp: this.nextUp });
+    syncNativeWorkout({ sessionId: this.sessionId, rest: this.state, clock: this.clock, options: this.options, nextUp: this.nextUp, setCard: this.setCard });
   }
 
   private write(state: RestState): void {

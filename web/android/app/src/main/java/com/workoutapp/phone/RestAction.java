@@ -15,6 +15,7 @@ final class RestAction {
     static final String SHORTEN = "shorten";
     static final String SKIP = "skip";
     static final long STEP_SECONDS = 30;
+    static final String EXTEND_LABEL = "+30 s";
 
     final String sessionId;
     final String id;

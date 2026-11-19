@@ -11,6 +11,7 @@ import { backStack } from './backStack';
 import { APP_LINK_EVENT } from './appLinks';
 import { nativeWorkoutState, type NativeWorkoutContext } from './nativeWorkoutProjection';
 import { hasNativeWorkoutStore } from './platform';
+import type { NativeSetCard } from './notificationSetLogging';
 
 // Kept apart from the ongoing workout notification so a legacy alert never replaces it.
 const LEGACY_REST_NOTIFICATION_ID = 7201;
@@ -47,6 +48,7 @@ export type NativeWorkoutState = {
   totalMs: number;
   /// The next set, shown only in the unlocked notification; never on the lock screen or Xiaomi's island.
   nextUp: string | null;
+  setCard?: NativeSetCard;
 };
 
 /// A rest change made from the notification's buttons, waiting for the page to send it on.
@@ -76,7 +78,10 @@ export interface WorkoutPluginInterface {
   importRestActions(options: { accountId: string; sessionId: string; expectedJson: string;
     recordJson: string; importedIds: string[] }): Promise<{ committed: boolean }>;
   addListener(event: 'restAction', listener: () => void): Promise<PluginListenerHandle>;
+  addListener(event: 'logSet', listener: (event: NativeLogSetTap) => void): Promise<PluginListenerHandle>;
 }
+
+export type NativeLogSetTap = { token: string; atMs: number };
 
 export const WorkoutNative = registerPlugin<WorkoutPluginInterface>('WorkoutPlugin');
 
@@ -190,6 +195,10 @@ export async function nativeImportRestActions(options: Parameters<WorkoutPluginI
 
 export async function nativeOnRestAction(listener: () => void): Promise<PluginListenerHandle> {
   return WorkoutNative.addListener('restAction', listener);
+}
+
+export async function nativeOnLogSet(listener: (event: NativeLogSetTap) => void): Promise<PluginListenerHandle> {
+  return WorkoutNative.addListener('logSet', listener);
 }
 
 export async function nativeTestAlert(sound: boolean, vibrate: boolean): Promise<void> {

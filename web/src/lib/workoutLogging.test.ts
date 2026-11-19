@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { LoggedSet, Session, SessionExercise } from '../types';
 import { blankPrescription } from './workoutDraft';
 import { advanceTarget, nextUpText } from './workoutLogging';
+import { notificationSetTarget } from './notificationSetLogging';
 
 function set(id: string, patch: Partial<LoggedSet> = {}): LoggedSet {
   return { id, position: 0, weightKg: 60, reps: 8, rpe: null, done: false, warmup: false, resistanceMode: 'external', ...patch };
@@ -20,6 +21,29 @@ function workout(exercises: SessionExercise[]): Session {
     finishedAt: null, revision: 1, exercises, volumeKg: null, completedSets: 0, warmupSets: 0
   };
 }
+
+describe('notification set logging', () => {
+  it('uses the first unlogged set on the open exercise and describes its actual inputs', () => {
+    const bench = { ...exercise('a', 'Dumbbell bench', [
+      set('a1', { done: true }), set('a2', { rir: '5+' })
+    ]), weightBasis: 'per_side' as const };
+    const draft = workout([bench, exercise('b', 'Row', [set('b1')])]);
+    const target = notificationSetTarget(draft, 0, 'kg', true);
+    expect(target).toMatchObject({ exerciseIndex: 0, setIndex: 1,
+      title: 'Dumbbell bench · Set 2', values: '60 kg/side × 8 · 5+ RIR' });
+    expect(notificationSetTarget(draft, 1, 'kg', true)?.key).not.toBe(target?.key);
+    bench.sets[1] = { ...bench.sets[1], weightKg: 60.001 };
+    expect(notificationSetTarget(draft, 0, 'kg', true)?.key).not.toBe(target?.key);
+  });
+
+  it('withholds the action for paused workouts, timed sets, and a set with missing reps', () => {
+    const row = exercise('a', 'Row', [set('a1', { reps: null }), set('a2')]);
+    expect(notificationSetTarget(workout([row]), 0, 'kg', true)).toBeNull();
+    row.sets[0] = set('a1');
+    expect(notificationSetTarget(workout([{ ...row, trackingMode: 'duration' }]), 0, 'kg', true)).toBeNull();
+    expect(notificationSetTarget({ ...workout([row]), pausedAt: '2026-09-26T08:10:00Z' }, 0, 'kg', true)).toBeNull();
+  });
+});
 
 describe('moving on after a set', () => {
   it('stays on an exercise until its last set, then moves to the next one', () => {

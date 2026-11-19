@@ -2,8 +2,10 @@ package com.workoutapp.phone;
 
 import android.app.Notification;
 import android.app.NotificationManager;
+import android.app.PendingIntent;
 import android.content.Context;
 import android.os.Build;
+import android.os.Bundle;
 import androidx.core.app.NotificationCompat;
 import androidx.core.content.ContextCompat;
 
@@ -38,12 +40,20 @@ final class LiveUpdateNotificationAdapter {
 
     static Notification build(Context context, RestSnapshot snapshot) {
         long now = System.currentTimeMillis();
-        NotificationCompat.Builder builder = create(context, snapshot, now, true);
+        PendingIntent extendRest = resting(snapshot, now)
+                ? RestActionReceiver.intent(context, RestAction.EXTEND, snapshot, REQUEST_EXTEND)
+                : null;
+        NotificationSetLogging.Card setCard = NotificationSetLogging.offer(snapshot, now);
+        PendingIntent logSet = setCard == null ? null : setCard.intent(context);
+        Bundle focus = XiaomiFocus.notificationExtras(context, snapshot, now, extendRest, setCard, logSet);
+        NotificationCompat.Builder builder = create(context, snapshot, now, true, extendRest, setCard, logSet);
         if (snapshot != null && snapshot.nextUp != null) {
+            NotificationCompat.Builder publicBuilder = create(context, snapshot, now, false, extendRest, setCard, logSet);
+            if (focus != null) publicBuilder.addExtras(focus);
             builder.setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
-                    .setPublicVersion(create(context, snapshot, now, false).build());
+                    .setPublicVersion(publicBuilder.build());
         }
-        XiaomiFocus.apply(context, builder, snapshot, now);
+        if (focus != null) builder.addExtras(focus);
         return builder.build();
     }
 
@@ -97,7 +107,9 @@ final class LiveUpdateNotificationAdapter {
         return minutes < 60 ? minutes + "m" : minutes / 60 + "h " + String.format(java.util.Locale.ROOT, "%02dm", minutes % 60);
     }
 
-    private static NotificationCompat.Builder create(Context context, RestSnapshot snapshot, long now, boolean detailed) {
+    private static NotificationCompat.Builder create(Context context, RestSnapshot snapshot, long now,
+                                                      boolean detailed, PendingIntent extendRest,
+                                                      NotificationSetLogging.Card setCard, PendingIntent logSet) {
         String sessionId = snapshot == null ? null : snapshot.sessionId;
         String nextUp = detailed && snapshot != null ? snapshot.nextUp : null;
         NotificationCompat.Builder builder = new NotificationCompat.Builder(context, RestAlerts.CHANNEL_ONGOING)
@@ -126,7 +138,7 @@ final class LiveUpdateNotificationAdapter {
                     .setChronometerCountDown(true)
                     .setWhen(snapshot.deadlineMs)
                     .addAction(0, "−30 s", RestActionReceiver.intent(context, RestAction.SHORTEN, snapshot, REQUEST_SHORTEN))
-                    .addAction(0, "+30 s", RestActionReceiver.intent(context, RestAction.EXTEND, snapshot, REQUEST_EXTEND))
+                    .addAction(0, RestAction.EXTEND_LABEL, extendRest)
                     .addAction(0, "Skip", RestActionReceiver.intent(context, RestAction.SKIP, snapshot, REQUEST_SKIP));
             if (snapshot.totalMs > 0) builder.setStyle(restProgress(context, snapshot, now));
         } else if (snapshot != null && snapshot.isPaused()) {
@@ -143,9 +155,15 @@ final class LiveUpdateNotificationAdapter {
                     .setShowWhen(false);
             if (compactIsland(context)) builder.setShortCriticalText("Paused");
         } else {
-            builder.setContentTitle("Workout in progress")
-                    .setContentText(nextUp != null ? "Next: " + nextUp : "Return to the app to log your next set.")
-                    .addAction(0, "Return to workout", RestAlerts.openWorkout(context, sessionId, RestAlerts.NOTIFICATION_ID_ONGOING + 1));
+            if (setCard != null) {
+                builder.setContentTitle(setCard.title())
+                        .setContentText(setCard.values())
+                        .addAction(0, NotificationSetLogging.LABEL, logSet);
+            } else {
+                builder.setContentTitle("Workout in progress")
+                        .setContentText(nextUp != null ? "Next: " + nextUp : "Return to the app to log your next set.")
+                        .addAction(0, "Return to workout", RestAlerts.openWorkout(context, sessionId, RestAlerts.NOTIFICATION_ID_ONGOING + 1));
+            }
             if (snapshot != null && snapshot.startedAtMs > 0) {
                 // Counting up from the start, less the time spent paused, reads the workout's
                 // elapsed time without any per-second update from the app.

@@ -130,11 +130,15 @@ export async function enqueueSetEdits(
   navigation: { activeIndex: number },
   restMutation?: RestMutationInput | null,
   restState?: SessionRest | null,
-  targetSetId?: string
+  targetSetId?: string,
+  expectedDraft?: Session
 ): Promise<WorkoutRecoveryRecord> {
   return serializeWrite(accountId, async () => {
     const record = await requireRecovery(accountId, draft.id);
     if (record.conflict) throw new Error('This workout changed on the server. Review both versions before saving.');
+    if (expectedDraft && (!sameWorkoutEdits(record.draft, expectedDraft) || record.operations.some(operation => operation.type === 'finish'))) {
+      throw new Error('The workout changed before the notification could log the set. Check the set in the app.');
+    }
     record.draft = draft;
     record.activeIndex = navigation.activeIndex;
     record.updatedAt = new Date().toISOString();

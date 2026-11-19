@@ -2,7 +2,7 @@
 // these calls reach native plugins through lib/nativeBridge.ts, loaded only there; in a browser
 // they fall back to web APIs or do nothing. Feature code imports only this module.
 
-import type { AlertCapabilities, NativeRestAction, NativeWorkoutState } from './nativeBridge';
+import type { AlertCapabilities, NativeLogSetTap, NativeRestAction, NativeWorkoutState } from './nativeBridge';
 import type { NativeWorkoutContext } from './nativeWorkoutProjection';
 
 export type { AlertCapabilities, NativeRestAction, NativeWorkoutState };
@@ -119,6 +119,11 @@ export function onNativeRestAction(listener: () => void): () => void {
     .then(handle => { if (removed) void handle.remove(); else remove = () => handle.remove(); })
     .catch(() => undefined);
   return () => { removed = true; void remove?.(); };
+}
+
+export async function onNativeLogSet(listener: (event: NativeLogSetTap) => void): Promise<() => Promise<void>> {
+  const handle = await (await bridge()).nativeOnLogSet(listener);
+  return () => handle.remove();
 }
 
 export async function getAlertCapabilities(): Promise<AlertCapabilities | null> {

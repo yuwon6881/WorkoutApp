@@ -34,7 +34,10 @@ public class WorkoutPlugin extends Plugin {
 
     @Override
     protected void handleOnDestroy() {
-        if (active.get() == this) active = new WeakReference<>(null);
+        if (active.get() == this) {
+            active = new WeakReference<>(null);
+            NotificationSetLogging.publish(null, null);
+        }
         super.handleOnDestroy();
     }
 
@@ -43,6 +46,22 @@ public class WorkoutPlugin extends Plugin {
     static void notifyRestAction() {
         WorkoutPlugin plugin = active.get();
         if (plugin != null) plugin.notifyListeners(EVENT_REST_ACTION, new JSObject(), true);
+    }
+
+    static void notifyLogSet(Context context, String token) {
+        WorkoutPlugin plugin = active.get();
+        if (plugin == null || !plugin.hasListeners("logSet")) return;
+        long now = System.currentTimeMillis();
+        try {
+            RestSnapshot snapshot = WorkoutRecoveryStore.get(context).getRestSnapshot();
+            if (!NotificationSetLogging.claim(snapshot, token, now)) return;
+        } catch (RuntimeException unreadableRecovery) {
+            return;
+        }
+        JSObject data = new JSObject();
+        data.put("token", token);
+        data.put("atMs", now);
+        plugin.notifyListeners("logSet", data);
     }
 
     @PluginMethod
@@ -142,6 +161,7 @@ public class WorkoutPlugin extends Plugin {
         }
         // An older write from this page arrived after a newer one: the newer intent stands.
         if (stored == null) { call.resolve(); return; }
+        if (active.get() == this) NotificationSetLogging.publish(sessionId, call.getObject("setCard"));
         // A new rest makes the last "Rest finished" alert old news.
         if (stored.isRunning() && stored.deadlineMs > System.currentTimeMillis()) RestAlerts.clearFinished(getContext());
         // The alarm does not depend on the service, so a rest alerts even if the service is refused.
@@ -162,6 +182,7 @@ public class WorkoutPlugin extends Plugin {
     @PluginMethod
     public void stopWorkout(PluginCall call) {
         persist(call, () -> {
+            NotificationSetLogging.publish(null, null);
             store().clearRestSnapshot();
             RestSchedule.cancel(getContext());
             WorkoutForegroundService.stop(getContext());

@@ -42,6 +42,7 @@ import { useWorkoutDrain } from './useWorkoutDrain';
 import { useWorkoutDrainSchedule } from './useWorkoutDrainSchedule';
 import { useAccountWorkoutCallbacks } from './useAccountWorkoutCallbacks';
 import { withSessionSystemLoads } from '../lib/workoutSystemLoads';
+import { useNotificationSetLogging } from './useNotificationSetLogging';
 import './WorkoutSheet.css';
 import './ActiveWorkout.css';
 
@@ -129,7 +130,8 @@ export function Workout({
     next: Session,
     changedSet?: { setId: string; patch: Partial<LoggedSet> },
     restMutation?: RestMutationInput | null,
-    restState?: SessionRest | null
+    restState?: SessionRest | null,
+    expectedDraft?: Session
   ): Promise<boolean> {
     if (finishIntentAt) { setError('This workout is finished on this device and is waiting to sync.'); return false; }
     if (onlineFallback.hasPendingFinish()) { setError('A finish request needs confirmation. Retry the same finish before making more changes.'); return false; }
@@ -138,8 +140,9 @@ export function Workout({
       return false;
     }
     next = withSessionSystemLoads(next);
-    setDraft(next);
     const validationError = validateSessionDraft(next);
+    if (expectedDraft && validationError) { setError(validationError); return false; }
+    setDraft(next);
     if (validationError) {
       setError(validationError);
       try { onRecoveryChange(await persistDraftOnly(accountId, next, { activeIndex })); }
@@ -149,7 +152,7 @@ export function Workout({
     setError('');
     setLocalStatus('Saving on this device…');
     const persist = changedSet
-      ? enqueueSetEdits(accountId, next, { activeIndex }, restMutation, restState, changedSet.setId)
+      ? enqueueSetEdits(accountId, next, { activeIndex }, restMutation, restState, changedSet.setId, expectedDraft)
       : enqueueSave(accountId, next, { activeIndex });
     try {
       const record = await persist;
@@ -157,7 +160,7 @@ export function Workout({
       setLocalStatus(online ? 'Saved on this device. Syncing…' : 'Saved on this device. Waiting for a connection to sync.');
       return true;
     } catch (failure) {
-      if (online && !recoveryConflict && (!recovery || isStorageFailure(failure))) {
+      if (!expectedDraft && online && !recoveryConflict && (!recovery || isStorageFailure(failure))) {
         const message = failure instanceof Error ? failure.message : '';
         if (/changed on the server|another device|review both versions/i.test(message)) { setError(message); return false; }
         try {
@@ -177,7 +180,8 @@ export function Workout({
           return false;
         }
       }
-      setDraft(draft);
+      if (expectedDraft) setDraft(current => current === next ? expectedDraft : current);
+      else setDraft(draft);
       setError(failure instanceof Error ? failure.message : 'Could not save this workout on the device.');
       return false;
     }
@@ -188,15 +192,16 @@ export function Workout({
     si: number,
     patch: Partial<LoggedSet>,
     restMutation?: RestMutationInput | null,
-    restState?: SessionRest | null
+    restState?: SessionRest | null,
+    expectedDraft?: Session
   ): Promise<boolean> {
     const exercise = draft.exercises[ei];
     const next = withLoggedSetEdit(draft, ei, si, patch, exercises, preferences.unit, trackRir, written.current.filled, written.current.copied);
     if (!next) return false;
-    return change(next, { setId: exercise.sets[si].id, patch }, restMutation, restState);
+    return change(next, { setId: exercise.sets[si].id, patch }, restMutation, restState, expectedDraft);
   }
 
-  async function toggle(ei: number, si: number) {
+  async function toggle(ei: number, si: number, expectedDraft?: Session) {
     // Logging a set while the clock is stopped would count work that the elapsed time excludes.
     // The refusal is shown by the set row and the paused pill, not by a message.
     if (draft.pausedAt && !draft.exercises[ei].sets[si].done) {
@@ -204,6 +209,7 @@ export function Workout({
       return false;
     }
     const stored = draft.exercises[ei].sets[si];
+    if (expectedDraft && (stored.done || !isAccountCurrent?.(accountId))) return false;
     const outOfOrder = stored.done ? null : setOrderProblem(draft.exercises[ei], si);
     if (outOfOrder) { setError(outOfOrder); return false; }
     const timed = (stored.done ? null : stopStopwatch(stored.id)) || null;
@@ -246,7 +252,7 @@ export function Workout({
     if (replacesRest && restTimer.remainingMs > 0) restMutation = skippedRest(revision.current);
 
     const patch: Partial<LoggedSet> = timed === null ? { done: !set.done } : { done: true, durationSeconds: timed };
-    const persist = () => editSet(ei, si, patch, restMutation, restState);
+    const persist = () => editSet(ei, si, patch, restMutation, restState, expectedDraft);
     let saved: boolean;
     if (shouldRest) {
       restTimer.primeSound();
@@ -365,6 +371,11 @@ export function Workout({
   const nextUp = nextUpText(draft, activeIndex, unit);
   // The Android notification shows the next set once the phone is unlocked.
   useEffect(() => { restTimer.setNextUp(draft.id, nextUp); }, [draft.id, nextUp]);
+  useNotificationSetLogging({
+    enabled: Boolean(recovery) && !busy && !finishIntentAt && !recoveryConflict && !confirm,
+    draft, exerciseIndex: activeIndex, unit, trackRir,
+    log: (ei, si) => toggle(ei, si, storedDraft)
+  });
 
   const content = (
     <>

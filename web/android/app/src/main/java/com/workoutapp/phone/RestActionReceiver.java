@@ -4,6 +4,7 @@ import android.app.PendingIntent;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
+import android.net.Uri;
 
 /// The −30 s, +30 s, and Skip buttons on the workout notification. A broadcast rather than an
 /// activity, so they work from the lock screen without unlocking. The change shows at once; the
@@ -16,6 +17,10 @@ public class RestActionReceiver extends BroadcastReceiver {
 
     @Override
     public void onReceive(Context context, Intent intent) {
+        if (NotificationSetLogging.ACTION.equals(intent.getAction())) {
+            WorkoutPlugin.notifyLogSet(context, intent.getStringExtra(NotificationSetLogging.TOKEN));
+            return;
+        }
         if (!ACTION_REST.equals(intent.getAction())) return;
         String kind = intent.getStringExtra(EXTRA_KIND);
         RestAction action = new RestAction(intent.getStringExtra(EXTRA_SESSION_ID), intent.getStringExtra(EXTRA_GENERATION),
@@ -38,6 +43,10 @@ public class RestActionReceiver extends BroadcastReceiver {
     static PendingIntent intent(Context context, String kind, RestSnapshot snapshot, int requestCode) {
         Intent intent = new Intent(context, RestActionReceiver.class)
                 .setAction(ACTION_REST)
+                // PendingIntent identity ignores extras. Keep old cards tied to their own rest.
+                .setData(new Uri.Builder().scheme("workout-rest")
+                        .appendPath(snapshot.sessionId).appendPath(snapshot.generation).build())
+                .addFlags(Intent.FLAG_RECEIVER_FOREGROUND)
                 .putExtra(EXTRA_KIND, kind)
                 .putExtra(EXTRA_SESSION_ID, snapshot.sessionId)
                 .putExtra(EXTRA_GENERATION, snapshot.generation);

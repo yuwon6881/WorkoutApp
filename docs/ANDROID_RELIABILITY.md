@@ -10,6 +10,19 @@ Projection starts from durable recovery, never from the native notification snap
 
 On startup, pending recovery's committed rest overrides the advisory local timer snapshot before native synchronization. A crash after import but before the display/localStorage write therefore restores the committed absolute deadline without applying the delta again.
 
+## Xiaomi Back Display test
+
+On HyperOS devices that grant Workout Focus notification access, the active rest's Focus card requests one **+30 s** button. It sends the same generation-scoped broadcast as the Android notification button. HyperOS determines where the Focus card and its buttons appear.
+
+While the active logger is open, **Log set** is automatically available for the first unlogged rep set with valid values on the selected exercise. The Android notification and Xiaomi Focus card both show the set values alongside the same single-use action, including on the lock screen where the system shows the notification. The action waits until rest ends and uses the logger's durable save before starting the next rest. Timed sets use the regular logger. Offers expire when the logger closes or the app process is lost. A tap that cannot reach the page promptly is ignored.
+
+1. Install the test APK on a Xiaomi 18 Pro or 18 Pro Max. In Workout Settings, check that notifications and Super Island are enabled. Enable Back Display notifications and activities in the phone settings if available.
+2. Start a workout with a rest of at least 60 seconds and log the first set. Check for the countdown and **+30 s** in the expanded Super Island while the front screen is on.
+3. Lock the phone and wake the Back Display. Record whether it shows the countdown and whether it offers **+30 s**. If the button appears, tap it once. The timer should gain about 30 seconds without opening the app. Reopen Workout and check that its timer agrees.
+4. Keep the workout logger open and leave a set with reps ready. After rest, check the displayed exercise, set, load and reps in the Android notification, then on the rear screen with the phone locked.
+5. Tap **Log set** on the rear display and check that the shown set completes once and that its rest starts, if prescribed, without opening the front screen. Repeat with the phone offline, then check the logger and confirm sync after reconnecting. Verify that an old button cannot log a set after its inputs change, and that pausing, finishing or closing the logger removes the offer.
+6. Record the model, region, HyperOS build, and which displays actually accepted the tap. A visible rear countdown confirms display only.
+
 ## Renderer and Back recovery
 
 The activity handles renderer termination separately from network errors. It detaches and destroys the terminated WebView, then recreates a fresh Capacitor activity. Account cookies, IndexedDB, SQLite and queued operations are retained. The workout foreground service and deadline alarm are independent of the display. One automatic recreation is allowed per 60 seconds within the application process; another termination shows a native Retry screen. This is not recovery from Android force-stop or whole-process death.
@@ -49,4 +62,4 @@ Physical acceptance remains required before publication:
 - Verify offline edits, airplane-mode cold launch, keyboard/insets, gesture and three-button Back separately.
 - Upgrade in place using the same installed signing identity and confirm that pending work survives.
 
-Google Play distribution, authentication redesign, widgets, Health Connect, new background sync services and additional Xiaomi features are outside this work.
+Google Play distribution, authentication redesign, widgets, Health Connect and new background sync services are outside this work.

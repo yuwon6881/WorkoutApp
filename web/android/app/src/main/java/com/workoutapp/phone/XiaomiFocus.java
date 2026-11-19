@@ -1,11 +1,13 @@
 package com.workoutapp.phone;
 
+import android.app.Notification;
+import android.app.PendingIntent;
 import android.content.Context;
 import android.graphics.drawable.Icon;
 import android.net.Uri;
 import android.os.Bundle;
 import android.provider.Settings;
-import androidx.core.app.NotificationCompat;
+import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
@@ -13,8 +15,7 @@ import org.json.JSONObject;
 /// the Super Island (HyperOS 3) and the focus card and status-bar ticker (HyperOS 1 and 2). It is
 /// Xiaomi's own JSON carried in the notification's extras; other phones ignore it, and a Xiaomi
 /// phone that has not granted this app focus notifications shows the standard notification.
-/// Island content is always generic, because the island shows on the lock screen and the
-/// always-on display regardless of the lock-screen privacy setting.
+/// The focus card shows set details only alongside an available Log set action.
 ///
 /// The field layout follows Xiaomi's published push parameters (`param_v2`, `param_island`) and,
 /// for the timer, the open-source HyperIsland ToolKit; Xiaomi does not document local timers.
@@ -25,7 +26,10 @@ final class XiaomiFocus {
 
     static final String EXTRA_PARAM = "miui.focus.param";
     static final String EXTRA_PICS = "miui.focus.pics";
+    static final String EXTRA_ACTIONS = "miui.focus.actions";
     static final String PIC_REST = "miui.focus.pic_rest";
+    static final String ACTION_EXTEND = "miui.focus.action_extend_rest";
+    static final String ACTION_LOG_SET = "miui.focus.action_log_set";
     private static final String ACCENT = "#B5F04A";
     // Countdown and count-up timer types in Xiaomi's timerInfo.
     private static final int TIMER_COUNTDOWN = -1;
@@ -45,16 +49,31 @@ final class XiaomiFocus {
         return hasPermission(context) ? STATUS_ON : STATUS_OFF;
     }
 
-    static void apply(Context context, NotificationCompat.Builder builder, RestSnapshot snapshot, long now) {
-        if (snapshot == null || protocolVersion(context) < 1 || !hasPermission(context)) return;
-        String param = param(snapshot, now);
-        if (param == null) return;
+    static Bundle notificationExtras(Context context, RestSnapshot snapshot, long now, PendingIntent extendRest,
+                                      NotificationSetLogging.Card setCard, PendingIntent logSet) {
+        if (snapshot == null || protocolVersion(context) < 1 || !hasPermission(context)) return null;
+        return extras(context, snapshot, now, extendRest, setCard, logSet);
+    }
+
+    static Bundle extras(Context context, RestSnapshot snapshot, long now, PendingIntent extendRest,
+                         NotificationSetLogging.Card setCard, PendingIntent logSet) {
+        String param = param(snapshot, now, setCard);
+        if (param == null) return null;
         Bundle pics = new Bundle();
         pics.putParcelable(PIC_REST, Icon.createWithResource(context, R.drawable.ic_focus_rest));
         Bundle extras = new Bundle();
         extras.putString(EXTRA_PARAM, param);
         extras.putBundle(EXTRA_PICS, pics);
-        builder.addExtras(extras);
+        PendingIntent button = logSet != null ? logSet : extendRest;
+        if (button != null) {
+            Bundle actions = new Bundle();
+            Icon icon = Icon.createWithResource(context, R.drawable.ic_focus_rest);
+            String label = logSet != null ? NotificationSetLogging.LABEL : RestAction.EXTEND_LABEL;
+            actions.putParcelable(logSet != null ? ACTION_LOG_SET : ACTION_EXTEND,
+                    new Notification.Action.Builder(icon, label, button).build());
+            extras.putBundle(EXTRA_ACTIONS, actions);
+        }
+        return extras;
     }
 
     /// 1 to 3 on HyperOS (3 adds the Super Island); 0 everywhere else.
@@ -86,7 +105,7 @@ final class XiaomiFocus {
 
     /// The focus JSON for the workout's current state: a live countdown while resting, the elapsed
     /// workout time while training, and plain text while paused.
-    static String param(RestSnapshot snapshot, long now) {
+    static String param(RestSnapshot snapshot, long now, NotificationSetLogging.Card setCard) {
         try {
             String title;
             String content = null;
@@ -111,7 +130,8 @@ final class XiaomiFocus {
             }
 
             JSONObject card = new JSONObject().put("title", title).put("picProfile", PIC_REST);
-            if (timer != null) card.put("timerInfo", timer);
+            if (setCard != null) card.put("title", setCard.title()).put("content", setCard.values());
+            else if (timer != null) card.put("timerInfo", timer);
             else card.put("content", content);
 
             JSONObject left = new JSONObject().put("type", 1).put("picInfo", picture());
@@ -139,6 +159,11 @@ final class XiaomiFocus {
                     .put("aodPic", PIC_REST)
                     .put("chatInfo", card)
                     .put("param_island", island);
+            if (setCard != null || (snapshot.isRunning() && snapshot.deadlineMs > now)) {
+                // Xiaomi's action footer references a platform Notification.Action by its bundle key.
+                String action = setCard != null ? ACTION_LOG_SET : ACTION_EXTEND;
+                v2.put("actions", new JSONArray().put(new JSONObject().put("action", action)));
+            }
             return new JSONObject().put("param_v2", v2).toString();
         } catch (JSONException e) {
             return null;

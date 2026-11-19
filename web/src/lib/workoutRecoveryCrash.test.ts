@@ -41,6 +41,19 @@ beforeEach(async () => {
 });
 
 describe('device recovery after a direct server change', () => {
+  it('does not overwrite changed set values when a notification log arrives late', async () => {
+    const offered = session();
+    const edited = session();
+    edited.exercises[0].sets[0].reps = 5;
+    await enqueueSetEdits('account', edited, { activeIndex: 0 });
+
+    const logged = session();
+    logged.exercises[0].sets[0].done = true;
+    await expect(enqueueSetEdits('account', logged, { activeIndex: 0 }, null, undefined, 'set-1', offered))
+      .rejects.toThrow('The workout changed');
+    expect((await getRecovery('account'))?.draft.exercises[0].sets[0]).toMatchObject({ reps: 5, done: false });
+  });
+
   it('keeps an imported rest projection while its server acknowledgement is still pending', async () => {
     const rest = { generation: 'tap-result', status: 'running' as const, deadlineUtc: '2026-10-04T08:02:00.000Z',
       durationMs: 120000, pausedRemainingMs: null, originDeviceId: null };
