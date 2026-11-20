@@ -224,6 +224,8 @@ public sealed class WorkoutSession : OwnedRecord
 {
     public Guid? TemplateId { get; set; }
     public Guid? ProgramId { get; set; }
+    /// The program's name when the workout started, kept so history still names a program that was later deleted.
+    public string? ProgramNameSnapshot { get; set; }
     public Guid? ProgramDayProgressId { get; set; }
     public string Name { get; set; } = "";
     public string Note { get; set; } = "";

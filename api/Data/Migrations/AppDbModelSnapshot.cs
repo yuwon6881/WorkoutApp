@@ -1957,6 +1957,9 @@ namespace Workout.Api.Data.Migrations
                     b.Property<Guid?>("ProgramId")
                         .HasColumnType("uuid");
 
+                    b.Property<string>("ProgramNameSnapshot")
+                        .HasColumnType("text");
+
                     b.Property<DateTime?>("RestDeadlineUtc")
                         .HasColumnType("timestamp with time zone");
 

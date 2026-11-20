@@ -248,7 +248,8 @@ public sealed partial class ExerciseService(AppDb db, IMemoryCache? cache = null
         var historyRows = history.Select(x => new ExerciseHistoryRow(x.SessionId, x.Name, x.Date,
             setsBySession[x.SessionId].Count(), x.Volume, x.Partial,
             sessions[x.SessionId].FinishedAt, sessions[x.SessionId].ProgramId is { } programId
-                ? programNames.GetValueOrDefault(programId, "Program unavailable") : null)).ToList();
+                ? programNames.GetValueOrDefault(programId, sessions[x.SessionId].ProgramNameSnapshot ?? "Program unavailable")
+                : sessions[x.SessionId].ProgramNameSnapshot)).ToList();
         var bestE = records.Where(x => x.E1rm is not null).OrderByDescending(x => x.E1rm).FirstOrDefault();
         var heavy = records.Where(x => x.Load is not null).OrderByDescending(x => x.Load).FirstOrDefault();
         var heaviestSet = strengthSets.Where(x => RecordedLoad(x) is not null)

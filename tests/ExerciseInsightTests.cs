@@ -31,6 +31,25 @@ public sealed class ExerciseInsightTests
     }
 
     [Fact]
+    public async Task History_keeps_the_program_name_after_the_program_is_deleted()
+    {
+        var (h, _, benchId) = await Ready();
+        await using var owned = h;
+        var program = await h.Programs.Create(new ProgramInput("Strength block",
+            [new ProgramWorkoutInput(1, "Day A", "Push", null, [Harness.Exercise(benchId, "Bench press", Harness.Set(8, 10))])]), true, null, default);
+        var session = await h.Workouts.Start(program.Workouts[0].Id, null, default);
+        await h.Workouts.Save(session.Id, new SessionInput(null,
+            [new SessionExerciseInput(benchId, "Bench press", null, [Harness.Set(8, 10)],
+                [new SetInput(60, 10, 8, true)])], session.Revision, null), default);
+        await h.Workouts.Finish(session.Id, null, default);
+        var service = new ExerciseService(h.Db);
+
+        await h.Programs.Delete(program.Id, default);
+
+        Assert.Equal("Strength block", Assert.Single((await service.Insight(benchId, "all", 0, 20, default)).History).ProgramName);
+    }
+
+    [Fact]
     public async Task Cached_full_history_insights_invalidate_after_completion_and_deletion()
     {
         var (h, templateId, benchId) = await Ready();

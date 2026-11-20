@@ -313,7 +313,7 @@ public sealed partial class ProgramService(AppDb db, TemplateService templates, 
         db.ProgramRuns.RemoveRange(await db.ProgramRuns.Where(run => run.ProgramId == id).ToListAsync(ct));
         // Finished sessions keep their own snapshots, so history survives the program going away.
         foreach (var session in await db.Workouts.Where(w => w.ProgramId == id).ToListAsync(ct))
-        { session.ProgramId = null; session.TemplateId = null; session.ProgramDayProgressId = null; session.Revision++; }
+        { session.ProgramNameSnapshot ??= program!.Name; session.ProgramId = null; session.TemplateId = null; session.ProgramDayProgressId = null; session.Revision++; }
         db.Programs.Remove(program!);
         await db.SaveChangesAsync(ct);
         await gate.Commit(ct);

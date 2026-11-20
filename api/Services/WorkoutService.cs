@@ -115,6 +115,7 @@ public sealed partial class WorkoutService(
         Validation.Require(!await db.Workouts.AnyAsync(w => w.Active, ct), "Finish or discard your current workout before starting another.", 409);
         WorkoutTemplate? template = null;
         Guid? programDayProgressId = null;
+        string? programName = null;
         if (templateId is { } id)
         {
             template = await db.Templates.AsNoTracking().SingleOrDefaultAsync(t => t.Id == id, ct);
@@ -124,6 +125,7 @@ public sealed partial class WorkoutService(
             {
                 var day = await programs.PendingWorkoutDay(programId, template.Id, ct);
                 programDayProgressId = day.Id;
+                programName = await db.Programs.AsNoTracking().Where(p => p.Id == programId).Select(p => p.Name).SingleOrDefaultAsync(ct);
             }
         }
         else Validation.Name(name, "Workout name");
@@ -136,6 +138,7 @@ public sealed partial class WorkoutService(
             GymProfileId = await GymProfiles.EnsureActive(db, ct),
             TemplateId = template?.Id,
             ProgramId = template?.ProgramId,
+            ProgramNameSnapshot = programName,
             ProgramDayProgressId = programDayProgressId,
             Name = template?.Name ?? name!.Trim(),
             Active = true,

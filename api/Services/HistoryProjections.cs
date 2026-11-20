@@ -14,7 +14,7 @@ internal static class HistoryProjections
         => query.Select(row => new WorkoutSession
         {
             UserId = row.UserId, Id = row.Id, Revision = row.Revision,
-            TemplateId = row.TemplateId, ProgramId = row.ProgramId, ProgramDayProgressId = row.ProgramDayProgressId,
+            TemplateId = row.TemplateId, ProgramId = row.ProgramId, ProgramNameSnapshot = row.ProgramNameSnapshot, ProgramDayProgressId = row.ProgramDayProgressId,
             Name = row.Name, Note = row.Note, Active = row.Active,
             StartedAt = row.StartedAt, FinishedAt = row.FinishedAt, PausedAt = row.PausedAt, PausedSeconds = row.PausedSeconds,
             LastTimingEventAt = row.LastTimingEventAt, BodyWeightSnapshotJson = row.BodyWeightSnapshotJson,
