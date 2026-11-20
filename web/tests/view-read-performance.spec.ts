@@ -24,7 +24,7 @@ test('the library loading skeleton follows its responsive layout in both themes'
   await expect(page.getByRole('textbox', { name: 'Search exercises', exact: true })).toBeVisible();
 });
 
-test('library metadata and insight ranges survive a return visit in memory', async ({ page }, info) => {
+test('exercise insight ranges survive a return visit in memory', async ({ page }, info) => {
   await signIn(page);
   const headers = { 'X-Workout-Request': '1', Origin: new URL(page.url()).origin };
   // Replacing an older remembered launch correctly invalidates reads. Measure reuse only after
@@ -75,7 +75,6 @@ test('library metadata and insight ranges survive a return visit in memory', asy
   });
   try {
     await page.goto('/exercises');
-    await expect.poll(() => metadataReads).toBe(1);
     await page.getByRole('textbox', { name: 'Search exercises', exact: true }).fill(exercise.name);
     await page.getByRole('button', { name: `View ${exercise.name} details`, exact: true }).click();
     const dialog = page.getByRole('dialog', { name: exercise.name, exact: true });
@@ -94,11 +93,12 @@ test('library metadata and insight ranges survive a return visit in memory', asy
     await expect(dialog.getByText('Upper Alpha')).toBeVisible();
     await expect(dialog.getByText('Upper Beta')).toBeVisible();
     expect(rangeReads.get('3m')).toBe(2);
+    expect(metadataReads).toBe(0);
     await dialog.screenshot({ path: info.outputPath('cached-insight.png') });
     await dialog.getByRole('button', { name: 'Close dialog', exact: true }).click();
     await page.getByRole('button', { name: 'Overview', exact: true }).filter({ visible: true }).first().click();
     await expect(page.getByRole('heading', { name: 'Overview', exact: true })).toBeVisible();
-    // NextWorkoutPlan on Overview must reuse the cached last-performed metadata rather than fetching it again.
+    // Overview still reads last-performed metadata for the plan; the library does not need it.
     await expect(page.locator('.hero-plan')).toBeVisible();
     await expect(page.locator('.hero-plan')).toContainText(exercise.name);
     await page.getByRole('button', { name: 'Exercises', exact: true }).filter({ visible: true }).first().click();
@@ -110,7 +110,7 @@ test('library metadata and insight ranges survive a return visit in memory', asy
   }
 });
 
-test('overview next-workout plan shares last-performed metadata with the library', async ({ page }, info) => {
+test('the exercise library does not request the next-workout plan metadata', async ({ page }, info) => {
   await signIn(page);
   const headers = { 'X-Workout-Request': '1', Origin: new URL(page.url()).origin };
   await page.evaluate(() => localStorage.removeItem('workout-launch-snapshot'));

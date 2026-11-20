@@ -253,7 +253,8 @@
 
 /* Library cards lead with a body-map crop of the muscle the movement trains, so the grid can be
    scanned by shape before it is read. Equipment drops to a quiet line under the title; the muscle
-   pills follow, and the last top set closes the card under a hairline. */
+   pills follow. */
+.exercise-grid { grid-auto-rows: 1fr; }
 .exercise-grid > .exercise-card {
   display: grid;
   grid-template-columns: 56px minmax(0, 1fr);
@@ -304,13 +305,6 @@
   grid-column: 2;
   align-self: start;
 }
-.exercise-grid > .exercise-card > .exercise-card-last {
-  grid-column: 1 / -1;
-  margin: 6px 0 0;
-  padding-top: 10px;
-  border-top: 1px solid var(--border);
-}
-
 /* Aligned search well & filter toolbar */
 .exercise-minor-filters {
   display: flex;
@@ -381,6 +375,18 @@
   }
 }
 
+@media (max-width: 639px) {
+  .search-row.exercise-library-search { display: contents; }
+  .exercise-library-search > .search-box {
+    position: sticky;
+    top: var(--mobile-topbar-height);
+    z-index: 4;
+    margin-bottom: 10px;
+    box-shadow: 0 -8px var(--bg), 0 6px var(--bg);
+  }
+  .exercise-library-search > .exercise-minor-filters { margin-bottom: 14px; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .exercise-card-action {
     transform: none;
@@ -388,14 +394,6 @@
   }
 }
 
-/* The last top set: a quiet line under the tags, for a glance at where the lift stands. */
-.exercise-card-last {
-  margin: 10px 0 0;
-  color: var(--muted);
-  font-size: var(--font-secondary);
-  font-variant-numeric: tabular-nums;
-  overflow-wrap: anywhere;
-}
 
 .picker-recommended {
   margin-bottom: 16px;

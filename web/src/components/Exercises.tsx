@@ -1,8 +1,7 @@
 import { loadAdjustable } from '../lib/exerciseLoads';
 import { useDeferredValue, useEffect, useMemo, useState } from 'react';
 import { ArrowLeftRight, Check, Link2, Plus, Search, X } from 'lucide-react';
-import type { Exercise, ExerciseCategory, Unit } from '../types';
-import { lastPerformedLabel } from '../lib/lastPerformed';
+import type { Exercise, ExerciseCategory } from '../types';
 import { useLastPerformed } from './useLastPerformed';
 import { Button } from './ui/Button';
 import { Select } from './ui/Select';
@@ -52,12 +51,10 @@ function exerciseRank(candidate: Exercise, current: Exercise | undefined, prefer
   return 4;
 }
 
-export function ExerciseLibrary({ exercises, onSelect, exclude = emptyIds, added = emptyIds, onOpen, onChanged, action = 'add', currentExerciseId, preferredNames = emptyIds, disabled = false, unit }: {
+export function ExerciseLibrary({ exercises, onSelect, exclude = emptyIds, added = emptyIds, onOpen, onChanged, action = 'add', currentExerciseId, preferredNames = emptyIds, disabled = false }: {
   exercises: Exercise[];
   /** Picked during this visit to the picker: kept in place and marked Added rather than removed. */
   added?: string[];
-  /** When given (the library tab), cards add the exercise's last top set in this unit. */
-  unit?: Unit;
   onSelect?: (id: string) => void;
   exclude?: string[];
   onOpen?: (exercise: Exercise) => void;
@@ -69,13 +66,7 @@ export function ExerciseLibrary({ exercises, onSelect, exclude = emptyIds, added
 }) {
   const [query, setQuery] = useState('');
   const [muscle, setMuscle] = useState('All muscles');
-  // The library tab labels its cards with each last top set; the add picker leads with what was
-  // trained most recently. Both read the same account-scoped cached list.
-  const lastPerformed = useLastPerformed((Boolean(unit) && !onSelect) || (Boolean(onSelect) && action === 'add'));
-  const lastLabel = (exercise: Exercise) => {
-    const last = lastPerformed.get(exercise.id);
-    return unit && last ? lastPerformedLabel(last, unit, exercise) : null;
-  };
+  const lastPerformed = useLastPerformed(Boolean(onSelect) && action === 'add');
   const [source, setSource] = useState<'all' | 'custom' | 'catalog'>('all');
   const [category, setCategory] = useState<'all' | ExerciseCategory>('all');
   const [createOpen, setCreateOpen] = useState(false);
@@ -226,7 +217,6 @@ export function ExerciseLibrary({ exercises, onSelect, exclude = emptyIds, added
                     )}
                     <GymAvailabilityBadge exerciseId={e.id} compact passive />
                   </div>
-                  {lastLabel(e) && <p className="exercise-card-last">{lastLabel(e)}</p>}
                 </article>
               )
             ))}
@@ -248,7 +238,7 @@ export function ExerciseLibrary({ exercises, onSelect, exclude = emptyIds, added
   return <div>
     {!onSelect && <MuscleThumbSprite />}
     {!onSelect && <div className="page-heading"><h1 data-page-heading tabIndex={-1}>Exercises</h1><Button variant="primary" onClick={() => setCreateOpen(true)}><Plus size={16} />Create exercise</Button></div>}
-    <div className="search-row">
+    <div className={onSelect ? 'search-row' : 'search-row exercise-library-search'}>
       <label className="search-box">
         <Search size={18} />
         <input name="exercise-search" aria-label="Search exercises" placeholder="Search exercises or equipment…" value={query} onChange={e => setQuery(e.target.value)}

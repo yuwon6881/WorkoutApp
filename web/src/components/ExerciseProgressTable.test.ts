@@ -58,7 +58,7 @@ describe('ExerciseProgressTable', () => {
     expect(markup).toContain('data-label="1RM"');
     expect(markup).toContain('data-label="Load"');
     expect(markup).toContain('data-label="Volume"');
-    expect(markup).toContain('800 kg *');
+    expect(markup).toContain('800 kg\u00a0*');
     expect(markup).toContain('data-label="Reps"');
     expect(markup).not.toContain('Estimated 1RM needs the reps in reserve');
   });

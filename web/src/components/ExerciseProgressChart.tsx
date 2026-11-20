@@ -14,15 +14,17 @@ const fallbackWidth = 600;
 /// A line progress chart for exercise tracking. It draws at the canvas's real pixel width so dots
 /// stay round, and every dot is selectable by pointer (the nearest dot to the pointer) or by arrow
 /// keys. Sessions without a value break the line rather than interpolating a fictitious number.
-export function ExerciseProgressChart({ points, label, format }: {
+export function ExerciseProgressChart({ points, label, format, missingMessage = 'No values are available for this metric in this range.' }: {
   points: ChartPoint[];
   label: string;
   format: (value: number | null) => string;
+  missingMessage?: string;
 }) {
   const canvas = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(fallbackWidth);
-  const [selected, setSelected] = useState<number | null>(null);
-  const hasValues = points.some(point => point.value !== null);
+  const [selected, setSelected] = useState<string | null>(null);
+  const known = points.filter(point => point.value !== null);
+  const hasTrend = known.length > 1;
 
   useLayoutEffect(() => {
     const element = canvas.current;
@@ -32,17 +34,16 @@ export function ExerciseProgressChart({ points, label, format }: {
     const observer = new ResizeObserver(measure);
     observer.observe(element);
     return () => observer.disconnect();
-  }, [hasValues]);
+  }, [hasTrend]);
 
   if (!points.length) {
     return <div className="exercise-chart"><span className="muted">No completed working sets in this range.</span></div>;
   }
-  if (!hasValues) {
-    return <div className="exercise-chart"><span className="muted">No logged weights in this range to calculate {label.replace(/\s+progress$/i, '').toLowerCase()}.</span></div>;
+  if (!known.length) {
+    return <div className="exercise-chart"><span className="muted">{missingMessage}</span></div>;
   }
 
   // One value is a number, not a trend: show it plainly instead of a dot in an empty plot.
-  const known = points.filter(point => point.value !== null);
   if (known.length === 1) {
     return <div className="exercise-chart exercise-chart-single">
       <p className="exercise-chart-readout">
@@ -55,8 +56,10 @@ export function ExerciseProgressChart({ points, label, format }: {
 
   let latestKnown = points.length - 1;
   while (latestKnown > 0 && points[latestKnown].value === null) latestKnown--;
-  const index = selected === null || selected >= points.length ? latestKnown : selected;
+  const selectedIndex = selected === null ? -1 : points.findIndex(point => point.key === selected);
+  const index = selectedIndex < 0 ? latestKnown : selectedIndex;
   const current = points[index];
+  const currentValue = current.value === null ? 'Unavailable' : format(current.value);
 
   const scale = chartScale(points.flatMap(point => point.value === null ? [] : [point.value]));
   const baselineY = height - padBottom;
@@ -79,7 +82,7 @@ export function ExerciseProgressChart({ points, label, format }: {
 
   function pick(event: PointerEvent<HTMLDivElement>) {
     const box = event.currentTarget.getBoundingClientRect();
-    setSelected(nearestPointIndex(xs, ((event.clientX - box.left) / box.width) * width));
+    setSelected(points[nearestPointIndex(xs, ((event.clientX - box.left) / box.width) * width)].key);
   }
 
   function step(event: KeyboardEvent<HTMLDivElement>) {
@@ -87,7 +90,7 @@ export function ExerciseProgressChart({ points, label, format }: {
       : event.key === 'Home' ? 0 : event.key === 'End' ? points.length - 1 : null;
     if (next === null) return;
     event.preventDefault();
-    setSelected(Math.min(points.length - 1, Math.max(0, next)));
+    setSelected(points[Math.min(points.length - 1, Math.max(0, next))].key);
   }
 
   const lastIndex = points.length - 1;
@@ -98,9 +101,11 @@ export function ExerciseProgressChart({ points, label, format }: {
   return (
     <div className="exercise-chart">
       <p className="exercise-chart-readout" aria-live="polite">
-        <strong>{format(current.value)}</strong>
-        <span>{current.date}</span>
-        <span className="exercise-chart-position">{points.length > 1 ? `Session ${index + 1} of ${points.length}` : 'Only session so far'}</span>
+        <strong title={current.value === null ? currentValue : undefined}>
+          {current.value === null ? <><span aria-hidden="true">—</span><span className="sr-only">{currentValue}</span></> : currentValue}
+        </strong>
+        <span>{`Selected: ${current.date}`}</span>
+        <span className="exercise-chart-position">Session {index + 1} of {points.length}</span>
       </p>
       <div
         ref={canvas}
@@ -111,7 +116,7 @@ export function ExerciseProgressChart({ points, label, format }: {
         aria-valuemin={1}
         aria-valuemax={points.length}
         aria-valuenow={index + 1}
-        aria-valuetext={`${current.date}: ${format(current.value)}`}
+        aria-valuetext={`${current.date}: ${currentValue}`}
         onPointerDown={pick}
         onPointerMove={event => { if (event.pointerType === 'mouse' || event.buttons) pick(event); }}
         onKeyDown={step}

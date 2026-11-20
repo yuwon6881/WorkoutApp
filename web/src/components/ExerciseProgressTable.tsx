@@ -24,7 +24,7 @@ export function ExerciseProgressTable({ points, formatDate, formatEstimate, form
   const allColumns: Column[] = [
     { key: 'estimated1rm', label: '1RM', cell: p => formatEstimate(p.estimated1RmKg), present: p => p.estimated1RmKg != null },
     { key: 'load', label: 'Load', cell: p => formatLoad(p.loadKg), present: p => p.loadKg != null },
-    { key: 'volume', label: 'Volume', cell: p => `${formatVolume(p.volumeKg)}${p.partial ? ' *' : ''}`, present: p => p.volumeKg != null },
+    { key: 'volume', label: 'Volume', cell: p => `${formatVolume(p.volumeKg)}${p.partial ? ' *' : ''}`, present: p => p.volumeKg != null },
     { key: 'reps', label: 'Reps', cell: p => String(p.reps ?? '—'), present: p => p.reps != null },
     // The 1RM estimate reads the reserve, so two rows with the same load and reps differ by it.
     { key: 'rir', label: 'RIR', cell: p => p.rir ?? '—', present: p => trackRir && p.rir != null }
@@ -32,15 +32,19 @@ export function ExerciseProgressTable({ points, formatDate, formatEstimate, form
   const columns = allColumns.filter(column => points.some(column.present));
   const newestFirst = [...points].reverse();
   const rows = expanded ? newestFirst : newestFirst.slice(0, collapsedRows);
-  const template = { gridTemplateColumns: `minmax(0, 1.3fr) repeat(${columns.length}, minmax(0, 1fr))` };
+  const summaryTracks: Record<string, string> = {
+    estimated1rm: 'minmax(0, 1.1fr)', load: 'minmax(0, 1.1fr)', volume: 'minmax(0, 1.25fr)',
+    reps: 'minmax(min-content, 0.65fr)', rir: 'minmax(min-content, 0.55fr)'
+  };
+  const template = { gridTemplateColumns: `minmax(0, 1.2fr) ${columns.map(column => summaryTracks[column.key]).join(' ')}` };
 
   return <div>
-    <div className="chart-table" role="table" aria-label="Exercise progress table">
-      <div className="chart-table-row chart-table-head" role="row" style={template}>
+    <div className="chart-table" role="table" aria-label="Exercise progress table" style={template}>
+      <div className="chart-table-row chart-table-head" role="row">
         <span role="columnheader">Date</span>
         {columns.map(column => <span role="columnheader" key={column.key}>{column.label}</span>)}
       </div>
-      {rows.map(point => <div className="chart-table-row" role="row" style={template} key={`row-${point.sessionId}-${point.date}`}>
+      {rows.map(point => <div className="chart-table-row" role="row" key={`row-${point.sessionId}-${point.date}`}>
         <span role="cell" data-label="Date">{formatDate(point.date)}</span>
         {columns.map(column => <span role="cell" data-label={column.label} key={column.key}>{column.cell(point)}</span>)}
       </div>)}

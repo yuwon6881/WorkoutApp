@@ -236,6 +236,11 @@ The load-settings migration removes named reusable weight stacks and their refer
 
 ## Mobile performance architecture
 
+On compact screens the exercise-library search stays below the top bar while the list scrolls.
+The cards describe the movement; past sets stay in the exercise details, not on library cards.
+Progress identifies the selected session separately from the chart range. A dash is an absent
+value, not zero; a loaded set above 12 reps including reps in reserve does not yield a 1RM estimate.
+
 The web/Android shell uses `/api/bootstrap/shell` for account/preferences, the active workout,
 next workout, active program, navigation counts, and unfinished import summaries. The original
 `/api/bootstrap` and workout mutation response contracts remain available to older clients and Wear.

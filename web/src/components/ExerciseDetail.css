@@ -21,15 +21,16 @@
   min-width: 0;
 }
 .exercise-chart-readout {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: baseline;
-  flex-wrap: wrap;
-  gap: 8px 14px;
+  gap: 4px 8px;
   margin: 0;
   font-size: var(--font-secondary);
   color: var(--muted);
 }
 .exercise-chart-readout strong {
+  grid-column: 1 / -1;
   font-size: 28px;
   font-weight: 700;
   /* Tight tracking closes the space in "8 reps" up to "8reps"; keep the unit visibly apart. */
@@ -40,12 +41,12 @@
   font-variant-numeric: tabular-nums;
 }
 .exercise-chart-position {
-  margin-left: auto;
-  font-size: var(--font-secondary);
+  text-align: right;
   color: var(--faint);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
+.exercise-estimate-note { margin: -10px 0 0; }
 .exercise-chart-canvas {
   width: 100%;
   height: 176px;
@@ -132,23 +133,27 @@
   .detail-record-grid:has(> :first-child:nth-last-child(7)) > .stat-card:last-child {
     grid-column: 1 / -1;
   }
-  /* One line per session, like a ledger: the header stays so every column is named once, and
-     the rows lose their card frames so the figures fit a phone's width. Equal columns hold five
-     figures at 320 px; a value too long for one wraps rather than being clipped. */
-  .chart-table { gap: 0; }
-  .chart-table-row {
-    grid-template-columns: none !important;
-    grid-auto-flow: column;
-    grid-auto-columns: minmax(0, 1fr);
-    gap: 4px;
-    padding: 8px 0;
-    font-size: 12.5px;
-    line-height: 1.25;
+  .exercise-detail-panel .chart-table {
+    grid-template-rows: auto;
+    grid-auto-rows: 1fr;
+    column-gap: 4px;
   }
-  .chart-table-head { font-size: 12px; padding-top: 0; }
+  .chart-table .chart-table-row {
+    padding: 4px 0;
+    font-size: var(--font-secondary);
+    line-height: 1.2;
+  }
+  .chart-table .chart-table-head { padding-top: 0; }
   .chart-table-row > span { min-width: 0; overflow-wrap: anywhere; }
   .chart-table-row > span:not(:first-child) { text-align: right; }
   .chart-table-row:not(.chart-table-head) > span:first-child { color: var(--muted); }
+}
+
+.chart-table .chart-table-row {
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
+  column-gap: inherit;
+  align-items: center;
 }
 
 /* History tab */
@@ -206,6 +211,12 @@
   padding: 12px 16px;
   border-top: 1px solid var(--border);
   background: var(--surface);
+}
+
+@media (max-width: 639px) {
+  .exercise-history-list { gap: 6px; }
+  .exercise-history-entry .history-row { padding: 7px 12px !important; }
+  .exercise-history-entry .row-title { gap: 1px; line-height: 1.2; }
 }
 
 @media (prefers-reduced-motion: reduce) {

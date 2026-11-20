@@ -282,6 +282,23 @@ describe('defaultChartMetric and ExerciseProgressChart', () => {
       label: 'Estimated 1RM progress',
       format: value => value == null ? 'Unavailable' : `${value} kg`
     }));
-    expect(unavailableMetricMarkup).toContain('No logged weights in this range to calculate estimated 1rm.');
+    expect(unavailableMetricMarkup).not.toContain('No logged weights');
+    expect(unavailableMetricMarkup).toContain('No values are available for this metric in this range.');
+  });
+
+  it('labels the selected session separately from the chart range', async () => {
+    const { ExerciseProgressChart } = await import('./ExerciseProgressChart');
+    const markup = renderToStaticMarkup(createElement(ExerciseProgressChart, {
+      points: [
+        { key: 'before', date: 'Nov 7, 2026', value: 76 },
+        { key: 'gap', date: 'Nov 11, 2026', value: null },
+        { key: 'latest', date: 'Nov 17, 2026', value: 84 }
+      ],
+      label: 'Estimated 1RM progress',
+      format: value => `${value} kg`
+    }));
+    expect(markup).toContain('Selected: Nov 17, 2026');
+    expect(markup).toContain('aria-valuetext="Nov 17, 2026: 84 kg"');
+    expect(markup).toContain('exercise-chart-gap');
   });
 });

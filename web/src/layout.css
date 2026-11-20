@@ -255,7 +255,8 @@ html { -webkit-tap-highlight-color: transparent; }
 }
 
 @media (max-width: 639px) {
-  .topbar { height: calc(68px + env(safe-area-inset-top, 0px)); }
+  .workspace { --mobile-topbar-height: calc(68px + env(safe-area-inset-top, 0px)); }
+  .topbar { height: var(--mobile-topbar-height); }
   .modal, .modal.wide { max-height: calc(94dvh - env(safe-area-inset-top, 0px)); }
   .modal { min-height: min(var(--modal-min-height, 0px), calc(94dvh - env(safe-area-inset-top, 0px))); }
 }
@@ -314,7 +315,7 @@ html[data-keyboard='open'] .resume-workout { display: none; }
 .exercise-grid > .exercise-card,
 .picker-list > .picker-card { content-visibility: auto; contain-intrinsic-size: auto 120px; }
 @media (max-width: 639px) {
-  .exercise-grid > .exercise-card { min-height: 0; padding: 14px 16px; }
+  .exercise-grid > .exercise-card { min-height: 132px; padding: 14px 16px; }
   .exercise-grid > .exercise-card .exercise-icon { display: none; }
   .exercise-grid > .exercise-card .exercise-card-badges { margin-left: 0; }
 }

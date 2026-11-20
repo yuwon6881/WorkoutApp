@@ -7,6 +7,9 @@
   content-visibility: auto;
   contain-intrinsic-size: auto 180px;
 }
+@media (max-width: 639px) {
+  .exercise-grid.render-windowed > article:nth-child(n + 9) { contain-intrinsic-size: auto 102px; }
+}
 .history-windowed .history-item-wrap {
   content-visibility: auto;
   contain-intrinsic-size: auto 72px;

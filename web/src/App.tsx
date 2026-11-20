@@ -404,7 +404,7 @@ export default function App() {
             {tab === 'import' && <ImportReview exercises={data.exercises} imports={data.imports}
               onBack={() => setTab('program')} onChanged={app.reload} notify={setToast} />}
             {tab === 'body' && <MuscleBalanceView unconfirmed={app.unconfirmed} timeZone={Intl.DateTimeFormat().resolvedOptions().timeZone} refreshKey={data.resourceVersions?.history} onExercise={id => { void openExercise(id); }} />}
-            {tab === 'exercises' && <ExerciseLibrary exercises={data.exercises} unit={data.preferences.unit} onOpen={setExerciseDetail} onChanged={app.reload} />}
+            {tab === 'exercises' && <ExerciseLibrary exercises={data.exercises} onOpen={setExerciseDetail} onChanged={app.reload} />}
             {tab === 'settings' && <SettingsView account={data.account} preferences={data.preferences} devicePreferences={app.devicePreferences} onCatalogChanged={async () => { await app.reload(); }}
               version={__APP_VERSION__}
               onDevicePreferences={app.setDevicePreferences} onPreferences={app.savePreferences} notify={setToast} onSignOut={async () => { await app.signOut(); }}

@@ -165,6 +165,40 @@ test.afterEach(async ({ page }) => {
 });
 
 for (const theme of ['dark', 'light']) {
+  test(`exercise library search stays usable on mobile in ${theme} theme`, async ({ page }) => {
+    test.skip(page.viewportSize()!.width >= 640, 'Search pins only in the compact layout');
+    await signIn(page);
+    await navigate(page, 'Settings');
+    await page.getByRole('group', { name: 'Appearance' })
+      .getByRole('button', { name: theme === 'dark' ? 'Dark' : 'Light' }).click();
+    await page.route('**/api/exercises', async route => {
+      const response = await route.fetch();
+      const catalog = await response.json() as Exercise[];
+      const sample = catalog.find(exercise => exercise.slug === 'bench-press')!;
+      const extras = Array.from({ length: 12 }, (_, index) => ({
+        ...sample, id: `fixture-${index}`, name: `Extra exercise ${index}`, aliases: [],
+        secondaryMuscles: index % 2 ? ['Triceps', 'Shoulders'] : []
+      }));
+      await route.fulfill({ json: [...catalog, ...extras] });
+    });
+    await page.goto('/exercises');
+    const search = page.getByRole('textbox', { name: 'Search exercises' });
+    const grid = page.getByRole('region', { name: 'Free Weights exercises' });
+    const cards = grid.getByRole('button', { name: /^View Extra exercise/ });
+    await expect(cards).toHaveCount(12);
+    const sizes = await cards.evaluateAll(elements => elements.map(card => [card.clientWidth, card.clientHeight]));
+    expect(sizes.every(([width, height]) => width === sizes[0][0] && height === sizes[0][1])).toBe(true);
+    await cards.nth(8).scrollIntoViewIfNeeded();
+    const topbar = await page.locator('header.topbar').boundingBox();
+    const field = await search.boundingBox();
+    expect(Math.abs(field!.y - topbar!.y - topbar!.height)).toBeLessThan(12);
+    await search.tap();
+    await expect(search).toBeFocused();
+    await search.fill('bench');
+    await expect(page.getByRole('button', { name: 'View Barbell bench press details' })).toBeInViewport();
+    await expect(cards).toHaveCount(0);
+  });
+
   test(`populated exercise progress in ${theme} theme`, async ({ page }, info) => {
     await signIn(page);
     await navigate(page, 'Settings');
@@ -175,14 +209,19 @@ for (const theme of ['dark', 'light']) {
       const original = await response.json() as ExerciseInsight;
       const date = '2026-10-27';
       const fixture: ExerciseInsight = {
-        ...original, loadModel: 'external', sessions: 2, setCount: 6, totalHistoryRows: 2,
+        ...original, loadModel: 'external', sessions: 3, setCount: 7, totalHistoryRows: 3,
         estimated1RmKg: 120, estimated1RmDate: date, heaviestKg: 100, heaviestReps: 8, heaviestDate: date,
         largestSetVolumeKg: 800, largestSetVolumeDate: date, largestSessionVolumeKg: 2400,
         largestSessionVolumeDate: date, repPr: 10, repPrDate: date, lastPerformedDate: date,
         externalLoadPrKg: 100, addedLoadPrKg: null, assistanceReductionPrKg: null, systemLoadPrKg: null,
         partialVolume: true, points: [
-          { date: '2026-10-20', sessionId: 'one', sessionName: 'First', estimated1RmKg: 110, loadKg: 90, volumeKg: 2160, reps: 8, partial: false },
-          { date, sessionId: 'two', sessionName: 'Second', estimated1RmKg: 120, loadKg: 100, volumeKg: 2400, reps: 8, partial: true }
+          { date: '2026-10-20', sessionId: 'one', sessionName: 'First', estimated1RmKg: 110, loadKg: 90, volumeKg: 2160, reps: 8, partial: false, rir: '1' },
+          { date: '2026-10-24', sessionId: 'gap', sessionName: 'Second', estimated1RmKg: null, loadKg: 55, volumeKg: 1650, reps: 10, partial: false, rir: '3' },
+          { date, sessionId: 'three', sessionName: 'Third', estimated1RmKg: 120, loadKg: 100, volumeKg: 2400, reps: 8, partial: true, rir: '2' }
+        ],
+        repMaxes: [
+          { reps: 5, loadKg: 102.5, actualReps: 5, rir: '2', date },
+          { reps: 8, loadKg: 100, actualReps: 8, rir: '1', date: '2026-10-20' }
         ]
       };
       await route.fulfill({ json: fixture });
@@ -204,12 +243,28 @@ for (const theme of ['dark', 'light']) {
     }));
     expect(fits, 'history values and record text fit their containers').toBe(true);
     if (page.viewportSize()!.width < 640) {
+      const chart = detail.getByRole('slider', { name: /Estimated 1RM progress/ });
+      await chart.scrollIntoViewIfNeeded();
+      await chart.focus();
+      await expect(chart).toHaveAttribute('aria-valuetext', 'Oct 27, 2026: 120 kg');
+      const plotY = (await chart.boundingBox())!.y;
+      await chart.press('ArrowLeft');
+      await expect(chart).toHaveAttribute('aria-valuetext', 'Oct 24, 2026: Unavailable');
+      await expect(detail.getByText('Selected: Oct 24, 2026')).toBeVisible();
+      expect((await chart.boundingBox())!.y).toBeCloseTo(plotY, 0);
+      for (const name of ['Exercise progress table', 'Best sets by reps']) {
+        const rows = await detail.getByRole('table', { name }).locator('.chart-table-row:not(.chart-table-head)')
+          .evaluateAll(elements => elements.map(row => [row.getBoundingClientRect().width, row.getBoundingClientRect().height]));
+        expect(rows.length).toBeGreaterThan(1);
+        expect(rows.every(([width, height]) => width === rows[0][0] && height === rows[0][1])).toBe(true);
+        expect(rows[0][1]).toBeLessThan(45);
+      }
       const cardWidths = await detail.locator('.detail-record-grid .stat-card').evaluateAll(cards => cards.map(card => card.getBoundingClientRect().width));
       expect(Math.max(...cardWidths.slice(0, 6)) - Math.min(...cardWidths.slice(0, 6)), 'the first six record tiles share two equal columns').toBeLessThan(2);
       expect(cardWidths[6], 'the last tile fills the final row').toBeGreaterThan(cardWidths[0] * 1.9);
     }
     await checkLayout(page, 'populated exercise progress');
-    await detail.locator('.chart-table').scrollIntoViewIfNeeded();
+    await detail.getByRole('table', { name: 'Exercise progress table' }).scrollIntoViewIfNeeded();
     await page.screenshot({ animations: 'disabled', path: join(screenshotsDirectory, 'responsive', `${info.project.name}-${theme}-exercise-progress-table.png`) });
     await detail.locator('.detail-record-grid').scrollIntoViewIfNeeded();
     await page.screenshot({ animations: 'disabled', path: join(screenshotsDirectory, 'responsive', `${info.project.name}-${theme}-exercise-progress-records.png`) });

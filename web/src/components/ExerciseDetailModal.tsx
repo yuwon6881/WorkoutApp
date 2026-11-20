@@ -181,8 +181,11 @@ export function ProgressPanel({ insight, unit, basis, range, onRange }: {
       </div>
     </div>
     <ExerciseProgressChart label={`${chartMetricLabel(metric)} progress`}
+      missingMessage={metric === 'estimated1rm' ? 'No estimate can be calculated for the sets in this range.' : undefined}
       format={value => formatMetricValue(value, metric, unit, basis)}
       points={insight.points.map(point => ({ key: `${point.sessionId}-${point.date}`, date: dateLabel(point.date), value: metricValue(point, metric) }))} />
+    {metric === 'estimated1rm' && insight.points.some(point => point.estimated1RmKg == null) &&
+      <p className="muted detail-note exercise-estimate-note">A dash means no reliable estimate. Estimates use loaded working sets with no more than 12 reps, including any recorded reps in reserve.</p>}
     {insight.points.length > 0 && <ExerciseProgressTable points={insight.points} formatDate={rowDateLabel}
       formatEstimate={kg => showEstimate(kg, unit, basis)} formatLoad={load} formatVolume={volume} />}
     {insight.partialVolume && insight.points.some(point => point.volumeKg != null)

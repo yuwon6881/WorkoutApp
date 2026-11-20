@@ -11,7 +11,7 @@ export function ExerciseRepMaxes({ repMaxes, formatDate, formatLoad }: {
 }) {
   const trackRir = useTrackRir();
   const showRir = trackRir && repMaxes.some(record => record.rir != null);
-  const template = { gridTemplateColumns: `minmax(0, 1.3fr) repeat(${showRir ? 4 : 3}, minmax(0, 1fr))` };
+  const template = { gridTemplateColumns: `minmax(0, 1fr) minmax(0, 1.3fr) minmax(min-content, 0.7fr) ${showRir ? 'minmax(min-content, 0.6fr) ' : ''}minmax(0, 1.15fr)` };
   if (repMaxes.length === 0) return null;
 
   return <section aria-label="Best sets by reps">
@@ -19,15 +19,15 @@ export function ExerciseRepMaxes({ repMaxes, formatDate, formatLoad }: {
     <p className="muted detail-note">
       Heaviest load lifted for at least that many reps{trackRir ? ', counting sets within 2 reps of failure' : ''}.
     </p>
-    <div className="chart-table" role="table" aria-label="Best sets by reps">
-      <div className="chart-table-row chart-table-head" role="row" style={template}>
+    <div className="chart-table" role="table" aria-label="Best sets by reps" style={template}>
+      <div className="chart-table-row chart-table-head" role="row">
         <span role="columnheader">Reps</span>
         <span role="columnheader">Load</span>
         <span role="columnheader">Done</span>
         {showRir && <span role="columnheader">RIR</span>}
         <span role="columnheader">Date</span>
       </div>
-      {repMaxes.map(record => <div className="chart-table-row" role="row" style={template} key={record.reps}>
+      {repMaxes.map(record => <div className="chart-table-row" role="row" key={record.reps}>
         <span role="cell" data-label="Reps">{record.reps === 1 ? '1 rep' : `${record.reps} reps`}</span>
         <span role="cell" data-label="Load">{formatLoad(record.loadKg)}</span>
         <span role="cell" data-label="Done">{record.actualReps}</span>

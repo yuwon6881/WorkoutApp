@@ -50,6 +50,7 @@
 }
 @media (max-width: 639px) {
   .view-skeleton-exercises .view-skeleton-cards { grid-template-columns: minmax(0, 1fr); }
+  .view-skeleton .view-skeleton-exercise { height: 132px; }
   .view-skeleton .view-skeleton-account { height: 86px; }
   .view-skeleton-map { height: 380px; }
 }
