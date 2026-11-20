@@ -6,6 +6,7 @@ import '@fontsource-variable/geist/wght.css';
 import {applyTheme, initialTheme} from './lib/theme';
 import {trackInputModality} from './lib/inputModality';
 import {syncSkeletonShimmer} from './lib/skeletonShimmer';
+import {installPointerCaptureGuard} from './lib/pointerCaptureGuard';
 import './index.css';
 import './layout.css';
 import './skeletons.css';
@@ -21,6 +22,7 @@ void applyTheme(initialTheme(), false);
 if (isNative()) document.documentElement.dataset.shell = 'android';
 trackInputModality();
 syncSkeletonShimmer();
+installPointerCaptureGuard();
 void prepareNativeShell().then(ready => {
   if (ready) ReactDOM.createRoot(document.getElementById('root')!).render(<React.StrictMode><ErrorBoundary><App /></ErrorBoundary></React.StrictMode>);
 }).catch(() => {
