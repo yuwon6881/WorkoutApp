@@ -62,6 +62,39 @@ describe('workout exercise-list writes', () => {
     expect(f.serverSession.current).toBe(saved);
   });
 
+  it('retries a swap once on the newer revision when the server moved on without this page', async () => {
+    vi.spyOn(recovery, 'adoptServerSession').mockResolvedValue(null);
+    const newer = { ...draft, revision: 9 };
+    const saved = { ...draft, revision: 10 };
+    const request = vi.spyOn(api, 'substituteSessionExercise')
+      .mockRejectedValueOnce(new ApiError('This changed on another device. Refresh to see the newer version before saving.', 409))
+      .mockResolvedValueOnce(saved);
+    vi.spyOn(api, 'getWorkout').mockResolvedValue(newer);
+    const f = fixture();
+
+    await f.swapExercise('bench', 'ohp', 'Overhead press');
+
+    expect(request).toHaveBeenCalledTimes(2);
+    expect(request.mock.calls[0][1].revision).toBe(4);
+    expect(request.mock.calls[1][1].revision).toBe(9);
+    // One swap is one logical request, so a retry reuses its idempotency id.
+    expect(request.mock.calls[1][1].idempotencyId).toBe(request.mock.calls[0][1].idempotencyId);
+    expect(f.onSaved).toHaveBeenCalledWith(saved);
+    expect(f.setError).not.toHaveBeenCalledWith(expect.stringContaining('another device'));
+  });
+
+  it('does not retry a swap rejected for a reason other than a stale revision', async () => {
+    const request = vi.spyOn(api, 'substituteSessionExercise')
+      .mockRejectedValue(new ApiError('Cannot swap an exercise after completing sets.', 409));
+    vi.spyOn(api, 'getWorkout').mockResolvedValue({ ...draft, revision: 4 });
+    const f = fixture();
+
+    await f.swapExercise('bench', null, 'Cable fly');
+
+    expect(request).toHaveBeenCalledTimes(1);
+    expect(f.setError).toHaveBeenLastCalledWith('Cannot swap an exercise after completing sets.');
+  });
+
   it('shows a rejected restore instead of reporting completion', async () => {
     vi.spyOn(api, 'restoreWorkout').mockRejectedValue(new ApiError('This changed on another device.', 409));
     const f = fixture();

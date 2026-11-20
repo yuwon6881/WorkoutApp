@@ -35,13 +35,32 @@ export function useWorkoutExerciseList({
   setBusy: (busy: boolean) => void;
   setError: (message: string) => void;
 }) {
-  async function changeExerciseList(key: string, request: (revision: number) => Promise<Session>, failureMessage: string) {
+  /// The page can hold an older revision than the server (a watch, another device, or a notification
+  /// moved it while the recovery copy was read). Pending edits are already sent, so when the server says
+  /// the revision is stale and a re-read shows a newer one, the request is repeated once on that revision.
+  /// A conflict at an unchanged revision is a real rule (such as a logged set) and is shown as is.
+  async function sendCurrent(request: (revision: number, idempotencyId: string) => Promise<Session>, idempotencyId: string) {
+    const sent = revision.current;
+    try { return await request(sent, idempotencyId); }
+    catch (failure) {
+      if (!(failure instanceof ApiError) || !failure.conflict) throw failure;
+      const latest = await api.getWorkout(draft.id).catch(() => null);
+      if (!latest?.active || latest.revision === sent) throw failure;
+      return await request(latest.revision, idempotencyId);
+    }
+  }
+
+  async function changeExerciseList(
+    key: string, request: (revision: number, idempotencyId: string) => Promise<Session>, failureMessage: string
+  ) {
     if (!online || finishIntentAt) { setError('Connect before changing the exercise list.'); return; }
     setBusy(true); setError('');
     try {
       queue.push(key, async () => {
         await drain();
-        const saved = await request(revision.current);
+        // A retry is the same logical request, so the server can recognise it if the first one landed.
+        const idempotencyId = crypto.randomUUID();
+        const saved = await sendCurrent(request, idempotencyId);
         revision.current = saved.revision; serverSession.current = saved; setDraft(saved); onSaved(saved);
         // Without device recovery (a private window) the server copy is all there is.
         const record = await adoptServerSession(accountId, saved).catch(() => null);
@@ -55,16 +74,16 @@ export function useWorkoutExerciseList({
 
   return {
     swapExercise: (sessionExerciseId: string, replacementExerciseId: string | null, replacementName: string) =>
-      changeExerciseList(`workout-swap-${sessionExerciseId}`, current => api.substituteSessionExercise(draft.id, {
-        sessionExerciseId, replacementExerciseId, replacementName, revision: current, idempotencyId: crypto.randomUUID()
+      changeExerciseList(`workout-swap-${sessionExerciseId}`, (current, idempotencyId) => api.substituteSessionExercise(draft.id, {
+        sessionExerciseId, replacementExerciseId, replacementName, revision: current, idempotencyId
       }), 'Could not swap this exercise.'),
     restoreExercise: (sessionExerciseId: string) =>
-      changeExerciseList(`workout-restore-${sessionExerciseId}`, current => api.restoreSessionExercise(draft.id, {
-        sessionExerciseId, revision: current, idempotencyId: crypto.randomUUID()
+      changeExerciseList(`workout-restore-${sessionExerciseId}`, (current, idempotencyId) => api.restoreSessionExercise(draft.id, {
+        sessionExerciseId, revision: current, idempotencyId
       }), 'Could not restore this exercise.'),
     restoreWorkout: () =>
-      changeExerciseList('workout-restore', current => api.restoreWorkout(draft.id, {
-        revision: current, idempotencyId: crypto.randomUUID()
+      changeExerciseList('workout-restore', (current, idempotencyId) => api.restoreWorkout(draft.id, {
+        revision: current, idempotencyId
       }), 'Could not restore the program defaults.')
   };
 }
