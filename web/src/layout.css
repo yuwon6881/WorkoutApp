@@ -91,7 +91,7 @@
 @media (min-width: 640px) {
   .app-loading .app-loading-quick-start { min-height: 218px; }
 }
-@media (min-width: 1024px) {
+@media (min-width: 1200px) {
   .app-loading .overview-hero-calendar-grid { align-items: stretch; }
   .app-loading .app-loading-quick-start { flex: 1 1 auto; }
 }

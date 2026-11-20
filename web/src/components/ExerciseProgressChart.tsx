@@ -1,8 +1,13 @@
 import { useLayoutEffect, useRef, useState } from 'react';
 import type { KeyboardEvent, PointerEvent } from 'react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { chartScale, nearestPointIndex, pointPositions, tickLabel } from '../lib/progressChart';
+import { Button } from './ui/Button';
 
-export type ChartPoint = { key: string; date: string; value: number | null };
+type ChartPoint = {
+  key: string; date: string; value: number | null;
+  missingDetail?: { set: string | null; reason: string; hasVolume: boolean };
+};
 
 const height = 176;
 const padLeft = 40;
@@ -14,13 +19,17 @@ const fallbackWidth = 600;
 /// A line progress chart for exercise tracking. It draws at the canvas's real pixel width so dots
 /// stay round, and every dot is selectable by pointer (the nearest dot to the pointer) or by arrow
 /// keys. Sessions without a value break the line rather than interpolating a fictitious number.
-export function ExerciseProgressChart({ points, label, format, missingMessage = 'No values are available for this metric in this range.' }: {
+export function ExerciseProgressChart({ points, label, format, missingLabel = 'No value for this workout',
+  missingMessage = 'No values are available for this metric in this range.', onViewVolume }: {
   points: ChartPoint[];
   label: string;
   format: (value: number | null) => string;
+  missingLabel?: string;
   missingMessage?: string;
+  onViewVolume?: () => void;
 }) {
   const canvas = useRef<HTMLDivElement>(null);
+  const readout = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(fallbackWidth);
   const [selected, setSelected] = useState<string | null>(null);
   const known = points.filter(point => point.value !== null);
@@ -39,29 +48,13 @@ export function ExerciseProgressChart({ points, label, format, missingMessage = 
   if (!points.length) {
     return <div className="exercise-chart"><span className="muted">No completed working sets in this range.</span></div>;
   }
-  if (!known.length) {
-    return <div className="exercise-chart"><span className="muted">{missingMessage}</span></div>;
-  }
-
-  // One value is a number, not a trend: show it plainly instead of a dot in an empty plot.
-  if (known.length === 1) {
-    return <div className="exercise-chart exercise-chart-single">
-      <p className="exercise-chart-readout">
-        <strong>{format(known[0].value)}</strong>
-        <span>{known[0].date}</span>
-      </p>
-      <p className="muted exercise-chart-single-note">Log one more session to see a trend.</p>
-    </div>;
-  }
-
-  let latestKnown = points.length - 1;
-  while (latestKnown > 0 && points[latestKnown].value === null) latestKnown--;
+  const latestKnown = known.at(-1);
   const selectedIndex = selected === null ? -1 : points.findIndex(point => point.key === selected);
-  const index = selectedIndex < 0 ? latestKnown : selectedIndex;
+  const index = selectedIndex >= 0 ? selectedIndex : latestKnown ? points.lastIndexOf(latestKnown) : points.length - 1;
   const current = points[index];
-  const currentValue = current.value === null ? 'Unavailable' : format(current.value);
+  const currentValue = current.value === null ? missingLabel : format(current.value);
 
-  const scale = chartScale(points.flatMap(point => point.value === null ? [] : [point.value]));
+  const scale = chartScale(hasTrend ? known.map(point => point.value!) : [0]);
   const baselineY = height - padBottom;
   const plotHeight = baselineY - padTop;
   const xs = pointPositions(points.length, padLeft, width - padRight);
@@ -90,7 +83,11 @@ export function ExerciseProgressChart({ points, label, format, missingMessage = 
       : event.key === 'Home' ? 0 : event.key === 'End' ? points.length - 1 : null;
     if (next === null) return;
     event.preventDefault();
-    setSelected(points[Math.min(points.length - 1, Math.max(0, next))].key);
+    selectAt(next);
+  }
+
+  function selectAt(next: number) {
+    if (next >= 0 && next < points.length) setSelected(points[next].key);
   }
 
   const lastIndex = points.length - 1;
@@ -100,14 +97,25 @@ export function ExerciseProgressChart({ points, label, format, missingMessage = 
 
   return (
     <div className="exercise-chart">
-      <p className="exercise-chart-readout" aria-live="polite">
-        <strong title={current.value === null ? currentValue : undefined}>
-          {current.value === null ? <><span aria-hidden="true">—</span><span className="sr-only">{currentValue}</span></> : currentValue}
-        </strong>
-        <span>{`Selected: ${current.date}`}</span>
-        <span className="exercise-chart-position">Session {index + 1} of {points.length}</span>
-      </p>
-      <div
+      <div className="exercise-chart-header">
+        <div className="exercise-chart-readout" aria-live="polite" aria-atomic="true">
+          <span>{current.date}</span>
+          <span className="exercise-chart-position">Workout {index + 1} of {points.length}</span>
+        </div>
+        {points.length > 1 && <div className="exercise-chart-nav" role="group" aria-label="Browse workouts">
+          <Button aria-label="Previous workout" title="Previous workout" aria-disabled={index === 0} onClick={() => selectAt(index - 1)}>
+            <ChevronLeft size={18} aria-hidden="true" />
+          </Button>
+          <Button aria-label="Next workout" title="Next workout" aria-disabled={index === lastIndex} onClick={() => selectAt(index + 1)}>
+            <ChevronRight size={18} aria-hidden="true" />
+          </Button>
+        </div>}
+      </div>
+      <div className="exercise-chart-value" ref={readout} tabIndex={-1} aria-live="polite" aria-atomic="true">
+        <strong>{currentValue}</strong>
+        <span>{current.value === null ? 'Workout recorded' : label.replace(/ progress$/, '')}</span>
+      </div>
+      {hasTrend && <div
         ref={canvas}
         className="exercise-chart-canvas"
         role="slider"
@@ -118,7 +126,7 @@ export function ExerciseProgressChart({ points, label, format, missingMessage = 
         aria-valuenow={index + 1}
         aria-valuetext={`${current.date}: ${currentValue}`}
         onPointerDown={pick}
-        onPointerMove={event => { if (event.pointerType === 'mouse' || event.buttons) pick(event); }}
+        onPointerMove={event => { if (event.pointerType === 'mouse' && event.buttons === 1) pick(event); }}
         onKeyDown={step}
       >
         <svg className="exercise-chart-svg" width={width} height={height} viewBox={`0 0 ${width} ${height}`} aria-hidden="true">
@@ -149,7 +157,21 @@ export function ExerciseProgressChart({ points, label, format, missingMessage = 
             <text className="exercise-chart-tick" x={xs[lastIndex]} y={height - 8} textAnchor="end">{points[lastIndex].date}</text>
           </> : <text className="exercise-chart-tick" x={xs[lastIndex]} y={height - 8} textAnchor={points.length > 1 ? 'end' : 'middle'}>{points[lastIndex].date}</text>}
         </svg>
-      </div>
+      </div>}
+      {!known.length && <p className="exercise-chart-note muted">{missingMessage}</p>}
+      {!hasTrend && latestKnown && current.value === null && <p className="exercise-chart-note muted">
+        Only value in this range: {format(latestKnown.value)} · {latestKnown.date}
+      </p>}
+      {current.missingDetail && <div className="exercise-chart-detail">
+        <div aria-live="polite">
+          {current.missingDetail.set && <p className="exercise-chart-note"><strong>{current.missingDetail.set}</strong></p>}
+          <p className="exercise-chart-note muted">{current.missingDetail.reason}</p>
+        </div>
+        {current.missingDetail.hasVolume && onViewVolume && <Button variant="tertiary" onClick={() => {
+          onViewVolume();
+          readout.current?.focus({ preventScroll: true });
+        }}>View volume</Button>}
+      </div>}
     </div>
   );
 }

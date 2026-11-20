@@ -276,6 +276,7 @@ describe('defaultChartMetric and ExerciseProgressChart', () => {
     }));
     expect(repsMarkup).toContain('4 reps');
     expect(repsMarkup).not.toContain('Unavailable');
+    expect(repsMarkup).not.toContain('role="slider"');
 
     const unavailableMetricMarkup = renderToStaticMarkup(createElement(ExerciseProgressChart, {
       points: [{ key: 'w-1-2026-10-06', date: 'Oct 6, 2026', value: null }],
@@ -284,6 +285,24 @@ describe('defaultChartMetric and ExerciseProgressChart', () => {
     }));
     expect(unavailableMetricMarkup).not.toContain('No logged weights');
     expect(unavailableMetricMarkup).toContain('No values are available for this metric in this range.');
+    expect(unavailableMetricMarkup).toContain('Oct 6, 2026');
+    expect(unavailableMetricMarkup).not.toContain('role="slider"');
+  });
+
+  it('keeps workouts browsable when only one has an estimate, without plotting a lone dot', async () => {
+    const { ExerciseProgressChart } = await import('./ExerciseProgressChart');
+    const markup = renderToStaticMarkup(createElement(ExerciseProgressChart, {
+      points: [
+        { key: 'gap', date: 'Nov 11, 2026', value: null },
+        { key: 'known', date: 'Nov 17, 2026', value: 84 }
+      ],
+      label: 'Estimated 1RM progress',
+      format: value => `${value} kg`
+    }));
+    expect(markup).toContain('84 kg');
+    expect(markup).toContain('Nov 17, 2026');
+    expect(markup).toContain('aria-label="Previous workout"');
+    expect(markup).not.toContain('role="slider"');
   });
 
   it('labels the selected session separately from the chart range', async () => {
@@ -297,7 +316,7 @@ describe('defaultChartMetric and ExerciseProgressChart', () => {
       label: 'Estimated 1RM progress',
       format: value => `${value} kg`
     }));
-    expect(markup).toContain('Selected: Nov 17, 2026');
+    expect(markup).toContain('Nov 17, 2026');
     expect(markup).toContain('aria-valuetext="Nov 17, 2026: 84 kg"');
     expect(markup).toContain('exercise-chart-gap');
   });

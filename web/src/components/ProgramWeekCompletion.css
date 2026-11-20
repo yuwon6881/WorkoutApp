@@ -3,3 +3,9 @@
   stroke: var(--border-hover);
   stroke-linecap: round;
 }
+
+.program-week-card-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

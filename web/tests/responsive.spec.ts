@@ -224,6 +224,7 @@ for (const theme of ['dark', 'light']) {
           { reps: 8, loadKg: 100, actualReps: 8, rir: '1', date: '2026-10-20' }
         ]
       };
+      if (new URL(route.request().url()).searchParams.get('range') === '1m') fixture.points.shift();
       await route.fulfill({ json: fixture });
     });
     await navigate(page, 'Exercises');
@@ -242,16 +243,18 @@ for (const theme of ['dark', 'light']) {
       });
     }));
     expect(fits, 'history values and record text fit their containers').toBe(true);
+    const chart = detail.getByRole('slider', { name: /Estimated 1RM progress/ });
+    const previous = detail.getByRole('button', { name: 'Previous workout' });
+    const next = detail.getByRole('button', { name: 'Next workout' });
     if (page.viewportSize()!.width < 640) {
-      const chart = detail.getByRole('slider', { name: /Estimated 1RM progress/ });
       await chart.scrollIntoViewIfNeeded();
       await chart.focus();
       await expect(chart).toHaveAttribute('aria-valuetext', 'Oct 27, 2026: 120 kg');
       const plotY = (await chart.boundingBox())!.y;
       await chart.press('ArrowLeft');
-      await expect(chart).toHaveAttribute('aria-valuetext', 'Oct 24, 2026: Unavailable');
-      await expect(detail.getByText('Selected: Oct 24, 2026')).toBeVisible();
+      await expect(chart).toHaveAttribute('aria-valuetext', 'Oct 24, 2026: No 1RM estimate');
       expect((await chart.boundingBox())!.y).toBeCloseTo(plotY, 0);
+      await next.click();
       for (const name of ['Exercise progress table', 'Best sets by reps']) {
         const rows = await detail.getByRole('table', { name }).locator('.chart-table-row:not(.chart-table-head)')
           .evaluateAll(elements => elements.map(row => [row.getBoundingClientRect().width, row.getBoundingClientRect().height]));
@@ -263,6 +266,25 @@ for (const theme of ['dark', 'light']) {
       expect(Math.max(...cardWidths.slice(0, 6)) - Math.min(...cardWidths.slice(0, 6)), 'the first six record tiles share two equal columns').toBeLessThan(2);
       expect(cardWidths[6], 'the last tile fills the final row').toBeGreaterThan(cardWidths[0] * 1.9);
     }
+    await expect(next).toHaveAttribute('aria-disabled', 'true');
+    await previous.click();
+    await expect(detail.getByText('Workout 2 of 3')).toBeVisible();
+    await expect(detail.getByText('No 1RM estimate', { exact: true })).toBeVisible();
+    await expect(detail.getByText('55 kg × 10 reps · 3 reps in reserve', { exact: true })).toBeVisible();
+    await expect(detail.getByText(/13 reps for the estimate, above the 12-rep limit/)).toBeVisible();
+    await detail.getByRole('button', { name: 'View volume' }).click();
+    await expect(detail.getByRole('slider', { name: /Session volume progress/ }))
+      .toHaveAttribute('aria-valuetext', 'Oct 24, 2026: 1,650 kg');
+    await detail.getByRole('button', { name: 'Progress metric' }).click();
+    await page.getByRole('option', { name: 'Estimated 1RM', exact: true }).click();
+    await detail.getByRole('button', { name: 'Progress range' }).click();
+    await page.getByRole('option', { name: 'Last month', exact: true }).click();
+    await expect(chart).toHaveCount(0);
+    await expect(detail.getByText('Only value in this range: 120 kg · Oct 27, 2026')).toBeVisible();
+    await expect(previous).toHaveAttribute('aria-disabled', 'true');
+    await next.click();
+    await expect(detail.locator('.exercise-chart-value strong')).toHaveText('120 kg');
+    await expect(detail.getByText('Workout 2 of 2')).toBeVisible();
     await checkLayout(page, 'populated exercise progress');
     await detail.getByRole('table', { name: 'Exercise progress table' }).scrollIntoViewIfNeeded();
     await page.screenshot({ animations: 'disabled', path: join(screenshotsDirectory, 'responsive', `${info.project.name}-${theme}-exercise-progress-table.png`) });

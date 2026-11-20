@@ -2,6 +2,7 @@ import { useMemo, useState, type ReactNode } from 'react';
 import { ArrowRight, Check, Play } from 'lucide-react';
 import type { Bootstrap, ProgramSummary } from '../types';
 import { ApiError, api } from '../lib/api';
+import { capProgramName } from '../lib/programName';
 import { nextWorkout } from '../lib/nextWorkout';
 import { getPlannedMuscleCredits } from '../lib/programMuscles';
 import { passableRestDayIds, passRestDaysInOrder, programDayActionInput } from '../lib/programDayState';
@@ -28,6 +29,7 @@ interface HeroStatusCardProps {
   statusClass?: string;
   statusLabel: string;
   programBadge?: string;
+  programBadgeTitle?: string;
   title: string;
   description: string;
   actionLabel: string;
@@ -44,6 +46,7 @@ function HeroStatusCard({
   statusClass = '',
   statusLabel,
   programBadge,
+  programBadgeTitle,
   title,
   description,
   actionLabel,
@@ -58,7 +61,11 @@ function HeroStatusCard({
         <span className={`hero-status-pill ${statusClass}`.trim()}>
           {statusLabel}
         </span>
-        {programBadge && <span className="hero-program-pill">{programBadge}</span>}
+        {programBadge && (
+          <span className="hero-program-pill" title={programBadgeTitle ?? programBadge}>
+            {programBadge}
+          </span>
+        )}
       </div>
 
       <div className="hero-body">
@@ -114,13 +121,17 @@ function RestDayHero({
     } finally { setBusy(false); }
   }
 
+  const fullProgramName = programName ? `${programName}${week ? ` · Week ${week}` : ''}` : undefined;
+  const displayProgramName = programName ? `${capProgramName(programName)}${week ? ` · Week ${week}` : ''}` : undefined;
+
   return (
     <HeroStatusCard
       ariaLabel="Scheduled rest day"
       variant="is-rest"
       statusClass="rest-pill"
       statusLabel="Rest day"
-      programBadge={programName ? `${programName}${week ? ` · Week ${week}` : ''}` : undefined}
+      programBadge={displayProgramName}
+      programBadgeTitle={fullProgramName}
       title={title}
       description={description}
       actionLabel="View program schedule"
@@ -186,7 +197,7 @@ export function NextWorkoutHero({ data, unconfirmed = false, onStart, onResume, 
           <span className={`hero-status-pill ${isPaused ? 'paused-pill' : 'active-pill'}`}>
             {isPaused ? 'Workout paused' : 'In progress'}
           </span>
-          {program && <span className="hero-program-pill">{program.name}</span>}
+          {program && <span className="hero-program-pill" title={program.name}>{capProgramName(program.name)}</span>}
         </div>
 
         <div className="hero-body">
@@ -270,7 +281,9 @@ export function NextWorkoutHero({ data, unconfirmed = false, onStart, onResume, 
             Next workout
           </span>
           {program ? (
-            <span className="hero-program-pill">{program.name} · Week {week}</span>
+            <span className="hero-program-pill" title={`${program.name} · Week ${week}`}>
+              {capProgramName(program.name)} · Week {week}
+            </span>
           ) : focus ? (
             <span className="hero-program-pill">{focus}</span>
           ) : null}
@@ -381,7 +394,8 @@ export function NextWorkoutHero({ data, unconfirmed = false, onStart, onResume, 
               variant="is-finished"
               statusClass="finished-pill"
               statusLabel={`Week ${currentWeek} complete`}
-              programBadge={program.name}
+              programBadge={capProgramName(program.name)}
+              programBadgeTitle={program.name}
               title={`Week ${currentWeek} workouts complete`}
               description={`All planned workouts completed for week ${currentWeek}.`}
               actionLabel="View program schedule"
@@ -398,7 +412,8 @@ export function NextWorkoutHero({ data, unconfirmed = false, onStart, onResume, 
               variant="is-finished"
               statusClass="finished-pill"
               statusLabel={`Week ${currentWeek} concluded`}
-              programBadge={program.name}
+              programBadge={capProgramName(program.name)}
+              programBadgeTitle={program.name}
               title={`Week ${currentWeek} sessions concluded`}
               description={`Week ${currentWeek} training sessions are done (${completedCount} completed, ${skippedCount} skipped).`}
               actionLabel="View program schedule"
@@ -416,7 +431,8 @@ export function NextWorkoutHero({ data, unconfirmed = false, onStart, onResume, 
         ariaLabel="Active program"
         statusClass="planned-pill"
         statusLabel="Active program"
-        programBadge={`${program.name} · Week ${currentWeek}`}
+        programBadge={`${capProgramName(program.name)} · Week ${currentWeek}`}
+        programBadgeTitle={`${program.name} · Week ${currentWeek}`}
         title={program.name}
         description="Program is active, but progress details are unavailable."
         actionLabel="View program schedule"

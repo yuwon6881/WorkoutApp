@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 import type { ExerciseHistoryRow, Session, Unit } from '../types';
 import { ApiError } from '../lib/api';
+import { capProgramName } from '../lib/programName';
 import { loadSessionDetail } from '../lib/sessionDetailLoad';
 import { showSetCount } from '../lib/training';
 import { Button } from './ui/Button';
@@ -28,7 +29,7 @@ function HistoryEntry({ row, exerciseId, unit }: { row: ExerciseHistoryRow; exer
     <Button variant="tertiary" className="history-row" aria-expanded={expanded}
       onClick={() => { setExpanded(!expanded); if (!expanded && !session && !loading) void load(); }}>
       <span className="row-title"><strong>{row.sessionName}</strong>
-        <small>{row.programName ?? 'Standalone workout'}</small>
+        <small title={row.programName ?? 'Standalone workout'}>{row.programName ? capProgramName(row.programName) : 'Standalone workout'}</small>
         <small>{date} · {showSetCount(row.setCount)}</small>
       </span>
       {expanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}

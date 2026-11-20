@@ -1,4 +1,5 @@
 import type { ProgramSummary } from '../types';
+import { capProgramName } from '../lib/programName';
 import { programWeekCompletion, weekCompletionCaption } from '../lib/programWeekCompletion';
 import './ProgramWeekCompletion.css';
 
@@ -56,7 +57,7 @@ export function ProgramWeekCompletion({ program, standalone = false }: { program
         <h3 className="program-week-card-title">{title}</h3>
         {ring}
         <p className="program-week-card-progress">{progress}</p>
-        {program && <p className="program-week-card-name">{program.name}</p>}
+        {program && <p className="program-week-card-name" title={program.name}>{capProgramName(program.name)}</p>}
       </section>
     );
   }

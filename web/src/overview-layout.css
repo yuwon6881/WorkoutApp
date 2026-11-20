@@ -23,14 +23,7 @@
   box-sizing: border-box;
 }
 
-@media (min-width: 1024px) and (max-width: 1199px) {
-  .overview-hero-calendar-grid {
-    grid-template-columns: minmax(0, 1.4fr) minmax(380px, 1fr);
-    gap: 20px;
-  }
-}
-
-@media (max-width: 1023px) {
+@media (max-width: 1199px) {
   .overview-hero-calendar-grid {
     grid-template-columns: 1fr;
     gap: 20px;
@@ -51,7 +44,7 @@
    shorter grows, and the calendar spreads its rows over the extra height. The first-load skeleton
    (.app-loading) keeps its own fixed shapes: it is drawn before the calendar styles arrive, and its
    pixel baseline is rendered from exactly that. */
-@media (min-width: 1024px) {
+@media (min-width: 1200px) {
   .overview-hero-calendar-grid:not(.app-loading *) {
     align-items: stretch;
   }

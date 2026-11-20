@@ -42,3 +42,15 @@ export function formatMetricValue(value: number | null, metric: ChartMetric, uni
   if (metric === 'estimated1rm') return showEstimate(value, unit, exercise);
   return showExerciseWeight(value, unit, exercise);
 }
+
+export function missingEstimateDetail(point: MetricPoint, unit: Unit, exercise: WithWeightBasis, showReserve: boolean) {
+  const { loadKg, reps, rir, volumeKg } = point;
+  const reserve = showReserve && rir ? ` · ${rir} ${rir === '1' ? 'rep' : 'reps'} in reserve` : '';
+  const set = reps != null ? `${loadKg == null ? '' : `${showExerciseWeight(loadKg, unit, exercise)} × `}${reps} ${reps === 1 ? 'rep' : 'reps'}${reserve}` : null;
+  const maxReps = 12; // Mirrors the server's Progression.MaxEstimatedReps for this explanation only.
+  const effectiveReps = reps == null ? null : rir == null ? reps : /^[0-4]$/.test(rir) ? reps + Number(rir) : null;
+  const reason = (showReserve || rir == null) && loadKg != null && loadKg > 0 && effectiveReps != null && effectiveReps > maxReps
+    ? `This set counts as ${effectiveReps} reps for the estimate, above the ${maxReps}-rep limit.`
+    : `No set in this workout qualified. Estimates need a loaded working set within ${maxReps} reps, including any reps in reserve, and close enough to failure.`;
+  return { set, reason, hasVolume: volumeKg != null };
+}

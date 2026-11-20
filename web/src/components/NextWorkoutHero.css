@@ -2,6 +2,7 @@
   position: relative;
   display: flex;
   flex-direction: column;
+  container-type: inline-size;
   gap: 16px;
   padding: 24px 28px;
   background: var(--surface);
@@ -72,9 +73,10 @@
   border: none;
   padding: 0;
   margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
   max-width: 100%;
-  white-space: normal;
-  overflow-wrap: anywhere;
   text-align: left;
 }
 
@@ -89,6 +91,16 @@
   justify-content: space-between;
   align-items: flex-start;
   gap: 20px;
+}
+
+@container (max-width: 580px) {
+  .hero-body {
+    flex-direction: column;
+    gap: 14px;
+  }
+  .hero-muscles-col {
+    width: 100%;
+  }
 }
 
 .hero-meta-col {
@@ -106,8 +118,8 @@
   letter-spacing: -0.035em;
   color: var(--text);
   line-height: 1.18;
-  overflow-wrap: anywhere;
-  word-break: break-word;
+  overflow-wrap: break-word;
+  word-break: normal;
   min-width: 0;
 }
 
@@ -135,8 +147,7 @@
   font-size: var(--font-secondary);
   color: var(--muted);
   font-variant-numeric: tabular-nums;
-  white-space: normal;
-  overflow-wrap: anywhere;
+  white-space: nowrap;
 }
 
 .hero-count-item strong {
