@@ -43,6 +43,14 @@ function dateLabel(value: string | null | undefined) {
   return new Date(`${value.slice(0, 10)}T12:00:00`).toLocaleDateString('en', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
+/// Table rows drop the year for the current one, so a date stays short enough for a one-line row.
+function rowDateLabel(value: string | null | undefined) {
+  if (!value) return '—';
+  const date = new Date(`${value.slice(0, 10)}T12:00:00`);
+  return date.toLocaleDateString('en', date.getFullYear() === new Date().getFullYear()
+    ? { month: 'short', day: 'numeric' } : { month: 'short', day: 'numeric', year: '2-digit' });
+}
+
 function typeLabel(exercise: Exercise) {
   if (exercise.archived && exercise.isCustom) return 'Deleted custom exercise';
   return exercise.isCustom ? 'Custom exercise' : exercise.muscle || 'Full body';
@@ -175,7 +183,7 @@ export function ProgressPanel({ insight, unit, basis, range, onRange }: {
     <ExerciseProgressChart label={`${chartMetricLabel(metric)} progress`}
       format={value => formatMetricValue(value, metric, unit, basis)}
       points={insight.points.map(point => ({ key: `${point.sessionId}-${point.date}`, date: dateLabel(point.date), value: metricValue(point, metric) }))} />
-    {insight.points.length > 0 && <ExerciseProgressTable points={insight.points} formatDate={dateLabel}
+    {insight.points.length > 0 && <ExerciseProgressTable points={insight.points} formatDate={rowDateLabel}
       formatEstimate={kg => showEstimate(kg, unit, basis)} formatLoad={load} formatVolume={volume} />}
     {insight.partialVolume && insight.points.some(point => point.volumeKg != null)
       && <p className="muted detail-note">* Volume is partial because one or more logged loads were unknown.</p>}
@@ -200,7 +208,7 @@ export function ProgressPanel({ insight, unit, basis, range, onRange }: {
       {insight.assistanceReductionPrKg != null && <span>Lowest assistance <strong>{load(insight.assistanceReductionPrKg)}</strong></span>}
       {insight.systemLoadPrKg != null && <span>System load PR <strong>{load(insight.systemLoadPrKg)}</strong></span>}
     </div>}
-    {insight.repMaxes && <ExerciseRepMaxes repMaxes={insight.repMaxes} formatDate={dateLabel} formatLoad={load} />}
+    {insight.repMaxes && <ExerciseRepMaxes repMaxes={insight.repMaxes} formatDate={rowDateLabel} formatLoad={load} />}
   </>;
 }
 

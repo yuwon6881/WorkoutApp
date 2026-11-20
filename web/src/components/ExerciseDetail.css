@@ -132,36 +132,20 @@
   .detail-record-grid:has(> :first-child:nth-last-child(7)) > .stat-card:last-child {
     grid-column: 1 / -1;
   }
-  .chart-table { gap: 8px; }
-  .chart-table-head {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip-path: inset(50%);
+  /* One line per session, like a ledger: the header stays so every column is named once, and
+     the rows lose their card frames so six figures fit a phone's width. */
+  .chart-table { gap: 0; }
+  .chart-table-row {
+    gap: 4px;
+    padding: 8px 0;
+    font-size: 13px;
+    line-height: 1.25;
+    white-space: nowrap;
   }
-  .chart-table-row:not(.chart-table-head) {
-    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-    gap: 8px 12px;
-    padding: 12px;
-    border: 1px solid var(--border);
-    border-radius: var(--radius-control);
-    background: var(--surface-raised);
-  }
-  .chart-table-row:not(.chart-table-head) > span {
-    min-width: 0;
-    overflow-wrap: anywhere;
-  }
-  .chart-table-row:not(.chart-table-head) > span:first-child {
-    grid-column: 1 / -1;
-    font-weight: 650;
-  }
-  .chart-table-row:not(.chart-table-head) > span:not(:first-child)::before {
-    content: attr(data-label);
-    display: block;
-    color: var(--muted);
-    font-weight: 600;
-  }
+  .chart-table-head { font-size: 12px; padding-top: 0; }
+  .chart-table-row > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+  .chart-table-row > span:not(:first-child) { text-align: right; }
+  .chart-table-row:not(.chart-table-head) > span:first-child { color: var(--muted); }
 }
 
 /* History tab */
