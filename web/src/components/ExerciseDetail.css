@@ -133,17 +133,20 @@
     grid-column: 1 / -1;
   }
   /* One line per session, like a ledger: the header stays so every column is named once, and
-     the rows lose their card frames so six figures fit a phone's width. */
+     the rows lose their card frames so the figures fit a phone's width. Equal columns hold five
+     figures at 320 px; a value too long for one wraps rather than being clipped. */
   .chart-table { gap: 0; }
   .chart-table-row {
+    grid-template-columns: none !important;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(0, 1fr);
     gap: 4px;
     padding: 8px 0;
-    font-size: 13px;
+    font-size: 12.5px;
     line-height: 1.25;
-    white-space: nowrap;
   }
   .chart-table-head { font-size: 12px; padding-top: 0; }
-  .chart-table-row > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+  .chart-table-row > span { min-width: 0; overflow-wrap: anywhere; }
   .chart-table-row > span:not(:first-child) { text-align: right; }
   .chart-table-row:not(.chart-table-head) > span:first-child { color: var(--muted); }
 }

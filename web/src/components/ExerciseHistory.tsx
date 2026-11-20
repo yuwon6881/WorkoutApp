@@ -28,7 +28,8 @@ function HistoryEntry({ row, exerciseId, unit }: { row: ExerciseHistoryRow; exer
     <Button variant="tertiary" className="history-row" aria-expanded={expanded}
       onClick={() => { setExpanded(!expanded); if (!expanded && !session && !loading) void load(); }}>
       <span className="row-title"><strong>{row.sessionName}</strong>
-        <small>{[row.programName ?? 'Standalone workout', date, showSetCount(row.setCount)].join(' · ')}</small>
+        <small>{row.programName ?? 'Standalone workout'}</small>
+        <small>{date} · {showSetCount(row.setCount)}</small>
       </span>
       {expanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
     </Button>
