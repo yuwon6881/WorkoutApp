@@ -38,7 +38,11 @@ export function ExerciseProgressTable({ points, formatDate, formatEstimate, form
   };
   const template = { gridTemplateColumns: `minmax(0, 1.2fr) ${columns.map(column => summaryTracks[column.key]).join(' ')}` };
 
-  return <div>
+  return <section className="progress-table" aria-label="Session history">
+    <div className="section-heading">
+      <h3>Session history</h3>
+      <span className="exercise-history-count">{newestFirst.length} {newestFirst.length === 1 ? "session" : "sessions"}</span>
+    </div>
     <div className="chart-table" role="table" aria-label="Exercise progress table" style={template}>
       <div className="chart-table-row chart-table-head" role="row">
         <span role="columnheader">Date</span>
@@ -46,11 +50,11 @@ export function ExerciseProgressTable({ points, formatDate, formatEstimate, form
       </div>
       {rows.map(point => <div className="chart-table-row" role="row" key={`row-${point.sessionId}-${point.date}`}>
         <span role="cell" data-label="Date">{formatDate(point.date)}</span>
-        {columns.map(column => <span role="cell" data-label={column.label} key={column.key}>{column.cell(point)}</span>)}
+        {columns.map(column => <span role="cell" data-label={column.label} key={column.key} className={column.key === "load" ? "progress-cell-primary" : undefined}>{column.cell(point)}</span>)}
       </div>)}
     </div>
     {newestFirst.length > collapsedRows && <Button variant="tertiary" className="full-width" onClick={() => setExpanded(value => !value)}>
       {expanded ? 'Show fewer sessions' : `Show all ${newestFirst.length} sessions`}
     </Button>}
-  </div>;
+  </section>;
 }
