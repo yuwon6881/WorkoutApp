@@ -912,9 +912,15 @@ for (const theme of ['dark', 'light'] as const) {
       const values = Array.from(row.querySelectorAll('[role="cell"]'));
       const aligned = header.length === values.length && header.every((cell, index) =>
         Math.abs(cell.getBoundingClientRect().left - values[index].getBoundingClientRect().left) < 1.5);
-      return { aligned, clientWidth: element.clientWidth, scrollWidth: element.scrollWidth };
+      const singleLine = values.every(cell => {
+        const range = document.createRange();
+        range.selectNodeContents(cell);
+        return range.getClientRects().length === 1;
+      });
+      return { aligned, singleLine, clientWidth: element.clientWidth, scrollWidth: element.scrollWidth };
     });
     expect(tableLayout?.aligned, 'the session values stay under their headings').toBe(true);
+    expect(tableLayout?.singleLine, 'the numeric values stay on a single row').toBe(true);
     if ((page.viewportSize()?.width ?? 1024) < 640)
       expect(tableLayout!.scrollWidth, 'large values scroll inside the table instead of colliding').toBeGreaterThan(tableLayout!.clientWidth);
     await modal.getByRole('button', { name: 'History', exact: true }).click();
