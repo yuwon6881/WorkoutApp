@@ -37,8 +37,16 @@ public static partial class PercentageLoad
         var cutoff = (now ?? DateTime.UtcNow).AddDays(-MaxEstimateAgeDays);
         return history
             .Where(set => set.CompletedAt >= cutoff && set.Technique is null && set.LoadKg is > 0 && set.Reps is > 0 && set.Rir != "5+")
-            .Where(set => set.Reps + (set.Rpe is { } rpe ? 10 - rpe : 0) <= MaxEffectiveReps)
-            .Select(set => (set.SessionId, set.CompletedAt, Estimate: Progression.Estimate1Rm(set.LoadKg, set.Reps, set.Rpe)))
+            .Where(set =>
+            {
+                var effectiveRpe = set.Rpe ?? Progression.RpeFromRir(set.Rir);
+                return set.Reps + (effectiveRpe is { } rpe ? 10 - rpe : 0) <= MaxEffectiveReps;
+            })
+            .Select(set =>
+            {
+                var effectiveRpe = set.Rpe ?? Progression.RpeFromRir(set.Rir);
+                return (set.SessionId, set.CompletedAt, Estimate: Progression.Estimate1Rm(set.LoadKg, set.Reps, effectiveRpe));
+            })
             .Where(set => set.Estimate is not null)
             .GroupBy(set => set.SessionId)
             .Select(session => (Date: session.Max(set => set.CompletedAt), Best: session.Max(set => set.Estimate)!.Value))

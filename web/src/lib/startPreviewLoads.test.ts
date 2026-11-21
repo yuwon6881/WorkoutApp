@@ -24,4 +24,12 @@ describe('previewLoadsByLine', () => {
     expect(map.get('a')?.[1]).toBe('60 kg');
     expect(map.get('a')?.[0]).toBeUndefined();
   });
+
+  it('matches templateExerciseId case-insensitively', () => {
+    const guidUpper = 'C0FFEE00-1111-2222-3333-444455556666';
+    const guidLower = guidUpper.toLowerCase();
+    const map = previewLoadsByLine([{ templateExerciseId: guidUpper, sets: [{ ...set(140), position: 0 }] }], new Map(), 'kg');
+    expect(map.get(guidLower)?.[0]).toBe('140 kg');
+    expect(map.get(guidUpper)?.[0]).toBe('140 kg');
+  });
 });

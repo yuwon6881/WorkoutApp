@@ -4,8 +4,8 @@ import type { Exercise, Template, Unit } from '../types';
 import { lastPerformedLabel } from '../lib/lastPerformed';
 import { estimateWorkoutMinutes } from '../lib/workoutEstimate';
 import { draftRestRange } from '../lib/restRange';
-import { previewLoadsByLine, type StartPreviewExercise } from '../lib/startPreviewLoads';
 import { useLastPerformed } from './useLastPerformed';
+import { useStartPreviewLoads } from './useStartPreviewLoads';
 import { api, ApiError } from '../lib/api';
 import { templateToDraft } from '../lib/activeSlot';
 import { Button } from './ui/Button';
@@ -36,6 +36,7 @@ export function WorkoutPreviewModal({ templateId, name, exercises, unit, default
   const [selectedMuscle, setSelectedMuscle] = useState<string | null>(null);
   const lastPerformed = useLastPerformed(true);
   const day = useMemo(() => template ? templateToDraft(template) : null, [template]);
+  const setLoads = useStartPreviewLoads(templateId, day, exercises, unit);
   const lastLabels = useMemo(() => {
     const labels = new Map<string, string>();
     const catalog = new Map(exercises.map(exercise => [exercise.id, exercise]));
@@ -45,15 +46,6 @@ export function WorkoutPreviewModal({ templateId, name, exercises, unit, default
     }
     return labels;
   }, [lastPerformed, exercises, unit]);
-  // The loads Start would pre-fill arrive after the plan; they are advisory, so a failed read leaves
-  // the prescription as it was and a later Start recomputes from the history it finds then.
-  const [loadPreview, setLoadPreview] = useState<StartPreviewExercise[] | null>(null);
-  const setLoads = useMemo(() => {
-    if (!day || !loadPreview) return undefined;
-    const catalog = new Map(exercises.map(exercise => [exercise.id, exercise]));
-    const byLine = new Map(day.exercises.map(exercise => [exercise.lineId, exercise.exerciseId ? catalog.get(exercise.exerciseId) : undefined]));
-    return previewLoadsByLine(loadPreview, byLine, unit);
-  }, [day, loadPreview, exercises, unit]);
   const minutes = day ? estimateWorkoutMinutes(day.exercises, defaultRestSeconds) : null;
   const hasRange = (day?.exercises ?? []).some(exercise => draftRestRange(exercise) !== null);
   const unavailable = (day?.exercises ?? []).map(exercise => checkGym(exercise.exerciseId)).filter(result => !result.available);
@@ -72,15 +64,6 @@ export function WorkoutPreviewModal({ templateId, name, exercises, unit, default
     });
     return () => controller.abort();
   }, [templateId, retry]);
-  useEffect(() => {
-    const controller = new AbortController();
-    setLoadPreview(null);
-    api.startPreview(templateId, controller.signal).then(value => {
-      if (!controller.signal.aborted) setLoadPreview(value);
-    }).catch(() => undefined);
-    return () => controller.abort();
-  }, [templateId]);
-
   return <Modal title={template?.name ?? name} wide className="day-detail-modal" onClose={onClose}>
     <div className="modal-body day-detail-modal-body">
       {template && day && requirementsReady ? <>

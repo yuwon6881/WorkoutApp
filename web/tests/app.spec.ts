@@ -809,7 +809,7 @@ test('build a workout, log a set against the server, and see it in history', asy
     await expect(detail).toContainText('Chest');
     expect(await figure.boundingBox()).toEqual(figureBefore);
 
-    // Shade depth is relative: a trained muscle is deeper than one with no credited sets.
+    // Shade depth is relative: a trained muscle is deeper than one with no sets.
     const shadeOf = (muscle: string) => page.locator(`.muscle-region[data-muscle="${muscle}"]`).first()
       .evaluate(element => Number.parseFloat(getComputedStyle(element).getPropertyValue('--muscle-shade')));
     expect(await shadeOf('Chest')).toBeGreaterThan(await shadeOf('Calves'));

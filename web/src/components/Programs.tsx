@@ -232,7 +232,7 @@ export function Programs({ data, exercises, onStart, onPreview, onImport, onChan
         <ActiveSlotDropZone over={drag?.overZone === 'active' && drag.from === 'library'} occupied={Boolean(displayHolder)}
           hasLibrary={libraryCount > 0} onNewWorkout={() => open()} onImport={onImport}
           sole={soleItem ? { name: slotItemName(soleItem), busy: slot.busy, onActivate: () => slot.activate(soleItem) } : null}>
-          {displayHolder?.kind === 'program' && <ActiveProgramCard key={displayHolder.program.id} program={displayHolder.program} exercises={exercises} onStart={onStart} onPreview={onPreview} onChanged={onChanged} onSession={onSession}
+          {displayHolder?.kind === 'program' && <ActiveProgramCard key={displayHolder.program.id} program={displayHolder.program} exercises={exercises} unit={data.preferences.unit} onStart={onStart} onPreview={onPreview} onChanged={onChanged} onSession={onSession}
             onEdit={() => setEditingProgramId(displayHolder.program.id)}
             hasActiveWorkout={hasActiveWorkout} activeTemplateId={activeTemplateId} actions={cardActions(displayHolder)} dragProps={dragProps(displayHolder, 'active')}
             moving={movingId === displayHolder.program.id} dragging={draggingId === slotItemId(displayHolder)} />}

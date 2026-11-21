@@ -13,7 +13,7 @@ type BodyMapProps = {
 };
 
 /// The fill is one accent hue at a depth proportional to the muscle's share of the busiest muscle,
-/// so a deeper region simply means more credited sets.
+/// so a deeper region simply means more sets.
 function fillStyle(shade: number): CSSProperties {
   const depth = Math.round(35 + 60 * shade);
   return { '--muscle-shade': `${depth}%` } as CSSProperties;
@@ -70,7 +70,7 @@ function BodyFigure({ view, regions, parts, muscles, peak, activeMuscle, onHover
               d={path}
               role="button"
               tabIndex={0}
-              aria-label={sets > 0 ? `${muscle}: ${formatSets(sets)} credited sets` : `${muscle}: not trained`}
+              aria-label={sets > 0 ? `${muscle}: ${formatSets(sets)} ${sets === 1 ? 'set' : 'sets'}` : `${muscle}: not trained`}
               aria-pressed={isActive}
               onMouseEnter={() => onHoverMuscle?.(muscle)}
               onMouseLeave={() => onHoverMuscle?.(null)}

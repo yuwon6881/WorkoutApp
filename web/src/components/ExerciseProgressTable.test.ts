@@ -62,4 +62,15 @@ describe('ExerciseProgressTable', () => {
     expect(markup).toContain('data-label="Reps"');
     expect(markup).not.toContain('Estimated 1RM needs the reps in reserve');
   });
+
+  it('folds large histories (e.g. 2000 sessions) smoothly without rendering thousands of DOM rows', () => {
+    const points = Array.from({ length: 2000 }, (_, i) => point(i + 1, { loadKg: 20 + (i % 50), reps: 5 }));
+    const markup = render(points);
+    expect(markup).toContain('2000 sessions');
+    expect(markup).toContain('Show all 2000 sessions');
+    // Displays the newest session
+    expect(markup).toContain('2026-10-2000');
+    // Does not render early sessions in folded view
+    expect(markup).not.toContain('2026-10-01<');
+  });
 });

@@ -31,6 +31,7 @@ describe('WorkoutSlotCards expand/collapse states', () => {
     const markup = renderToStaticMarkup(createElement(ActiveProgramCard, {
       program: sampleProgram,
       exercises: sampleExercises,
+      unit: 'kg',
       onStart: () => {},
       onPreview: () => {},
       onChanged: async () => {},

@@ -107,12 +107,22 @@ public sealed partial class ExerciseService(AppDb db, IMemoryCache? cache = null
         await gate.Commit(ct);
     }
 
+    public const int MaxPointsPerRange = 2000;
+
+    private sealed record FinishedExerciseRow(Guid Id, Guid SessionId, string LoadModel, string PrescriptionJson);
+    private sealed record FinishedSessionRow(Guid Id, string Name, DateTime? FinishedAt, Guid? ProgramId, string? ProgramNameSnapshot);
+    private sealed record FinishedSetRow(
+        Guid Id, Guid SessionExerciseId, bool Done, bool Warmup, int? DurationSeconds,
+        int Position, double? WeightKg, double? SystemLoadKg, int? Reps, double? Rpe, string? Rir, string ResistanceMode);
+
     public async Task<ExerciseClearPreview> ClearPreview(Guid id, CancellationToken ct)
     {
         var meta = await Metadata(id, ct);
         var rows = await FinishedExerciseRows(id, ct);
         var exerciseIds = rows.Select(x => x.Id).ToList();
-        var sets = exerciseIds.Count == 0 ? 0 : await db.Sets.CountAsync(x => exerciseIds.Contains(x.SessionExerciseId), ct);
+        var sets = 0;
+        foreach (var chunk in exerciseIds.Chunk(1000))
+            sets += await db.Sets.CountAsync(x => chunk.Contains(x.SessionExerciseId), ct);
         var reading = await OpenWorkoutReading(id, ct);
         var active = reading is not null;
         return new ExerciseClearPreview(id, meta.Name, rows.Select(x => x.SessionId).Distinct().Count(), sets, active, !active && sets > 0, reading);
@@ -139,7 +149,9 @@ public sealed partial class ExerciseService(AppDb db, IMemoryCache? cache = null
         Validation.Require(reading is null,
             $"Finish or discard “{reading}” before clearing this exercise's history. It includes this exercise and uses its history for today's targets and records.", 409);
         var exerciseIds = rows.Select(x => x.Id).ToList();
-        var sets = exerciseIds.Count == 0 ? [] : await db.Sets.Where(x => exerciseIds.Contains(x.SessionExerciseId)).ToListAsync(ct);
+        var sets = new List<CompletedSet>();
+        foreach (var chunk in exerciseIds.Chunk(1000))
+            sets.AddRange(await db.Sets.Where(x => chunk.Contains(x.SessionExerciseId)).ToListAsync(ct));
         db.Sets.RemoveRange(sets);
         foreach (var row in rows)
         {
@@ -178,9 +190,11 @@ public sealed partial class ExerciseService(AppDb db, IMemoryCache? cache = null
             "all" => DateOnly.MinValue,
             _ => today.AddMonths(-3)
         };
+        var inRange = full.Points.Where(x => x.Date >= cutoff);
+        var cappedPoints = inRange.TakeLast(MaxPointsPerRange).ToList();
         return full with
         {
-            Points = full.Points.Where(x => x.Date >= cutoff).ToList(),
+            Points = cappedPoints,
             History = full.History.Skip(page * size).Take(size).ToList(),
             Page = page, Size = size
         };
@@ -201,15 +215,25 @@ public sealed partial class ExerciseService(AppDb db, IMemoryCache? cache = null
     {
         var meta = await Metadata(id, ct);
         // This reads the exercise's whole history, so it leaves out the start-of-workout snapshots.
-        var rows = await FinishedExerciseRowsQuery(id).WithoutSnapshots().ToListAsync(ct);
-        var sessionIds = rows.Select(r => r.SessionId).Distinct().ToList();
-        var sessions = await db.Workouts.AsNoTracking().Where(x => sessionIds.Contains(x.Id)).WithoutSnapshots()
+        var exerciseRowsQuery = FinishedExerciseRowsQuery(id).WithoutSnapshots();
+        var rows = await exerciseRowsQuery
+            .Select(r => new FinishedExerciseRow(r.Id, r.SessionId, r.LoadModel, r.PrescriptionJson))
+            .ToListAsync(ct);
+        var finishedSessionIds = exerciseRowsQuery.Select(r => r.SessionId);
+        var sessions = await db.Workouts.AsNoTracking().WithoutSnapshots()
+            .Where(x => finishedSessionIds.Contains(x.Id))
+            .Select(x => new FinishedSessionRow(x.Id, x.Name, x.FinishedAt, x.ProgramId, x.ProgramNameSnapshot))
             .ToDictionaryAsync(x => x.Id, ct);
-        var rowIds = rows.Select(r => r.Id).ToList();
-        var allSets = rows.Count == 0 ? [] : await db.Sets.AsNoTracking().Where(x => rowIds.Contains(x.SessionExerciseId)).WithoutSnapshots().ToListAsync(ct);
+        var finishedRowIds = exerciseRowsQuery.Select(r => r.Id);
+        var allSets = rows.Count == 0 ? [] : await db.Sets.AsNoTracking().WithoutSnapshots()
+            .Where(x => finishedRowIds.Contains(x.SessionExerciseId))
+            .Select(s => new FinishedSetRow(
+                s.Id, s.SessionExerciseId, s.Done, s.Warmup, s.DurationSeconds,
+                s.Position, s.WeightKg, s.SystemLoadKg, s.Reps, s.Rpe, s.Rir, s.ResistanceMode))
+            .ToListAsync(ct);
         var sets = allSets.Where(x => x.Done && !x.Warmup).ToList();
         var byExercise = rows.ToDictionary(x => x.Id);
-        double? RecordedLoad(CompletedSet set) => EffectiveLoad(set, byExercise[set.SessionExerciseId].LoadModel);
+        double? RecordedLoad(FinishedSetRow set) => EffectiveLoad(set, byExercise[set.SessionExerciseId].LoadModel);
         // Technique sets (partials, myo-reps, drop sets) count as work and volume, but their load
         // and reps are not straight-set strength, so estimates and records read straight sets only.
         var techniques = rows.ToDictionary(x => x.Id, x => SetTechniques.ByPosition(x.PrescriptionJson));
@@ -243,7 +267,9 @@ public sealed partial class ExerciseService(AppDb db, IMemoryCache? cache = null
         var history = records.OrderByDescending(x => x.Date).ThenByDescending(x => sessions[x.SessionId].FinishedAt).ToList();
         var programIds = sessions.Values.Where(session => session.ProgramId != null)
             .Select(session => session.ProgramId!.Value).Distinct().ToList();
-        var programNames = await db.Programs.AsNoTracking().Where(program => programIds.Contains(program.Id))
+        var programNames = programIds.Count == 0 ? new Dictionary<Guid, string>() : await db.Programs.AsNoTracking()
+            .Where(program => programIds.Contains(program.Id))
+            .Select(program => new { program.Id, program.Name })
             .ToDictionaryAsync(program => program.Id, program => program.Name, ct);
         var historyRows = history.Select(x => new ExerciseHistoryRow(x.SessionId, x.Name, x.Date,
             setsBySession[x.SessionId].Count(), x.Volume, x.Partial,
@@ -259,14 +285,14 @@ public sealed partial class ExerciseService(AppDb db, IMemoryCache? cache = null
         var largestSet = setRecords.OrderByDescending(x => x.Load!.Value * x.Set.Reps!.Value).FirstOrDefault();
         var largestSession = records.Where(x => x.Volume is not null).OrderByDescending(x => x.Volume).FirstOrDefault();
         var reps = meta.LoadModel is LoadModels.RepsOnly or LoadModels.BodyweightContextOnly
-            ? strengthSets.Where(x => x.Reps is > 0).Select(x => (Set: x, Session: sessions[byExercise[x.SessionExerciseId].SessionId], Load: (double?)null))
-                .OrderByDescending(x => x.Set.Reps).FirstOrDefault()
-            : setRecords.OrderByDescending(x => x.Set.Reps).FirstOrDefault();
+            ? strengthSets.Where(x => x.Reps is > 0).Select(x => (Set: (FinishedSetRow?)x, Session: sessions[byExercise[x.SessionExerciseId].SessionId], Load: (double?)null))
+                .OrderByDescending(x => x.Set!.Reps).FirstOrDefault()
+            : setRecords.Select(x => (Set: (FinishedSetRow?)x.Set, Session: x.Session, Load: (double?)x.Load)).OrderByDescending(x => x.Set!.Reps).FirstOrDefault();
         var last = records.OrderByDescending(x => x.Date).FirstOrDefault();
         var points = chronological.Select(x => new ExerciseMetricPoint(x.Date, x.SessionId, x.Name, x.E1rm, x.Load, x.Volume, x.Reps, x.Partial, x.Rir)).ToList();
         // Rep maxes name a load, so they read only movements whose entered load is the load moved.
         var repMaxes = meta.LoadModel == LoadModels.External
-            ? ExerciseRepMaxes.From(setRecords.Select(x => (x.Set, x.Load!.Value, LocalDay(x.Session.FinishedAt!.Value, zone))))
+            ? ExerciseRepMaxes.From(setRecords.Select(x => (x.Set.Id, x.Set.Reps, x.Set.Rir, x.Set.Rpe, x.Load!.Value, LocalDay(x.Session.FinishedAt!.Value, zone))))
             : [];
         var externalLoads = strengthSets.Where(x => byExercise[x.SessionExerciseId].LoadModel == LoadModels.External && x.WeightKg is not null).Select(x => x.WeightKg!.Value).ToList();
         var bodyweightSets = strengthSets.Where(x => byExercise[x.SessionExerciseId].LoadModel == LoadModels.FullBodyweight).ToList();
@@ -315,6 +341,9 @@ public sealed partial class ExerciseService(AppDb db, IMemoryCache? cache = null
 
     private IQueryable<SessionExercise> FinishedExerciseRowsQuery(Guid id)
         => db.SessionExercises.AsNoTracking().Where(x => x.ExerciseId == id && db.Workouts.Any(w => w.Id == x.SessionId && w.FinishedAt != null));
+
+    private static double? EffectiveLoad(FinishedSetRow set, string loadModel)
+        => LoadModels.ComparableLoad(loadModel, set.WeightKg, set.SystemLoadKg);
 
     private static double? EffectiveLoad(CompletedSet set, string loadModel)
         => LoadModels.ComparableLoad(loadModel, set.WeightKg, set.SystemLoadKg);

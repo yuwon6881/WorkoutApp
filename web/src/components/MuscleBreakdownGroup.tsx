@@ -51,10 +51,10 @@ export function MuscleBreakdownGroup({ title, muscles, peak, activeMuscle, onSel
         {(muscle.contributions ?? []).length > 0 ? muscle.contributions!.map((lift, index) => (
           lift.exerciseId ? <Button variant="tertiary" className="muscle-contribution" key={lift.exerciseId}
             onClick={() => onExercise(lift.exerciseId!)}>
-            <span>{lift.name}</span><small>{formatSets(lift.sets)} set credits</small>
+            <span>{lift.name}</span><small>{formatSets(lift.sets)} {lift.sets === 1 ? 'set' : 'sets'}</small>
           </Button> : <p className="muscle-contribution" key={`unlinked-${index}`}>
             <span>{lift.name}<small>Exercise library link unavailable</small></span>
-            <small>{formatSets(lift.sets)} set credits</small>
+            <small>{formatSets(lift.sets)} {lift.sets === 1 ? 'set' : 'sets'}</small>
           </p>
         )) : <p className="muted">{muscle.sets > 0 ? 'Contributing lifts unavailable. Refresh coverage to try again.' : 'No contributing lifts in this window.'}</p>}
       </div>}

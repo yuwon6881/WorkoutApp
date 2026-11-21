@@ -29,16 +29,17 @@ export function ReadOnlyDay({ day, exercises, selectedMuscle, onMuscleSelect, la
   const trackRir = useTrackRir();
   const muscleSummary = useMemo(() => getPlannedMuscleCredits(day.exercises, exercises), [day.exercises, exercises]);
   const catalogById = useMemo(() => new Map(exercises.map(e => [e.id, e])), [exercises]);
+  const catalogByName = useMemo(() => new Map(exercises.map(e => [e.name.toLowerCase().trim(), e])), [exercises]);
   const dimSet = useMemo(() => {
     if (!selectedMuscle) return null;
     const dimmed = new Set<string>();
     for (const ex of day.exercises) {
-      const catalogExercise = ex.exerciseId ? catalogById.get(ex.exerciseId) : undefined;
+      const catalogExercise = ex.exerciseId ? catalogById.get(ex.exerciseId) : catalogByName.get(ex.sourceName.toLowerCase().trim());
       const credits = exerciseCredits(ex.sourceName, catalogExercise);
       if (!credits.has(selectedMuscle)) dimmed.add(ex.lineId);
     }
     return dimmed;
-  }, [selectedMuscle, day.exercises, catalogById]);
+  }, [selectedMuscle, day.exercises, catalogById, catalogByName]);
 
   const groups = useMemo(() => {
     const result: DraftExercise[][] = [];
@@ -60,23 +61,36 @@ export function ReadOnlyDay({ day, exercises, selectedMuscle, onMuscleSelect, la
     <ol className="readonly-day-exercises">
       {groups.map(group => <li key={group[0].lineId} className={group.length > 1 ? 'superset-block' : undefined}>
         {group.length > 1 && <SupersetGroupHeader sequenceGroup={group[0].sequenceGroup} count={group.length} />}
-        {group.map(exercise => (
-          <ReadOnlyExercise
-            key={exercise.lineId}
-            exercise={exercise}
-            name={draftExerciseName(exercise, exercises)}
-            trackRir={trackRir}
-            dimmed={dimSet ? dimSet.has(exercise.lineId) : false}
-            last={exercise.exerciseId ? lastLabels?.get(exercise.exerciseId) : undefined}
-            loads={setLoads?.get(exercise.lineId)}
-          />
-        ))}
+        {group.map(exercise => {
+          const catalogExercise = exercise.exerciseId ? catalogById.get(exercise.exerciseId) : catalogByName.get(exercise.sourceName.toLowerCase().trim());
+          const resolvedExerciseId = exercise.exerciseId ?? catalogExercise?.id;
+          return (
+            <ReadOnlyExercise
+              key={exercise.lineId}
+              exercise={exercise}
+              name={draftExerciseName(exercise, exercises)}
+              trackRir={trackRir}
+              dimmed={dimSet ? dimSet.has(exercise.lineId) : false}
+              last={resolvedExerciseId ? lastLabels?.get(resolvedExerciseId) : undefined}
+              loads={setLoads?.get(exercise.lineId)}
+              resolvedExerciseId={resolvedExerciseId}
+            />
+          );
+        })}
       </li>)}
     </ol>
   </>;
 }
 
-function ReadOnlyExercise({ exercise, name, trackRir, dimmed, last, loads }: { exercise: DraftExercise; name: string; trackRir: boolean; dimmed: boolean; last?: string; loads?: readonly (string | null | undefined)[] }) {
+function ReadOnlyExercise({ exercise, name, trackRir, dimmed, last, loads, resolvedExerciseId }: {
+  exercise: DraftExercise;
+  name: string;
+  trackRir: boolean;
+  dimmed: boolean;
+  last?: string;
+  loads?: readonly (string | null | undefined)[];
+  resolvedExerciseId?: string | null;
+}) {
   const lines = summarizeSets(exercise.sets, trackRir, loads);
   const rest = exercise.restSeconds ?? exercise.sets.find(set => !set.warmup)?.restSeconds ?? null;
   // A printed range reads as the range; the workout starts at its average and the menu offers Minimal or Maximal.
@@ -86,7 +100,7 @@ function ReadOnlyExercise({ exercise, name, trackRir, dimmed, last, loads }: { e
       <strong className="readonly-exercise-name">{name}</strong>
       {rest != null && <span className="readonly-exercise-rest">Rest {range ? `${formatRest(range.minSeconds)}–${formatRest(range.maxSeconds)}` : formatRest(rest)}</span>}
     </div>
-    <GymAvailabilityBadge exerciseId={exercise.exerciseId} />
+    <GymAvailabilityBadge exerciseId={resolvedExerciseId ?? exercise.exerciseId} />
     {last && <p className="readonly-exercise-last">{last}</p>}
     {lines.length > 0 && <ul className="readonly-exercise-sets">
       {lines.map((line, index) => <li key={index}>

@@ -1,13 +1,10 @@
-import { useLayoutEffect, useRef, useState } from 'react';
+import { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { KeyboardEvent, PointerEvent } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { chartScale, nearestPointIndex, pointPositions, tickLabel } from '../lib/progressChart';
+import { chartScale, downsampleChartPoints, nearestPointIndex, pointPositions, tickLabel, type ChartPoint } from '../lib/progressChart';
 import { Button } from './ui/Button';
 
-type ChartPoint = {
-  key: string; date: string; value: number | null;
-  missingDetail?: { set: string | null; reason: string; hasVolume: boolean };
-};
+export type { ChartPoint };
 
 const height = 176;
 const padLeft = 40;
@@ -32,7 +29,12 @@ export function ExerciseProgressChart({ points, label, format, missingLabel = 'N
   const readout = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(fallbackWidth);
   const [selected, setSelected] = useState<string | null>(null);
-  const known = points.filter(point => point.value !== null);
+
+  // Downsample to at most 80 representative points when histories are large (e.g. 2000 sessions)
+  // so the SVG stays performant, dots don't overlap into an illegible smear, and picking stays snappy.
+  const displayedPoints = useMemo(() => downsampleChartPoints(points, 80, selected), [points, selected]);
+
+  const known = useMemo(() => displayedPoints.filter(point => point.value !== null), [displayedPoints]);
   const hasTrend = known.length > 1;
 
   useLayoutEffect(() => {
@@ -45,53 +47,56 @@ export function ExerciseProgressChart({ points, label, format, missingLabel = 'N
     return () => observer.disconnect();
   }, [hasTrend]);
 
-  if (!points.length) {
+  if (!displayedPoints.length) {
     return <div className="exercise-chart"><span className="muted">No completed working sets in this range.</span></div>;
   }
   const latestKnown = known.at(-1);
-  const selectedIndex = selected === null ? -1 : points.findIndex(point => point.key === selected);
-  const index = selectedIndex >= 0 ? selectedIndex : latestKnown ? points.lastIndexOf(latestKnown) : points.length - 1;
-  const current = points[index];
+  const selectedIndex = selected === null ? -1 : displayedPoints.findIndex(point => point.key === selected);
+  const index = selectedIndex >= 0 ? selectedIndex : latestKnown ? displayedPoints.lastIndexOf(latestKnown) : displayedPoints.length - 1;
+  const current = displayedPoints[index];
   const currentValue = current.value === null ? missingLabel : format(current.value);
 
-  const scale = chartScale(hasTrend ? known.map(point => point.value!) : [0]);
+  const scale = useMemo(() => chartScale(hasTrend ? known.map(point => point.value!) : [0]), [hasTrend, known]);
   const baselineY = height - padBottom;
   const plotHeight = baselineY - padTop;
-  const xs = pointPositions(points.length, padLeft, width - padRight);
+  const xs = useMemo(() => pointPositions(displayedPoints.length, padLeft, width - padRight), [displayedPoints.length, width]);
   const y = (value: number) => baselineY - ((value - scale.min) / (scale.max - scale.min)) * plotHeight;
 
   // Consecutive known values form one segment; a session without a value ends it.
-  const segments: { x: number; y: number }[][] = [];
-  let run: { x: number; y: number }[] = [];
-  points.forEach((point, i) => {
-    if (point.value === null) {
-      if (run.length) segments.push(run);
-      run = [];
-    } else {
-      run.push({ x: xs[i], y: y(point.value) });
-    }
-  });
-  if (run.length) segments.push(run);
+  const segments = useMemo(() => {
+    const segs: { x: number; y: number }[][] = [];
+    let run: { x: number; y: number }[] = [];
+    displayedPoints.forEach((point, i) => {
+      if (point.value === null) {
+        if (run.length) segs.push(run);
+        run = [];
+      } else {
+        run.push({ x: xs[i], y: baselineY - ((point.value - scale.min) / (scale.max - scale.min)) * plotHeight });
+      }
+    });
+    if (run.length) segs.push(run);
+    return segs;
+  }, [displayedPoints, xs, baselineY, plotHeight, scale]);
 
   function pick(event: PointerEvent<HTMLDivElement>) {
     const box = event.currentTarget.getBoundingClientRect();
-    setSelected(points[nearestPointIndex(xs, ((event.clientX - box.left) / box.width) * width)].key);
+    setSelected(displayedPoints[nearestPointIndex(xs, ((event.clientX - box.left) / box.width) * width)].key);
   }
 
   function step(event: KeyboardEvent<HTMLDivElement>) {
     const next = event.key === 'ArrowLeft' ? index - 1 : event.key === 'ArrowRight' ? index + 1
-      : event.key === 'Home' ? 0 : event.key === 'End' ? points.length - 1 : null;
+      : event.key === 'Home' ? 0 : event.key === 'End' ? displayedPoints.length - 1 : null;
     if (next === null) return;
     event.preventDefault();
     selectAt(next);
   }
 
   function selectAt(next: number) {
-    if (next >= 0 && next < points.length) setSelected(points[next].key);
+    if (next >= 0 && next < displayedPoints.length) setSelected(displayedPoints[next].key);
   }
 
-  const lastIndex = points.length - 1;
-  const showRange = points.length > 1 && points[0].date !== points[lastIndex].date;
+  const lastIndex = displayedPoints.length - 1;
+  const showRange = displayedPoints.length > 1 && displayedPoints[0].date !== displayedPoints[lastIndex].date;
   const activeX = xs[index];
   const activeY = current.value === null ? null : y(current.value);
 
@@ -100,9 +105,9 @@ export function ExerciseProgressChart({ points, label, format, missingLabel = 'N
       <div className="exercise-chart-header">
         <div className="exercise-chart-readout" aria-live="polite" aria-atomic="true">
           <span>{current.date}</span>
-          <span className="exercise-chart-position">Workout {index + 1} of {points.length}</span>
+          <span className="exercise-chart-position">Workout {index + 1} of {displayedPoints.length}</span>
         </div>
-        {points.length > 1 && <div className="exercise-chart-nav" role="group" aria-label="Browse workouts">
+        {displayedPoints.length > 1 && <div className="exercise-chart-nav" role="group" aria-label="Browse workouts">
           <Button aria-label="Previous workout" title="Previous workout" aria-disabled={index === 0} onClick={() => selectAt(index - 1)}>
             <ChevronLeft size={18} aria-hidden="true" />
           </Button>
@@ -120,9 +125,9 @@ export function ExerciseProgressChart({ points, label, format, missingLabel = 'N
         className="exercise-chart-canvas"
         role="slider"
         tabIndex={0}
-        aria-label={`${label}, session ${index + 1} of ${points.length}`}
+        aria-label={`${label}, session ${index + 1} of ${displayedPoints.length}`}
         aria-valuemin={1}
-        aria-valuemax={points.length}
+        aria-valuemax={displayedPoints.length}
         aria-valuenow={index + 1}
         aria-valuetext={`${current.date}: ${currentValue}`}
         onPointerDown={pick}
@@ -137,13 +142,13 @@ export function ExerciseProgressChart({ points, label, format, missingLabel = 'N
             </g>
           ))}
 
-          {points.length > 1 && <line className="exercise-chart-guide" x1={activeX} x2={activeX} y1={padTop} y2={baselineY} />}
+          {displayedPoints.length > 1 && <line className="exercise-chart-guide" x1={activeX} x2={activeX} y1={padTop} y2={baselineY} />}
 
           {segments.map(segment => segment.length > 1 && (
             <path key={`${segment[0].x}`} className="exercise-chart-line" d={`M ${segment.map(p => `${p.x} ${p.y}`).join(' L ')}`} />
           ))}
 
-          {points.map((point, i) => point.value === null
+          {displayedPoints.map((point, i) => point.value === null
             ? <circle key={point.key} className="exercise-chart-gap" cx={xs[i]} cy={baselineY} r={3} />
             : i !== index && <circle key={point.key} className="exercise-chart-dot" cx={xs[i]} cy={y(point.value)} r={4} />)}
 
@@ -153,9 +158,9 @@ export function ExerciseProgressChart({ points, label, format, missingLabel = 'N
           </>}
 
           {showRange ? <>
-            <text className="exercise-chart-tick" x={xs[0]} y={height - 8} textAnchor="start">{points[0].date}</text>
-            <text className="exercise-chart-tick" x={xs[lastIndex]} y={height - 8} textAnchor="end">{points[lastIndex].date}</text>
-          </> : <text className="exercise-chart-tick" x={xs[lastIndex]} y={height - 8} textAnchor={points.length > 1 ? 'end' : 'middle'}>{points[lastIndex].date}</text>}
+            <text className="exercise-chart-tick" x={xs[0]} y={height - 8} textAnchor="start">{displayedPoints[0].date}</text>
+            <text className="exercise-chart-tick" x={xs[lastIndex]} y={height - 8} textAnchor="end">{displayedPoints[lastIndex].date}</text>
+          </> : <text className="exercise-chart-tick" x={xs[lastIndex]} y={height - 8} textAnchor={displayedPoints.length > 1 ? 'end' : 'middle'}>{displayedPoints[lastIndex].date}</text>}
         </svg>
       </div>}
       {!known.length && <p className="exercise-chart-note muted">{missingMessage}</p>}

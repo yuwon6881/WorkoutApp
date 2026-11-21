@@ -160,6 +160,7 @@ function renderActive(program = sampleProgram, onChanged = vi.fn(async () => {})
   const tree = ActiveProgramCard({
     program,
     exercises: [],
+    unit: 'kg',
     onStart: () => {},
     onPreview: () => {},
     onChanged,

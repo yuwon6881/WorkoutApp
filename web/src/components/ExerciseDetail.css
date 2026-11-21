@@ -333,11 +333,20 @@
    on; the head row is small and quiet, and the last row drops its rule against the card edge. */
 .progress-table { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
 .progress-table .section-heading { margin: 0; }
-.progress-table .chart-table {
+.progress-table .chart-table-wrap {
   border: 1px solid var(--border);
   border-radius: var(--radius-control);
   background: var(--surface-raised);
-  overflow: hidden;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  width: 100%;
+}
+.progress-table .chart-table {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  min-width: 100%;
+  width: max-content;
 }
 .progress-table .chart-table .chart-table-row {
   padding: 10px 14px;
@@ -350,9 +359,31 @@
   background: var(--surface);
   color: var(--muted);
 }
+.progress-table .chart-table-row > span {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.progress-table .chart-table-row > span:first-child {
+  text-align: left;
+}
+.progress-table .chart-table-row > span:not(:first-child) {
+  text-align: right;
+}
 .progress-table .chart-table-row:not(.chart-table-head) > span:not(:first-child) { color: var(--muted); }
 .progress-table .chart-table-row:not(.chart-table-head) > .progress-cell-primary { color: var(--text); font-weight: 600; }
 .progress-table > .button { align-self: center; }
+.progress-table-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 4px 2px;
+}
+.progress-table-page-info {
+  font-size: var(--font-secondary);
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
 
 /* Narrow phones: the five figures need the card's width more than its side padding. */
 @media (max-width: 479px) {
@@ -361,7 +392,7 @@
 
 /* The narrowest phones have no width to spare for a frame, so the table goes flat there. */
 @media (max-width: 359px) {
-  .progress-table .chart-table { border: 0; border-radius: 0; background: transparent; }
+  .progress-table .chart-table-wrap { border: 0; border-radius: 0; background: transparent; }
   .progress-table .chart-table .chart-table-row { padding: 4px 0; line-height: 1.2; }
   .progress-table .chart-table .chart-table-head { background: transparent; }
 }

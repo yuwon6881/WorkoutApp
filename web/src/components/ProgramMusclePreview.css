@@ -36,7 +36,7 @@
 /* Grid on medium and expanded (>= 640px): auto-fill grid with equal tile heights */
 .program-muscle-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
   grid-auto-rows: 1fr;
   align-items: stretch;
   gap: 10px;
@@ -128,7 +128,9 @@
   letter-spacing: -0.015em;
   line-height: 1.25;
   color: var(--text);
-  overflow-wrap: anywhere;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
   min-width: 0;
   flex: 1 1 auto;
 }
@@ -149,8 +151,8 @@
   flex: 0 0 auto;
 }
 
-/* Credit text wraps by word and is never clipped: the credit count is the figure itself. */
-.program-muscle-credit-text {
+/* Set counts wrap by word and are never clipped. */
+.program-muscle-set-text {
   color: var(--muted);
   font-size: var(--font-secondary);
   line-height: 1.35;
@@ -187,11 +189,11 @@
   transition: opacity var(--motion-panel) ease;
 }
 
-/* Compact layout (< 640px): clean 2-column grid */
+/* Keep equal tile widths, using a single wider column when two cannot fit full muscle labels. */
 @media (max-width: 639px) {
   .program-muscle-grid {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 160px), 1fr));
     grid-auto-rows: 1fr;
     gap: 8px;
     padding: 0;
@@ -229,7 +231,7 @@
     font-size: var(--font-secondary);
   }
 
-  .program-muscle-credit-text {
+  .program-muscle-set-text {
     font-size: var(--font-secondary);
     line-height: 1.25;
   }
@@ -256,7 +258,7 @@
     font-size: var(--font-secondary);
   }
 
-  .program-muscle-credit-text {
+  .program-muscle-set-text {
     font-size: var(--font-secondary);
   }
 }

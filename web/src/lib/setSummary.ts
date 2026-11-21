@@ -9,7 +9,8 @@ export function summarizeSets(sets: (SetPrescription | DraftSet)[], trackRir: bo
   const lines: SetSummaryLine[] = [];
   for (const [index, set] of sets.entries()) {
     const target = showTarget(set, trackRir && !set.warmup);
-    const load = loads[index] ?? null;
+    const serverLoad = loads[index];
+    const load = serverLoad ?? (!set.warmup && set.loadText ? set.loadText.trim() : null);
     const previous = lines.at(-1);
     if (previous && previous.warmup === set.warmup && previous.target === target && previous.load === load) previous.count++;
     else lines.push({ count: 1, warmup: set.warmup, target, load });

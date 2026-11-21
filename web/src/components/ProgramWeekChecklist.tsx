@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { CheckCircle2, Circle, CirclePlay, ChevronRight, Play, SkipForward } from 'lucide-react';
-import type { Exercise, ImportDraft, ProgramProgressDay, ProgramSummary, Session } from '../types';
+import type { Exercise, ImportDraft, ProgramProgressDay, ProgramSummary, Session, Unit } from '../types';
 import { loadSessionDetail } from '../lib/sessionDetailLoad';
 import { prefetchView } from '../app/lazyViews';
 import { ApiError, api } from '../lib/api';
@@ -11,12 +11,14 @@ import { Modal } from './ui/Modal';
 import { MenuButton, MenuItem } from './ui/MenuButton';
 import { WorkoutDaySkeleton } from './WorkoutDaySkeleton';
 import { ReadOnlyDay } from './ReadOnlyDay';
+import { useStartPreviewLoads } from './useStartPreviewLoads';
 import './ProgramWeekChecklist.css';
 
 export function ProgramWeekChecklist({
   program,
   draft,
   exercises,
+  unit,
   onStart,
   onChanged,
   onSession,
@@ -27,6 +29,7 @@ export function ProgramWeekChecklist({
   program: ProgramSummary;
   draft?: ImportDraft | null;
   exercises: Exercise[];
+  unit: Unit;
   onStart: (templateId: string) => void;
   onChanged: () => Promise<void>;
   /** Opens a finished workout's review; a completed day with a session opens that instead of its plan. */
@@ -41,6 +44,7 @@ export function ProgramWeekChecklist({
   const [optimisticPassed, setOptimisticPassed] = useState<Set<string>>(() => new Set());
   const [openDay, setOpenDay] = useState<ProgramProgressDay | null>(null);
   const [selectedMuscle, setSelectedMuscle] = useState<string | null>(null);
+  const [previewRequest, setPreviewRequest] = useState(0);
 
   const progress = program.progress;
   const days = progress?.days ?? [];
@@ -55,6 +59,7 @@ export function ProgramWeekChecklist({
   /** A finished day opens what was done; anything else, or a session that can no longer load, opens the plan. */
   async function openRow(day: ProgramProgressDay) {
     setSelectedMuscle(null);
+    if (day.status === 'pending' && !hasActiveWorkout) setPreviewRequest(value => value + 1);
     if (opensSession(day)) {
       prefetchView('sessionDetail');
       try {
@@ -115,6 +120,8 @@ export function ProgramWeekChecklist({
   }, []);
 
   const openDayWorkout = openDay ? draft?.workouts.find(w => w.lineId === openDay.templateId) : null;
+  const previewTemplateId = openDay?.status === 'pending' && !hasActiveWorkout ? openDay.templateId : null;
+  const setLoads = useStartPreviewLoads(previewTemplateId, openDayWorkout ?? null, exercises, unit, previewRequest);
   const openDayIndex = openDay ? currentDays.findIndex(d => d.id === openDay.templateId) : -1;
   const openDayInfo = openDay ? dayDetails.get(openDay.templateId) : null;
   const openDayWorkoutName = openDayWorkout?.name || openDayInfo?.name || '';
@@ -228,7 +235,7 @@ export function ProgramWeekChecklist({
         <div className="modal-body day-detail-modal-body draft-day" data-import-day={openDay.templateId}>
           {/* A day is only previewed here; editing a program lives in its Edit program menu. */}
           {openDayWorkout ? (
-            <ReadOnlyDay day={openDayWorkout} exercises={exercises} selectedMuscle={selectedMuscle} onMuscleSelect={setSelectedMuscle} />
+            <ReadOnlyDay day={openDayWorkout} exercises={exercises} selectedMuscle={selectedMuscle} onMuscleSelect={setSelectedMuscle} setLoads={setLoads} />
           ) : (
             <WorkoutDaySkeleton label="Loading workout details…" />
           )}

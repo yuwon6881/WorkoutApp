@@ -174,7 +174,7 @@ export function MuscleBalanceView({ timeZone, onExercise, refreshKey, unconfirme
                 <h2>Anatomy map</h2>
               </div>
               {/* The key sits above the figure so it is read first, even when the map fills the screen. */}
-              <div className="muscle-balance-legend" aria-label="Credited sets scale">
+              <div className="muscle-balance-legend" aria-label="Sets scale">
                 <span className="muscle-legend-item"><i className="legend-swatch empty" />Untrained</span>
                 <span className="muscle-legend-item"><i className="legend-swatch low" />Fewer sets</span>
                 <span className="muscle-legend-item"><i className="legend-swatch mid" />More sets</span>
@@ -202,7 +202,7 @@ export function MuscleBalanceView({ timeZone, onExercise, refreshKey, unconfirme
               <div className="section-heading muscle-breakdown-heading">
                 <div>
                   <h2 id="muscle-breakdown-heading">Muscle breakdown</h2>
-                  <p className="muscle-breakdown-subtitle">Credited sets: a muscle earns 1 per set it leads and ½ per set it assists, so these can add up to more than your total sets.</p>
+                  <p className="muscle-breakdown-subtitle">Sets: a muscle earns 1 per set it leads and ½ per set it assists, so these can add up to more than your total sets.</p>
                 </div>
               </div>
 
@@ -210,7 +210,7 @@ export function MuscleBalanceView({ timeZone, onExercise, refreshKey, unconfirme
               {/* A muscle the lifter has open stays in place at zero, so clearing its history never removes what they were reading. */}
               {view.totalSets === 0 && !pinnedMuscle ? (
                 <div className="muscle-breakdown-empty" role="status">
-                  <p>No working sets logged in the {(RANGES.find(option => option.value === range)?.label ?? 'chosen period').toLowerCase()}. Each logged set credits the muscles it trains here.</p>
+                  <p>No working sets logged in the {(RANGES.find(option => option.value === range)?.label ?? 'chosen period').toLowerCase()}. Each logged set counts toward the muscles it trains here.</p>
                   {range !== LONGEST_RANGE && <Button variant="secondary" onClick={() => setRange(LONGEST_RANGE)}>Show the last 3 months</Button>}
                 </div>
               ) : (

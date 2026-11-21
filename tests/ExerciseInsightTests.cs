@@ -224,4 +224,74 @@ public sealed class ExerciseInsightTests
         Assert.NotNull(insight.RepPrDate);
         Assert.Equal(60, insight.HeaviestKg);
     }
+
+    [Fact]
+    public async Task Insight_handles_two_thousand_historical_sessions_smoothly()
+    {
+        var (h, _, benchId) = await Ready();
+        await using var owned = h;
+        var userId = h.Db.CurrentUser!.Value;
+        var start = DateTime.UtcNow.AddDays(-2000);
+
+        var workouts = new List<Workout.Api.Data.WorkoutSession>(2000);
+        var sessionExercises = new List<Workout.Api.Data.SessionExercise>(2000);
+        var sets = new List<Workout.Api.Data.CompletedSet>(2000);
+
+        for (var i = 0; i < 2000; i++)
+        {
+            var workoutId = Guid.NewGuid();
+            var exerciseRowId = Guid.NewGuid();
+            var finish = start.AddDays(i);
+            workouts.Add(new Workout.Api.Data.WorkoutSession
+            {
+                UserId = userId,
+                Id = workoutId,
+                Name = $"Workout {i + 1}",
+                StartedAt = finish.AddHours(-1),
+                FinishedAt = finish,
+                Active = false
+            });
+            sessionExercises.Add(new Workout.Api.Data.SessionExercise
+            {
+                UserId = userId,
+                Id = exerciseRowId,
+                SessionId = workoutId,
+                ExerciseId = benchId,
+                Position = 0,
+                LoadModel = LoadModels.External
+            });
+            sets.Add(new Workout.Api.Data.CompletedSet
+            {
+                UserId = userId,
+                Id = Guid.NewGuid(),
+                SessionExerciseId = exerciseRowId,
+                Position = 0,
+                WeightKg = 60.0 + (i % 40),
+                Reps = 5 + (i % 5),
+                Done = true,
+                Warmup = false
+            });
+        }
+
+        h.Db.Workouts.AddRange(workouts);
+        h.Db.SessionExercises.AddRange(sessionExercises);
+        h.Db.Sets.AddRange(sets);
+        await h.Db.SaveChangesAsync();
+
+        var service = new ExerciseService(h.Db);
+
+        var full = await service.Insight(benchId, "all", 0, 20, default);
+        Assert.Equal(2000, full.Sessions);
+        Assert.Equal(2000, full.TotalHistoryRows);
+        Assert.Equal(2000, full.Points.Count);
+        Assert.Equal(20, full.History.Count);
+
+        var page1 = await service.Insight(benchId, "all", 1, 20, default);
+        Assert.Equal(20, page1.History.Count);
+        Assert.NotEqual(full.History[0].SessionId, page1.History[0].SessionId);
+
+        var month = await service.Insight(benchId, "1m", 0, 20, default);
+        Assert.Equal(2000, month.TotalHistoryRows);
+        Assert.True(month.Points.Count < 2000);
+    }
 }

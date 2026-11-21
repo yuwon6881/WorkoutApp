@@ -26,10 +26,12 @@ export function previewLoadsByLine(
 ): Map<string, (string | null)[]> {
   const result = new Map<string, (string | null)[]>();
   for (const preview of previews) {
-    const exercise = catalogByLine.get(preview.templateExerciseId) ?? {};
+    const idKey = preview.templateExerciseId.toLowerCase();
+    const exercise = catalogByLine.get(preview.templateExerciseId) ?? catalogByLine.get(idKey) ?? {};
     const labels: (string | null)[] = [];
     for (const set of preview.sets) labels[set.position] = previewLoadLabel(set, unit, exercise);
     result.set(preview.templateExerciseId, labels);
+    result.set(idKey, labels);
   }
   return result;
 }

@@ -844,6 +844,8 @@ for (const theme of ['dark', 'light'] as const) {
     await page.route('**/api/exercises/' + exercise.id + '/insight?*', route => route.fulfill({ json: {
       ...insight, sessions: historyCleared ? 0 : 1, setCount: historyCleared ? 0 : 2,
       clearableSetCount: historyCleared ? 0 : 3, totalHistoryRows: historyCleared ? 0 : 1,
+      points: historyCleared ? [] : [{ date: when.slice(0, 10), sessionId: 'large-numeric-history', sessionName: 'Large numeric history',
+        estimated1RmKg: 12345.6, loadKg: 98765.4, volumeKg: 123456789, reps: 1200, partial: false, rir: '5+' }],
       history: historyCleared ? [] : [{ sessionId, sessionName: 'Upper body training', programName, date: when.slice(0, 10),
         finishedAt: when, setCount: 2, volumeKg: 900, partial: false }]
     } }));
@@ -881,12 +883,26 @@ for (const theme of ['dark', 'light'] as const) {
         line.right <= creditBounds.left - 4 || line.left >= creditBounds.right + 4 ||
         line.bottom <= creditBounds.top - 2 || line.top >= creditBounds.bottom + 2);
     });
-    expect(liftNameFits, 'the lift name stays clear of its set-credit label').toBe(true);
+    expect(liftNameFits, 'the lift name stays clear of its set label').toBe(true);
     await checkLayout(page, 'contributing lifts');
     await page.locator('.muscle-breakdown-panel').screenshot({ animations: 'disabled', style: '.topbar, .bottom-nav { visibility: hidden !important; }',
       path: join(screenshotsDirectory, 'responsive', info.project.name + '-' + theme + '-contributing-lifts.png') });
     await contributors.getByRole('button', { name: /Barbell bench press/ }).click();
     const modal = page.getByRole('dialog', { name: exercise.name, exact: true });
+    const tableWrap = modal.locator('.progress-table .chart-table-wrap');
+    await expect(tableWrap).toBeVisible();
+    const tableLayout = await tableWrap.evaluate(element => {
+      const header = Array.from(element.querySelectorAll('.chart-table-head [role="columnheader"]'));
+      const row = element.querySelector('.chart-table-row:not(.chart-table-head)');
+      if (!row) return null;
+      const values = Array.from(row.querySelectorAll('[role="cell"]'));
+      const aligned = header.length === values.length && header.every((cell, index) =>
+        Math.abs(cell.getBoundingClientRect().left - values[index].getBoundingClientRect().left) < 1.5);
+      return { aligned, clientWidth: element.clientWidth, scrollWidth: element.scrollWidth };
+    });
+    expect(tableLayout?.aligned, 'the session values stay under their headings').toBe(true);
+    if ((page.viewportSize()?.width ?? 1024) < 640)
+      expect(tableLayout!.scrollWidth, 'large values scroll inside the table instead of colliding').toBeGreaterThan(tableLayout!.clientWidth);
     await modal.getByRole('button', { name: 'History', exact: true }).click();
     await expect(modal.getByText(programName, { exact: true })).toBeVisible();
     await modal.getByRole('button', { name: /Upper body training/ }).click();

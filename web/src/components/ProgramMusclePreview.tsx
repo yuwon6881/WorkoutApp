@@ -53,7 +53,7 @@ export function ProgramMusclePreview({ summary, selectedMuscle, onMuscleSelect }
                       <span className="program-muscle-title-row">
                         <strong title={muscle}>{muscle}</strong>
                       </span>
-                      <span className="program-muscle-credit-text">
+                      <span className="program-muscle-set-text">
                         {formattedSets} {setWord}
                       </span>
                     </span>

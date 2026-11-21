@@ -22,7 +22,7 @@ const program: ProgramSummary = {
 
 function render(hasActiveWorkout: boolean, activeTemplateId: string | null) {
   return renderToStaticMarkup(createElement(ProgramWeekChecklist, {
-    program, exercises: [], onStart: () => {}, onChanged: async () => {}, hasActiveWorkout, activeTemplateId
+    program, exercises: [], unit: 'kg', onStart: () => {}, onChanged: async () => {}, hasActiveWorkout, activeTemplateId
   }));
 }
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { chartScale, nearestPointIndex, pointPositions, tickLabel } from './progressChart';
+import { chartScale, downsampleChartPoints, nearestPointIndex, pointPositions, tickLabel, type ChartPoint } from './progressChart';
 
 describe('chartScale', () => {
   it('centers a single value on the middle gridline', () => {
@@ -43,5 +43,40 @@ describe('tickLabel', () => {
     expect(tickLabel(8)).toBe('8');
     expect(tickLabel(62.5)).toBe('62.5');
     expect(tickLabel(12500)).toBe('12.5k');
+  });
+});
+
+describe('downsampleChartPoints', () => {
+  const makePoints = (count: number): ChartPoint[] =>
+    Array.from({ length: count }, (_, i) => ({
+      key: `k-${i}`,
+      date: `Date ${i}`,
+      value: 60 + Math.sin(i / 10) * 20 + (i === 500 ? 120 : 0) // noticeable peak at index 500
+    }));
+
+  it('leaves points untouched when within the maxPoints limit', () => {
+    const points = makePoints(40);
+    expect(downsampleChartPoints(points, 80)).toBe(points);
+  });
+
+  it('downsamples large histories (e.g. 2000 points) to at most maxPoints', () => {
+    const points = makePoints(2000);
+    const downsampled = downsampleChartPoints(points, 80);
+    expect(downsampled).toHaveLength(80);
+    expect(downsampled[0].key).toBe(points[0].key);
+    expect(downsampled[downsampled.length - 1].key).toBe(points[points.length - 1].key);
+  });
+
+  it('preserves the selected key point even across 2000 points', () => {
+    const points = makePoints(2000);
+    const targetKey = 'k-1234';
+    const downsampled = downsampleChartPoints(points, 80, targetKey);
+    expect(downsampled.some(p => p.key === targetKey)).toBe(true);
+  });
+
+  it('preserves significant peaks in the series', () => {
+    const points = makePoints(2000); // index 500 has value 120
+    const downsampled = downsampleChartPoints(points, 80);
+    expect(downsampled.some(p => p.key === 'k-500')).toBe(true);
   });
 });

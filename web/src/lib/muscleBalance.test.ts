@@ -43,7 +43,7 @@ describe('muscle balance display metadata', () => {
 });
 
 describe('breakdown group order', () => {
-  it('leads with the group holding more credited sets and keeps the given order on ties', () => {
+  it('leads with the group holding more sets and keeps the given order on ties', () => {
     const upper = { title: 'Upper body', muscles: [row('Chest', 0), row('Back', 0)] };
     const lower = { title: 'Lower body', muscles: [row('Quads', 1), row('Glutes', 0.5)] };
     expect(orderBreakdownGroups([upper, lower]).map(group => group.title)).toEqual(['Lower body', 'Upper body']);

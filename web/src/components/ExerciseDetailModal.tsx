@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Trash2 } from 'lucide-react';
 import type { Exercise, ExerciseInsight, Unit } from '../types';
 import { ApiError, api } from '../lib/api';
@@ -168,6 +168,11 @@ export function ProgressPanel({ insight, unit, basis, range, onRange }: {
   const showExternalRecord = insight.externalLoadPrKg != null && !(insight.loadModel === 'external'
     && !otherResistanceRecords && insight.heaviestKg === insight.externalLoadPrKg);
 
+  const chartPoints = useMemo(() => insight.points.map(point => ({
+    key: `${point.sessionId}-${point.date}`, date: dateLabel(point.date), value: metricValue(point, metric),
+    missingDetail: metric === 'estimated1rm' && point.estimated1RmKg == null ? missingEstimateDetail(point, unit, basis, trackRir) : undefined
+  })), [insight.points, metric, unit, basis, trackRir]);
+
   return <>
     <div className="section-heading">
       <h3>Progress</h3>
@@ -187,10 +192,7 @@ export function ProgressPanel({ insight, unit, basis, range, onRange }: {
       missingMessage={metric === 'estimated1rm' ? 'No workouts in this range have a 1RM estimate.' : undefined}
       onViewVolume={() => setSelectedMetric('volume')}
       format={value => formatMetricValue(value, metric, unit, basis)}
-      points={insight.points.map(point => ({
-        key: `${point.sessionId}-${point.date}`, date: dateLabel(point.date), value: metricValue(point, metric),
-        missingDetail: metric === 'estimated1rm' && point.estimated1RmKg == null ? missingEstimateDetail(point, unit, basis, trackRir) : undefined
-      }))} />
+      points={chartPoints} />
     {insight.points.length > 0 && <ExerciseProgressTable points={insight.points} formatDate={rowDateLabel}
       formatEstimate={kg => showEstimate(kg, unit, basis)} formatLoad={load} formatVolume={volume} />}
     {insight.partialVolume && insight.points.some(point => point.volumeKg != null)

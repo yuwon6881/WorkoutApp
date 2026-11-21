@@ -3,6 +3,81 @@
 
 export type ChartScale = { min: number; max: number; ticks: number[] };
 
+export type ChartPoint = {
+  key: string;
+  date: string;
+  value: number | null;
+  missingDetail?: { set: string | null; reason: string; hasVolume: boolean };
+};
+
+/**
+ * Downsample chart points to at most `maxPoints` using Largest-Triangle-Three-Buckets (LTTB)
+ * while strictly preserving the first point, the last point, and any currently selected point.
+ */
+export function downsampleChartPoints(
+  points: ChartPoint[],
+  maxPoints = 80,
+  selectedKey?: string | null
+): ChartPoint[] {
+  if (points.length <= maxPoints || maxPoints < 3) return points;
+
+  const sampled: ChartPoint[] = [points[0]];
+  const bucketSize = (points.length - 2) / (maxPoints - 2);
+
+  let aIndex = 0;
+
+  for (let i = 0; i < maxPoints - 2; i++) {
+    const bucketStart = Math.floor(i * bucketSize) + 1;
+    const bucketEnd = Math.min(Math.floor((i + 1) * bucketSize) + 1, points.length - 1);
+
+    const nextBucketStart = Math.floor((i + 1) * bucketSize) + 1;
+    const nextBucketEnd = Math.min(Math.floor((i + 2) * bucketSize) + 1, points.length - 1);
+
+    let avgX = 0;
+    let avgY = 0;
+    let count = 0;
+    for (let j = nextBucketStart; j < nextBucketEnd; j++) {
+      avgX += j;
+      avgY += points[j].value ?? 0;
+      count++;
+    }
+    if (count > 0) {
+      avgX /= count;
+      avgY /= count;
+    } else {
+      avgX = nextBucketStart;
+      avgY = points[Math.min(nextBucketStart, points.length - 1)]?.value ?? 0;
+    }
+
+    const ax = aIndex;
+    const ay = points[aIndex].value ?? 0;
+
+    let maxArea = -1;
+    let maxAreaIndex = bucketStart;
+    let selectedInBucket = -1;
+
+    for (let j = bucketStart; j < bucketEnd; j++) {
+      if (selectedKey && points[j].key === selectedKey) {
+        selectedInBucket = j;
+        break;
+      }
+      const yVal = points[j].value ?? 0;
+      const area = Math.abs((ax - avgX) * (yVal - ay) - (ax - j) * (avgY - ay));
+      if (area > maxArea) {
+        maxArea = area;
+        maxAreaIndex = j;
+      }
+    }
+
+    const chosenIndex = selectedInBucket >= 0 ? selectedInBucket : maxAreaIndex;
+    sampled.push(points[chosenIndex]);
+    aIndex = chosenIndex;
+  }
+
+  sampled.push(points[points.length - 1]);
+  return sampled;
+}
+
 function niceStep(rough: number) {
   const exponent = Math.floor(Math.log10(rough));
   const base = 10 ** exponent;
