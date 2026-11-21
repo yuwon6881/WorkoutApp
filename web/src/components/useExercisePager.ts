@@ -1,4 +1,6 @@
-import { useLayoutEffect, useRef } from 'react';
+import { useEffect, useLayoutEffect, useRef } from 'react';
+import type { PointerEvent as ReactPointerEvent } from 'react';
+import { healPageReachability } from '../lib/pageReachability';
 import { pageDragOffset, pageEntryOffset, pageSwipeOutcome, pushedPastEdge, type PageEdges } from '../lib/pageSwipe';
 import { haptic } from '../lib/platform';
 import { useHorizontalSwipe } from './ui/useHorizontalSwipe';
@@ -53,7 +55,35 @@ export function useExercisePager({ index, pageKey, count, enabled, onSelect }: {
       { transform: `translate3d(${offset}px, 0, 0)`, opacity: 0 },
       { transform: 'translate3d(0, 0, 0)', opacity: 1 }
     ], 320);
+    // The turn has settled once its animation has run; a page left unreachable by it is repaired then.
+    const check = window.setTimeout(() => healPageReachability(page.current), reduced ? 60 : 380);
+    return () => window.clearTimeout(check);
   }, [pageKey]);
+
+  // Coming back from the background is when the page most often turns out to be unreachable.
+  useEffect(() => {
+    let timer: number | undefined;
+    const check = () => {
+      window.clearTimeout(timer);
+      timer = window.setTimeout(() => { if (document.visibilityState === 'visible') healPageReachability(page.current); }, 150);
+    };
+    document.addEventListener('visibilitychange', check);
+    window.addEventListener('workout:resume', check);
+    window.addEventListener('pageshow', check);
+    return () => {
+      window.clearTimeout(timer);
+      document.removeEventListener('visibilitychange', check);
+      window.removeEventListener('workout:resume', check);
+      window.removeEventListener('pageshow', check);
+    };
+  }, []);
+
+  // A touch that lands on the scroller where the page is drawn means the page cannot be reached:
+  // repair it now, so the next tap works, rather than leave it until the next turn.
+  function onPointerDownCapture(event: ReactPointerEvent<HTMLElement>) {
+    const element = page.current;
+    if (element && event.target === element.parentElement) healPageReachability(element);
+  }
 
   const swipe = useHorizontalSwipe({
     enabled: enabled && count > 1,
@@ -79,5 +109,5 @@ export function useExercisePager({ index, pageKey, count, enabled, onSelect }: {
     }
   });
 
-  return { page, swipe };
+  return { page, swipe: { ...swipe, onPointerDownCapture } };
 }

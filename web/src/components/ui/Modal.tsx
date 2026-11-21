@@ -1,9 +1,11 @@
 import { createContext, useCallback, useContext, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import type { ReactNode } from 'react';
 import { X } from 'lucide-react';
 import { Button } from './Button';
 import { useSheetDrag } from './useSheetDrag';
 import { backStack } from '../../lib/backStack';
+import { ModalHostContext } from './ModalHost';
 
 let openDialogs = 0;
 // Longer than any exit animation, so a missed animationend (a hidden tab) never strands a dialog.
@@ -44,6 +46,7 @@ export function Modal({ title, children, onClose, wide = false, headless = false
   animateExit?: boolean;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
+  const host = useContext(ModalHostContext);
   const pointerStartedOnBackdrop = useRef(false);
   const leaving = useRef(false);
 
@@ -167,7 +170,7 @@ export function Modal({ title, children, onClose, wide = false, headless = false
     if (isOutside) close();
   };
 
-  return <dialog ref={ref} tabIndex={-1} className={`modal ${wide ? 'wide' : ''} ${headless ? 'headless' : ''} ${className}`.trim()}
+  const dialog = <dialog ref={ref} tabIndex={-1} className={`modal ${wide ? 'wide' : ''} ${headless ? 'headless' : ''} ${className}`.trim()}
     onPointerDown={handlePointerDown} onPointerMove={drag.onPointerMove} onPointerUp={drag.onPointerUp} onPointerCancel={drag.onPointerCancel}
     onClick={handleClick} onCancel={e => {
       e.preventDefault();
@@ -190,4 +193,5 @@ export function Modal({ title, children, onClose, wide = false, headless = false
     </header>}
     <ModalDismiss.Provider value={close}>{children}</ModalDismiss.Provider>
   </dialog>;
+  return host ? createPortal(dialog, host) : dialog;
 }

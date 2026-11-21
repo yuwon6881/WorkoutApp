@@ -1,9 +1,11 @@
+import { useState } from 'react';
 import { Dumbbell, Plus } from 'lucide-react';
 import type { Exercise, LoggedSet, Session, Unit } from '../types';
 import type { RestMode } from '../lib/restRange';
 import { addedSessionExercise } from '../lib/workoutDraft';
 import { Button } from './ui/Button';
 import { Modal } from './ui/Modal';
+import { ModalHostContext } from './ui/ModalHost';
 import { ExerciseLibrary } from './Exercises';
 import { WorkoutExerciseStrip } from './WorkoutExerciseStrip';
 import { WorkoutActiveExercise } from './WorkoutActiveExercise';
@@ -30,6 +32,8 @@ export function WorkoutEditor({
   onOpenExercise?: (exerciseId: string) => void;
   restMode?: RestMode;
 }) {
+  // The exercise page is animated, and dialogs opened from inside it must not live in it.
+  const [modalHost, setModalHost] = useState<HTMLDivElement | null>(null);
   const currentExercise = draft.exercises[activeIndex] ?? draft.exercises[0];
   const currentIndex = currentExercise ? draft.exercises.indexOf(currentExercise) : -1;
   const showingExercise = !recoveryConflict && !finishIntentAt && Boolean(currentExercise);
@@ -41,7 +45,7 @@ export function WorkoutEditor({
     enabled: showingExercise,
     onSelect: onSelectExercise
   });
-  return <div className="workout-swipe-surface" {...swipe}>
+  return <ModalHostContext.Provider value={modalHost}><div className="workout-swipe-surface" {...swipe}>
     <WorkoutExerciseStrip exercises={draft.exercises} activeIndex={activeIndex} onSelect={onSelectExercise} onAdd={onAddExercise} onMove={onMoveExercise} />
 
     <div className="modal-body workout-body">
@@ -70,5 +74,6 @@ export function WorkoutEditor({
         }} />
       </div>
     </Modal>}
-  </div>;
+    <div className="workout-modal-host" ref={setModalHost} />
+  </div></ModalHostContext.Provider>;
 }

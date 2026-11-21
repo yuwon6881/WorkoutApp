@@ -229,6 +229,8 @@
    the finger (useExercisePager.ts). The wrapper adds no box, so the pan rule sits on the regions it
    groups; the page itself is clipped by the body so a moving page never widens the sheet. */
 .workout-swipe-surface { display: contents; }
+/* Dialogs opened from an exercise page render here, outside the animated page (ui/ModalHost.ts). */
+.workout-modal-host { display: contents; }
 .workout-swipe-surface > .workout-body { touch-action: pan-y; overflow-x: hidden; }
 .workout-page { min-width: 0; will-change: auto; }
 .workout-page.dragging { will-change: transform; }

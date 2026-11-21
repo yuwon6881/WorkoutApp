@@ -1,5 +1,4 @@
 import { useMemo, useState, type ReactNode } from 'react';
-import { ArrowRight, Check, Play } from 'lucide-react';
 import type { Bootstrap, ProgramSummary } from '../types';
 import { ApiError, api } from '../lib/api';
 import { capProgramName } from '../lib/programName';
@@ -79,7 +78,6 @@ function HeroStatusCard({
         {leadingAction}
         <Button variant={actionVariant} className="hero-action-btn" onClick={onAction}>
           {actionLabel}
-          <ArrowRight size={15} aria-hidden="true" />
         </Button>
       </div>
       {error && <p className="error-text hero-error" role="alert">{error}</p>}
@@ -140,7 +138,6 @@ function RestDayHero({
       error={error}
       leadingAction={pass ? (
         <Button variant="primary" className="hero-action-btn" disabled={busy} onClick={() => void passRestDay()}>
-          <Check size={16} aria-hidden="true" />
           {busy ? 'Passing rest day…' : 'Pass rest day'}
         </Button>
       ) : undefined}
@@ -223,7 +220,6 @@ export function NextWorkoutHero({ data, unconfirmed = false, onStart, onResume, 
 
         <div className="hero-footer">
           <Button variant="primary" className="hero-action-btn" aria-label={`Resume ${activeWorkout.name}`} onClick={onResume}>
-            <Play size={16} fill="currentColor" aria-hidden="true" />
             Resume workout
           </Button>
         </div>
@@ -318,7 +314,6 @@ export function NextWorkoutHero({ data, unconfirmed = false, onStart, onResume, 
 
         <div className="hero-footer">
           <Button variant="primary" className="hero-action-btn" onClick={() => onStart(next.id)}>
-            <Play size={16} fill="currentColor" aria-hidden="true" />
             Start workout
           </Button>
         </div>
