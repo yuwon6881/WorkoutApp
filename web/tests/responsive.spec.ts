@@ -868,6 +868,20 @@ for (const theme of ['dark', 'light'] as const) {
     await navigate(page, 'Muscles');
     // One figure per canonical muscle region, Abductors included.
     await expect(page.locator('.muscle-breakdown-figure')).toHaveCount(15);
+    for (const summary of await page.locator('.muscle-breakdown-untrained > summary').all()) await summary.click();
+    const hamstringsName = page.locator('[data-breakdown-muscle="Hamstrings"] .muscle-breakdown-name').first();
+    await expect(hamstringsName).toBeVisible();
+    const hamstringsStayOnOneLine = await hamstringsName.evaluate(element => {
+      const range = document.createRange();
+      range.selectNodeContents(element);
+      return range.getClientRects().length === 1;
+    });
+    expect(hamstringsStayOnOneLine, 'long muscle labels do not split across lines').toBe(true);
+    const muscleCardWidthsMatch = await page.locator('.muscle-breakdown-item').evaluateAll(items => {
+      const widths = items.map(item => item.getBoundingClientRect().width);
+      return widths.every(width => Math.abs(width - widths[0]) < 1);
+    });
+    expect(muscleCardWidthsMatch, 'muscle cards use the same available width').toBe(true);
     await page.getByRole('button', { name: /^Chest, .*contributing lifts$/ }).click();
     const contributors = page.getByLabel('Chest contributing lifts', { exact: true });
     await expect(contributors.getByRole('button', { name: /Barbell bench press/ })).toBeVisible();
