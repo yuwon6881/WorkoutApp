@@ -4,6 +4,7 @@ import type { Exercise, Template, Unit } from '../types';
 import { lastPerformedLabel } from '../lib/lastPerformed';
 import { estimateWorkoutMinutes } from '../lib/workoutEstimate';
 import { draftRestRange } from '../lib/restRange';
+import { previewLoadsByLine, type StartPreviewExercise } from '../lib/startPreviewLoads';
 import { useLastPerformed } from './useLastPerformed';
 import { api, ApiError } from '../lib/api';
 import { templateToDraft } from '../lib/activeSlot';
@@ -44,6 +45,15 @@ export function WorkoutPreviewModal({ templateId, name, exercises, unit, default
     }
     return labels;
   }, [lastPerformed, exercises, unit]);
+  // The loads Start would pre-fill arrive after the plan; they are advisory, so a failed read leaves
+  // the prescription as it was and a later Start recomputes from the history it finds then.
+  const [loadPreview, setLoadPreview] = useState<StartPreviewExercise[] | null>(null);
+  const setLoads = useMemo(() => {
+    if (!day || !loadPreview) return undefined;
+    const catalog = new Map(exercises.map(exercise => [exercise.id, exercise]));
+    const byLine = new Map(day.exercises.map(exercise => [exercise.lineId, exercise.exerciseId ? catalog.get(exercise.exerciseId) : undefined]));
+    return previewLoadsByLine(loadPreview, byLine, unit);
+  }, [day, loadPreview, exercises, unit]);
   const minutes = day ? estimateWorkoutMinutes(day.exercises, defaultRestSeconds) : null;
   const hasRange = (day?.exercises ?? []).some(exercise => draftRestRange(exercise) !== null);
   const unavailable = (day?.exercises ?? []).map(exercise => checkGym(exercise.exerciseId)).filter(result => !result.available);
@@ -62,6 +72,14 @@ export function WorkoutPreviewModal({ templateId, name, exercises, unit, default
     });
     return () => controller.abort();
   }, [templateId, retry]);
+  useEffect(() => {
+    const controller = new AbortController();
+    setLoadPreview(null);
+    api.startPreview(templateId, controller.signal).then(value => {
+      if (!controller.signal.aborted) setLoadPreview(value);
+    }).catch(() => undefined);
+    return () => controller.abort();
+  }, [templateId]);
 
   return <Modal title={template?.name ?? name} wide className="day-detail-modal" onClose={onClose}>
     <div className="modal-body day-detail-modal-body">
@@ -74,7 +92,7 @@ export function WorkoutPreviewModal({ templateId, name, exercises, unit, default
           {unavailable.length === 1 ? '1 exercise needs' : `${unavailable.length} exercises need`} something {unavailable[0].gymName} does
           not have. You can swap {unavailable.length === 1 ? 'it' : 'them'} once the workout starts.
         </p>}
-        <ReadOnlyDay day={day} exercises={exercises} lastLabels={lastLabels}
+        <ReadOnlyDay day={day} exercises={exercises} lastLabels={lastLabels} setLoads={setLoads}
           selectedMuscle={selectedMuscle} onMuscleSelect={setSelectedMuscle} />
       </> : error ? <CardFeedback title="Could not load workout preview" message={error}
         action={{ label: 'Retry', onClick: () => setRetry(value => value + 1) }} />

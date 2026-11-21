@@ -2,6 +2,7 @@ import {fetchWithAvailabilityRecovery} from './availabilityRecovery';
 import { integrationGeneration, signalIntegrationPending } from './integrationDispatch';
 import type { ExerciseLoadSettings, LoadRule, LoadSettingsOverview } from './exerciseLoads';
 import { sharedReads } from './readCoordinator';
+import type { StartPreviewExercise } from './startPreviewLoads';
 import { readFieldErrors, type ExternalImportFieldError, type ExternalImportPrompt } from './externalImport';
 import type { Exercise, GymExerciseOverride, GymsView, HistorySummaryPage, ShellBootstrap, TrackingMode, Unit } from '../types';
 import type { Bootstrap, CustomExerciseCreated, DraftWorkout, ExerciseClearPreview, ExerciseInsight, HistoryPage, ImportDraft, ImportView, MuscleBalanceRange, MuscleBalanceView, Preferences, ProgressSummary, Program, ProgramDayActionInput, ProgramEditInput, ProgramEditorDocument, ProgramSummary, ProgramWeekResetInput, RestMutationInput, Session, Template, TemplateSubstitutionResult, WatchDevice, WorkoutActivityItem } from '../types';
@@ -150,6 +151,7 @@ export const api = {
   createProgramFromEditor: (draft: ProgramEditorDocument, idempotencyId: string) => call<Program>('/api/programs/from-editor', 'POST', { draft, idempotencyId }),
   templates: () => call<Template[]>('/api/templates'),
   getTemplate: (id: string, signal?: AbortSignal) => call<Template>(`/api/templates/${id}`, 'GET', undefined, signal),
+  startPreview: (id: string, signal?: AbortSignal) => call<StartPreviewExercise[]>(`/api/templates/${id}/start-preview`, 'GET', undefined, signal),
   createTemplate: (input: unknown) => call<Template>('/api/templates', 'POST', input),
   updateTemplate: (id: string, input: unknown) => call<Template>(`/api/templates/${id}`, 'PUT', input),
   restoreTemplate: (id: string, revision?: number) => call<Template>(`/api/templates/${id}/restore`, 'POST', { revision }),

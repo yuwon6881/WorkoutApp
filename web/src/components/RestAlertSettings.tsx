@@ -59,9 +59,10 @@ export function RestAlertSettings({ accountId, preferences, devicePreferences, o
     return () => { current = false; };
   }, [accountId, deviceId, nativeAlerts]);
 
-  const closedAppAlertInfo = pushStatus?.message ?? (isFirebasePushConfigured()
-    ? 'Checking push availability…'
-    : 'Push delivery is not configured for this build.');
+  // A deployment without push delivery (no Firebase or Cloud Tasks set up on the server or in this
+  // build) cannot offer closed-app alerts at all, so the row is left out rather than shown as a
+  // disabled control with an operator's note. It appears once the server confirms it can deliver.
+  const closedAppAlertsAvailable = Boolean(pushStatus?.configured) && isFirebasePushConfigured();
 
   async function disableOnThisDevice() {
     if (!deviceId || !pushStatus) return;
@@ -245,14 +246,14 @@ export function RestAlertSettings({ accountId, preferences, devicePreferences, o
         />
       </SettingRow>
 
-      <SettingRow
+      {closedAppAlertsAvailable && <SettingRow
         label={<strong>Closed-app rest alerts</strong>}
         description={<>
           <span className={`setting-status ${pushSetUp ? 'is-on' : ''}`}>
             <span className="status-dot" aria-hidden="true" />
             {pushSetUp ? 'Set up on this device' : 'Not set up on this device'}
           </span>
-          <span>{closedAppAlertInfo}</span>
+          <span>{pushStatus?.message}</span>
         </>}
         info={{
           content: 'Closed-app alerts may be delayed or blocked by Focus, battery settings, or the browser.',
@@ -266,13 +267,13 @@ export function RestAlertSettings({ accountId, preferences, devicePreferences, o
         ) : (
           <Button
             variant="secondary"
-            disabled={pushBusy || !deviceId || !pushStatus?.configured || !isFirebasePushConfigured()}
+            disabled={pushBusy || !deviceId}
             onClick={() => void enableOnThisDevice()}
           >
             <BellRing size={15} aria-hidden="true" /> {pushBusy ? 'Setting up…' : 'Enable on this device'}
           </Button>
         )}
-      </SettingRow>
+      </SettingRow>}
 
       <SettingRow
         label={<strong>Rest sound</strong>}

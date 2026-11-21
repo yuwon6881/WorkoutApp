@@ -92,6 +92,22 @@ export function useProgramStructureEditor({ draft, onDraftChange, onDayChange, l
   const weekHasHistory = useCallback((entry: Week) => weekSealed(entry)
     || (locked && entry.days.some(day => locks.lockedDayIds.has(day.lineId))), [locked, locks.lockedDayIds, weekSealed]);
   const blockHasHistory = useCallback((block: { weeks: Week[] }) => block.weeks.some(weekHasHistory), [weekHasHistory]);
+  const weekLockReason = useCallback((entry: Week) => weekSealed(entry) ? 'read-only'
+    : weekHasHistory(entry) ? 'has passed days'
+    : entry.days.some(day => locks.pinnedDayIds.has(day.lineId)) ? 'has a workout in progress' : undefined,
+  [locks.pinnedDayIds, weekHasHistory, weekSealed]);
+  const weekPositionFixed = useCallback((entry: Week) => !!weekLockReason(entry), [weekLockReason]);
+  const blockPositionFixed = useCallback((block: { weeks: Week[] }) => block.weeks.some(weekPositionFixed), [weekPositionFixed]);
+  const canDeleteWeek = useCallback((index: number) => index >= 0 && weeks.length > 1
+    && !weeks.slice(index).some(weekPositionFixed), [weekPositionFixed, weeks]);
+  const canDeleteBlock = useCallback((index: number) => index >= 0 && blocks.length > 1
+    && !blocks.slice(index).some(blockPositionFixed), [blockPositionFixed, blocks]);
+  const canMoveBlock = useCallback((from: number, to: number) => from >= 0 && to >= 0
+    && from < blocks.length && to < blocks.length && from !== to
+    && !blocks.slice(Math.min(from, to), Math.max(from, to) + 1).some(blockPositionFixed), [blockPositionFixed, blocks]);
+  const canMoveWeek = useCallback((from: number, to: number) => from >= 0 && to >= 0
+    && weeks[from]?.blockId === weeks[to]?.blockId
+    && !weeks.slice(Math.min(from, to), Math.max(from, to) + 1).some(weekPositionFixed), [weekPositionFixed, weeks]);
   const isDayLocked = useCallback((lineId: string) => locks.lockedDayIds.has(lineId), [locks.lockedDayIds]);
   const canAddDay = !!week && !weekSealed(week) && totalDayCount < 400 && week.days.length < MAX_DAYS_PER_WEEK;
   // New weeks land after the selected block's last week (or after the selected week when it is
@@ -107,8 +123,7 @@ export function useProgramStructureEditor({ draft, onDraftChange, onDayChange, l
     }
     const fromIndex = weeks.findIndex(entry => entry.week === from);
     const toIndex = weeks.findIndex(entry => entry.week === to);
-    if (fromIndex < 0 || toIndex < 0 || weeks[fromIndex].blockId !== weeks[toIndex].blockId
-      || weekHasHistory(weeks[fromIndex]) || weekHasHistory(weeks[toIndex])) {
+    if (!canMoveWeek(fromIndex, toIndex)) {
       setDraggedWeek(null);
       setDropTarget(null);
       return;
@@ -124,18 +139,17 @@ export function useProgramStructureEditor({ draft, onDraftChange, onDayChange, l
     setDraggedWeek(null);
     setDropTarget(null);
     void onDraftChange(renumberDraft(normalizedDraft, ordered));
-  }, [normalizedDraft, onDraftChange, weekHasHistory, weeks]);
+  }, [canMoveWeek, normalizedDraft, onDraftChange, weeks]);
 
   const reorderBlocks = useCallback((from: number, to: number) => {
-    if (from < 0 || to < 0 || from >= blocks.length || to >= blocks.length || from === to) return;
-    if (blockHasHistory(blocks[from]) || blockHasHistory(blocks[to])) return;
+    if (!canMoveBlock(from, to)) return;
     const reordered = [...blocks];
     const [moved] = reordered.splice(from, 1);
     reordered.splice(to, 0, moved);
     const orderedWeeks = reordered.flatMap(block => block.weeks);
     setSelectedWeek(orderedWeeks.findIndex(entry => entry.weekId === week?.weekId) + 1);
     void onDraftChange(renumberDraft(normalizedDraft, orderedWeeks));
-  }, [blockHasHistory, blocks, normalizedDraft, onDraftChange, week?.weekId]);
+  }, [blocks, canMoveBlock, normalizedDraft, onDraftChange, week?.weekId]);
 
   const addBlock = useCallback(() => {
     if (weeks.length >= 104 || totalDayCount >= 400) return;
@@ -165,13 +179,13 @@ export function useProgramStructureEditor({ draft, onDraftChange, onDayChange, l
   }, [blockHasHistory, blocks, normalizedDraft, onDraftChange, renameBlock, renameValue]);
 
   const deleteBlock = useCallback((blockId: string) => {
-    if (blocks.length <= 1 || blocks.some(block => block.id === blockId && blockHasHistory(block))) return;
+    if (!canDeleteBlock(blocks.findIndex(block => block.id === blockId))) return;
     const index = weeks.findIndex(entry => entry.blockId === blockId);
     const remaining = weeks.filter(entry => entry.blockId !== blockId);
     setDeleteConfirmBlock(null);
     setSelectedWeek(Math.max(1, index));
     void onDraftChange(renumberDraft(normalizedDraft, remaining));
-  }, [blockHasHistory, blocks, normalizedDraft, onDraftChange, weeks]);
+  }, [blocks, canDeleteBlock, normalizedDraft, onDraftChange, weeks]);
 
   const addWeek = useCallback((mode: AddWeekMode) => {
     setWeekModalOpen(false);
@@ -207,16 +221,15 @@ export function useProgramStructureEditor({ draft, onDraftChange, onDayChange, l
   }, [canAddWeekAfter, normalizedDraft, onDraftChange, totalDayCount, week, weeks]);
 
   const deleteWeek = useCallback((weekToDelete: number) => {
-    if (weeks.length <= 1) return;
     const targetIndex = weeks.findIndex(entry => entry.week === weekToDelete);
-    if (targetIndex < 0 || weekHasHistory(weeks[targetIndex])) return;
+    if (!canDeleteWeek(targetIndex)) return;
     const remainingWeeks = weeks.filter(entry => entry.week !== weekToDelete);
     const nextSelectedWeek = Math.min(targetIndex + 1, remainingWeeks.length);
     pendingFocusWeek.current = nextSelectedWeek;
     setDeleteConfirmWeek(null);
     setSelectedWeek(nextSelectedWeek);
     void onDraftChange(renumberDraft(normalizedDraft, remainingWeeks));
-  }, [normalizedDraft, onDraftChange, weekHasHistory, weeks]);
+  }, [canDeleteWeek, normalizedDraft, onDraftChange, weeks]);
 
   const addDay = useCallback((restDay: boolean) => {
     if (!week || weekSealed(week) || week.days.length >= MAX_DAYS_PER_WEEK || totalDayCount >= 400) return;
@@ -310,7 +323,8 @@ export function useProgramStructureEditor({ draft, onDraftChange, onDayChange, l
   }, [normalizedDraft, onDraftChange, weeks]);
 
   return {
-    locks, weekSealed, weekHasHistory, blockHasHistory, isDayLocked, canAddWeekAfter,
+    locks, weekSealed, weekLockReason, blockHasHistory, isDayLocked, canAddWeekAfter,
+    canDeleteWeek, canDeleteBlock, canMoveBlock, canMoveWeek,
     normalizedDraft, weeks, blocks, week, selectedWeek, setSelectedWeek, selectedBlock, selectedBlockIndex,
     selectedBlockWeeks, totalDayCount, canAddDay, weekModalOpen, setWeekModalOpen, deleteConfirmWeek,
     setDeleteConfirmWeek, deleteConfirmBlock, setDeleteConfirmBlock, deleteConfirmDay, setDeleteConfirmDay,

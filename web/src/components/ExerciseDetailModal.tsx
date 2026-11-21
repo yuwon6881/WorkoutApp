@@ -216,7 +216,8 @@ export function ProgressPanel({ insight, unit, basis, range, onRange }: {
       {insight.assistanceReductionPrKg != null && <span>Lowest assistance <strong>{load(insight.assistanceReductionPrKg)}</strong></span>}
       {insight.systemLoadPrKg != null && <span>System load PR <strong>{load(insight.systemLoadPrKg)}</strong></span>}
     </div>}
-    {insight.repMaxes && <ExerciseRepMaxes repMaxes={insight.repMaxes} formatDate={rowDateLabel} formatLoad={load} />}
+    {insight.repMaxes && <ExerciseRepMaxes estimated1RmKg={insight.estimated1RmKg}
+      formatEstimate={kg => showEstimate(kg, unit, basis)} />}
   </>;
 }
 

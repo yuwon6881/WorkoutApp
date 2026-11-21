@@ -225,7 +225,7 @@ export function applyExerciseEdit(
   const reached = new Map(change ? findOccurrences(draft, base, scope, frozenDayIds).map(item => [item.exercise.lineId, item.exercise]) : []);
   return {
     ...draft,
-    workouts: draft.workouts.map(workout => ({
+    workouts: draft.workouts.map(workout => frozenDayIds?.has(workout.lineId) ? workout : ({
       ...workout,
       exercises: workout.exercises.map(exercise => {
         if (exercise.lineId === edited.lineId) return edited;

@@ -39,6 +39,7 @@ export function DayRow({
   const isGenericDay = isGenericDayTitle(rawTitle);
   const isGenericRest = day.isRestDay && (isGenericDay || rawTitle.toLowerCase() === 'rest day');
   const dayNumber = index + 1;
+  const accessibleName = day.name?.trim() || `Day ${dayNumber}`;
 
   const displayTitle = day.isRestDay
     ? (isGenericRest ? `Day ${dayNumber}` : (rawTitle || day.name?.trim() || 'Rest day'))
@@ -72,7 +73,7 @@ export function DayRow({
           <Button
             presentation="plain"
             className="draft-day-summary pdl-day-summary"
-            aria-label={day.name?.trim() || `Day ${dayNumber}`}
+            aria-label={lockLabel ? `${accessibleName}, ${lockLabel}, read-only` : accessibleName}
             onClick={onOpen}
           >
             <span className="pdl-day-badge" aria-hidden="true">

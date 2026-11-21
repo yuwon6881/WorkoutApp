@@ -68,6 +68,19 @@ describe('pendingEdits', () => {
 });
 
 describe('applyExerciseEdits', () => {
+  it('leaves passed occurrences untouched while applying the edit to other pending days', () => {
+    const value = draft();
+    value.workouts.push(day('d3', 'A', [exercise('d3-squat', 'Squat')]));
+    const base = find(value, 'd1-squat');
+    const lockedDayIds = new Set(['d2']);
+    expect(countOccurrences(value, base, lockedDayIds)).toEqual({ block: 1, program: 1 });
+
+    const next = applyExerciseEdits(value, [{ base, edited: { ...base, notes: 'Belt' }, scope: 'program' }], [], lockedDayIds);
+    expect(find(next, 'd1-squat').notes).toBe('Belt');
+    expect(next.workouts[1]).toBe(value.workouts[1]);
+    expect(find(next, 'd3-squat').notes).toBe('Belt');
+  });
+
   it('lands every edit in one pass, each with its own scope, without one undoing another', () => {
     const value = draft();
     const pending = edits(value, [['d1-squat', { restSeconds: 180 }], ['d1-bench', { notes: 'Pause' }], ['d1-dead', { restSeconds: 240 }]]);

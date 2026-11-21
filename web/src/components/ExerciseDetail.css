@@ -221,8 +221,9 @@
 .exercise-history-entry .row-title {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 5px;
   min-width: 0;
+  line-height: 1.35;
   overflow-wrap: anywhere;
 }
 .exercise-history-entry .row-title strong {
@@ -231,22 +232,33 @@
   color: var(--text);
 }
 .exercise-history-entry .row-title small {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  max-width: 100%;
   display: block;
+  max-width: 100%;
 }
+/* The program name may take two lines before it is cut, so a long one never crowds the date. */
+.exercise-history-entry .exercise-history-program {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
+
+/* Estimated rep maxes share the history rows shape: label left, figure right, no expand control. */
+.rep-max-section { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.rep-max-section .section-heading, .rep-max-section .detail-note { margin: 0; }
+.rep-max-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 16px;
+}
+.rep-max-entry .row-title { gap: 3px; }
+.rep-max-load { font-variant-numeric: tabular-nums; font-size: var(--font-body); }
 .exercise-history-sets {
   padding: 12px 16px;
   border-top: 1px solid var(--border);
   background: var(--surface);
-}
-
-@media (max-width: 639px) {
-  .exercise-history-list { gap: 6px; }
-  .exercise-history-entry .history-row { padding: 7px 12px !important; }
-  .exercise-history-entry .row-title { gap: 1px; line-height: 1.2; }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -287,6 +299,7 @@
 }
 
 .exercise-history-clearing > .button {
+  margin-left: auto;
   min-height: 44px;
   border: 1px solid var(--red-border);
 }

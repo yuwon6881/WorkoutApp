@@ -14,8 +14,8 @@ export interface SortableWeekChipProps {
   onDragOver: (week: number, side: 'before' | 'after') => void;
   onDrop: (week?: number, side?: 'before' | 'after') => void;
   onDelete?: () => void;
-  /// A week holding passed days: it can be opened but not dragged or deleted.
-  locked?: boolean;
+  /// A protected week can be opened but not dragged or deleted.
+  lockReason?: string;
 }
 
 export function SortableWeekChip({
@@ -29,8 +29,9 @@ export function SortableWeekChip({
   onDragOver,
   onDrop,
   onDelete,
-  locked = false
+  lockReason
 }: SortableWeekChipProps) {
+  const locked = !!lockReason;
   const pointer = useRef<{ id: number; startX: number; startY: number; armed: boolean; moved: boolean; timer?: number; scroller: HTMLElement | null; scrollStart: number; scrolling: boolean } | null>(null);
   const chipRef = useRef<HTMLButtonElement>(null);
   const groupRef = useRef<HTMLSpanElement>(null);
@@ -172,7 +173,7 @@ export function SortableWeekChip({
         onPointerCancel={clearPointer}
       >
         {locked && <Lock size={12} aria-hidden="true" />}
-        Week {week}{locked && <span className="sr-only"> (has passed days)</span>}
+        Week {week}{lockReason && <span className="sr-only"> ({lockReason})</span>}
       </Button>
       {onDelete && (
         <Button

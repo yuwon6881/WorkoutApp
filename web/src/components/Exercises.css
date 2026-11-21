@@ -254,7 +254,10 @@
 /* Library cards lead with a body-map crop of the muscle the movement trains, so the grid can be
    scanned by shape before it is read. Equipment drops to a quiet line under the title; the muscle
    pills follow. */
-.exercise-grid { grid-auto-rows: 1fr; }
+/* Rows size to their own content: equal-height rows left short cards with a block of empty space
+   under their pills whenever one card in the list ran taller. */
+.exercise-grid { grid-auto-rows: auto; }
+.exercise-grid > .exercise-card.exercise-card-action { min-height: 0; }
 .exercise-grid > .exercise-card {
   display: grid;
   grid-template-columns: 56px minmax(0, 1fr);

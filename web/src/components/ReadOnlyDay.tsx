@@ -16,10 +16,12 @@ import './ReadOnlyDay.css';
 
 /// A library day shown as the program prints it. Nothing here is editable: a program only
 /// becomes editable once it is moved into the active slot.
-export function ReadOnlyDay({ day, exercises, selectedMuscle, onMuscleSelect, lastLabels }: {
+export function ReadOnlyDay({ day, exercises, selectedMuscle, onMuscleSelect, lastLabels, setLoads }: {
   day: DraftWorkout;
   /** "Last: …" lines by library exercise id, for a preview of what is about to be lifted. */
   lastLabels?: ReadonlyMap<string, string>;
+  /** Pre-filled load labels by line id then set position, when the server has worked them out. */
+  setLoads?: ReadonlyMap<string, readonly (string | null | undefined)[]>;
   exercises: Exercise[];
   selectedMuscle: string | null;
   onMuscleSelect: (muscle: string | null) => void;
@@ -66,6 +68,7 @@ export function ReadOnlyDay({ day, exercises, selectedMuscle, onMuscleSelect, la
             trackRir={trackRir}
             dimmed={dimSet ? dimSet.has(exercise.lineId) : false}
             last={exercise.exerciseId ? lastLabels?.get(exercise.exerciseId) : undefined}
+            loads={setLoads?.get(exercise.lineId)}
           />
         ))}
       </li>)}
@@ -73,8 +76,8 @@ export function ReadOnlyDay({ day, exercises, selectedMuscle, onMuscleSelect, la
   </>;
 }
 
-function ReadOnlyExercise({ exercise, name, trackRir, dimmed, last }: { exercise: DraftExercise; name: string; trackRir: boolean; dimmed: boolean; last?: string }) {
-  const lines = summarizeSets(exercise.sets, trackRir);
+function ReadOnlyExercise({ exercise, name, trackRir, dimmed, last, loads }: { exercise: DraftExercise; name: string; trackRir: boolean; dimmed: boolean; last?: string; loads?: readonly (string | null | undefined)[] }) {
+  const lines = summarizeSets(exercise.sets, trackRir, loads);
   const rest = exercise.restSeconds ?? exercise.sets.find(set => !set.warmup)?.restSeconds ?? null;
   // A printed range reads as the range; the workout starts at its average and the menu offers Minimal or Maximal.
   const range = draftRestRange(exercise);
@@ -89,6 +92,7 @@ function ReadOnlyExercise({ exercise, name, trackRir, dimmed, last }: { exercise
       {lines.map((line, index) => <li key={index}>
         <span className="readonly-set-count">{line.count} ×</span>
         <span className="readonly-set-target">{line.target}</span>
+        {line.load && <span className="readonly-set-load"><span className="sr-only">at </span>{line.load}</span>}
         {line.warmup && <span className="tiny-label readonly-warmup-label">Warm-up</span>}
       </li>)}
     </ul>}

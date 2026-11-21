@@ -156,10 +156,11 @@ export function WorkoutHistory({
             </Button>
           )}
         </div>
-      ) : (
+      ) : (!embedded || page.total > sessions.length) && (
         <div className="section-heading">
           {!embedded && <h2>Workout history</h2>}
-          <span className="muted">{sessions.length} of {page.total}</span>
+          {/* Only a partly loaded list needs a count; once everything is here it says nothing. */}
+          {page.total > sessions.length && <span className="muted">Showing {sessions.length} of {page.total}</span>}
         </div>
       )}
 

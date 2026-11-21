@@ -186,8 +186,9 @@ for (const theme of ['dark', 'light']) {
     const grid = page.getByRole('region', { name: 'Free Weights exercises' });
     const cards = grid.getByRole('button', { name: /^View Extra exercise/ });
     await expect(cards).toHaveCount(12);
-    const sizes = await cards.evaluateAll(elements => elements.map(card => [card.clientWidth, card.clientHeight]));
-    expect(sizes.every(([width, height]) => width === sizes[0][0] && height === sizes[0][1])).toBe(true);
+    // Cards size to their content, so a one-pill card carries no empty space under it; only the width is shared.
+    const widths = await cards.evaluateAll(elements => elements.map(card => card.clientWidth));
+    expect(widths.every(width => width === widths[0])).toBe(true);
     await cards.nth(8).scrollIntoViewIfNeeded();
     const topbar = await page.locator('header.topbar').boundingBox();
     const field = await search.boundingBox();
@@ -255,13 +256,16 @@ for (const theme of ['dark', 'light']) {
       await expect(chart).toHaveAttribute('aria-valuetext', 'Oct 24, 2026: No 1RM estimate');
       expect((await chart.boundingBox())!.y).toBeCloseTo(plotY, 0);
       await next.click();
-      for (const name of ['Exercise progress table', 'Best sets by reps']) {
-        const rows = await detail.getByRole('table', { name }).locator('.chart-table-row:not(.chart-table-head)')
-          .evaluateAll(elements => elements.map(row => [row.getBoundingClientRect().width, row.getBoundingClientRect().height]));
-        expect(rows.length).toBeGreaterThan(1);
-        expect(rows.every(([width, height]) => width === rows[0][0] && height === rows[0][1])).toBe(true);
-        expect(rows[0][1]).toBeLessThan(45);
-      }
+      const tableRows = await detail.getByRole('table', { name: 'Exercise progress table' }).locator('.chart-table-row:not(.chart-table-head)')
+        .evaluateAll(elements => elements.map(row => [row.getBoundingClientRect().width, row.getBoundingClientRect().height]));
+      expect(tableRows.length).toBeGreaterThan(1);
+      expect(tableRows.every(([width, height]) => width === tableRows[0][0] && height === tableRows[0][1])).toBe(true);
+      expect(tableRows[0][1]).toBeLessThan(45);
+      // The estimated rep maxes: one row for each of 1, 3, 5, 8 and 10 reps, all the same size.
+      const repMaxRows = await detail.getByRole('region', { name: 'Estimated rep maxes' }).locator('.rep-max-entry')
+        .evaluateAll(elements => elements.map(row => [row.getBoundingClientRect().width, row.getBoundingClientRect().height]));
+      expect(repMaxRows).toHaveLength(5);
+      expect(repMaxRows.every(([width, height]) => width === repMaxRows[0][0] && height === repMaxRows[0][1])).toBe(true);
       const cardWidths = await detail.locator('.detail-record-grid .stat-card').evaluateAll(cards => cards.map(card => card.getBoundingClientRect().width));
       expect(Math.max(...cardWidths.slice(0, 6)) - Math.min(...cardWidths.slice(0, 6)), 'the first six record tiles share two equal columns').toBeLessThan(2);
       expect(cardWidths[6], 'the last tile fills the final row').toBeGreaterThan(cardWidths[0] * 1.9);

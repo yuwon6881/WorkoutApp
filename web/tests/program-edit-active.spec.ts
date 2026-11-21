@@ -99,7 +99,8 @@ test('an activated program can be edited while its passed days stay locked, and 
     await card.getByRole('button', { name: `Actions for ${programName}`, exact: true }).click();
     await page.getByRole('menuitem', { name: 'Edit program', exact: true }).click();
     await expect(page.getByRole('heading', { name: 'Edit program', exact: true })).toBeVisible();
-    await expect(page.getByText('Weeks and days you have already passed are locked')).toBeVisible();
+    await expect(page.getByText(/days already passed are read-only/)).toBeVisible();
+    await expect(page.getByRole('tab', { name: 'Block 1 (has passed days)' })).toBeVisible();
     const editedName = `${programName} edited`;
     await expect(page.getByRole('button', { name: 'Save changes', exact: true })).toBeDisabled();
     await expect(page.getByRole('button', { name: 'Reorder Lower A', exact: false })).toBeVisible();
@@ -109,7 +110,7 @@ test('an activated program can be edited while its passed days stay locked, and 
     await page.screenshot({ path: join(screenshotsDirectory, `${info.project.name}-program-edit-locked.png`), fullPage: true });
 
     // The passed day opens for reading only.
-    await page.getByRole('button', { name: 'Upper A', exact: true }).click();
+    await page.getByRole('button', { name: 'Upper A, Done, read-only', exact: true }).click();
     await expect(page.locator('.day-detail-modal .readonly-exercise')).toHaveCount(1);
     await expect(page.locator('.day-detail-modal').getByRole('textbox')).toHaveCount(0);
     await page.locator('.day-detail-modal').getByRole('button', { name: 'Close dialog', exact: true }).click();
@@ -159,7 +160,7 @@ test('an activated program can be edited while its passed days stay locked, and 
     await libraryCard.getByRole('button', { name: `Actions for ${editedName}`, exact: true }).click();
     await page.getByRole('menuitem', { name: 'Edit program', exact: true }).click();
     await expect(page.getByRole('heading', { name: 'Edit program', exact: true })).toBeVisible();
-    await expect(page.getByText('Weeks and days you have already passed are locked')).toHaveCount(0);
+    await expect(page.getByText(/days already passed are read-only/)).toHaveCount(0);
     await expect(page.getByRole('button', { name: 'Reorder Upper A', exact: false }).first()).toBeVisible();
     await page.getByRole('button', { name: 'Back to workouts' }).click();
     await expect(page.getByRole('heading', { name: 'Workouts', exact: true })).toBeVisible();

@@ -83,6 +83,13 @@
   color: var(--text);
 }
 
+/* The load Start will pre-fill; muted so it reads as a suggestion beside the printed target. */
+.readonly-set-load {
+  margin-left: auto;
+  font-weight: 650;
+  color: var(--accent);
+}
+
 .readonly-warmup-label {
   margin-left: 2px;
 }

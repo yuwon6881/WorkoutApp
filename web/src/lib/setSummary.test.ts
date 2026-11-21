@@ -12,13 +12,13 @@ describe('summarizeSets', () => {
   it('groups consecutive identical sets and keeps warm-ups apart', () => {
     const lines = summarizeSets([set({ warmup: true, rir: null, repMin: 5, repMax: 5 }), set(), set(), set({ rir: '0' })], true);
     expect(lines).toEqual([
-      { count: 1, warmup: true, target: '5' },
-      { count: 2, warmup: false, target: '8–10 · 2 RIR' },
-      { count: 1, warmup: false, target: '8–10 · 0 RIR' }
+      { count: 1, warmup: true, target: '5', load: null },
+      { count: 2, warmup: false, target: '8–10 · 2 RIR', load: null },
+      { count: 1, warmup: false, target: '8–10 · 0 RIR', load: null }
     ]);
   });
 
   it('drops reps in reserve when RIR tracking is off', () => {
-    expect(summarizeSets([set(), set({ rir: '0' })], false)).toEqual([{ count: 2, warmup: false, target: '8–10' }]);
+    expect(summarizeSets([set(), set({ rir: '0' })], false)).toEqual([{ count: 2, warmup: false, target: '8–10', load: null }]);
   });
 });

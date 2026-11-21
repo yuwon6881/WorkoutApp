@@ -146,6 +146,7 @@ public static class TrainingEndpoints
     {
         app.MapGet("/api/templates", async (TemplateService templates, CancellationToken ct) => await templates.List(null, standaloneOnly: true, ct));
         app.MapGet("/api/templates/{id:guid}", async (Guid id, TemplateService templates, CancellationToken ct) => await templates.Get(id, ct));
+        app.MapGet("/api/templates/{id:guid}/start-preview", async (Guid id, WorkoutService workouts, CancellationToken ct) => await workouts.StartPreview(id, ct));
         app.MapPost("/api/templates", async (TemplateInput input, TemplateService templates, CancellationToken ct) => await templates.Create(input, null, 1, 0, ct));
         app.MapPut("/api/templates/{id:guid}", async (Guid id, TemplateInput input, TemplateService templates, CancellationToken ct) => await templates.Update(id, input, ct));
         app.MapPost("/api/templates/{id:guid}/substitution/preview", async (Guid id, TemplateSubstitutionInput input, TemplateService templates, CancellationToken ct)

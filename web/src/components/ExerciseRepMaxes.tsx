@@ -1,39 +1,37 @@
-import type { RepMaxRecord } from '../types';
-import { useTrackRir } from '../lib/trackRir';
+/// The rep counts worth showing a load for: the standard benchmarks 1, 3 and 5, plus 8 and 10 for the
+/// hypertrophy range where most of this app's work lives. Past 12 the Epley estimate stops holding.
+export const REP_MAX_TARGETS = [1, 3, 5, 8, 10] as const;
 
-/// The heaviest load lifted for a rep count (1, 3, 5, 8, 10; the server leaves out any that a larger
-/// count already covers), each with the set behind it so a "5 reps" record done for six reps one rep
-/// from failure reads as exactly that. Shown with the same table the progress rows use.
-export function ExerciseRepMaxes({ repMaxes, formatDate, formatLoad }: {
-  repMaxes: RepMaxRecord[];
-  formatDate: (value: string) => string;
-  formatLoad: (value: number | null | undefined) => string;
+/// The load that is the heaviest for `reps`, from a one-rep max, by the same Epley relationship the
+/// estimate itself uses (1RM = load × (1 + reps / 30)). A single is the max itself.
+export const repMaxLoadKg = (oneRepMaxKg: number, reps: number): number =>
+  reps <= 1 ? oneRepMaxKg : oneRepMaxKg / (1 + reps / 30);
+
+/// What each rep count weighs, worked out from the estimated 1RM rather than picked from past sets, so
+/// every row is filled and moves with the estimate. Laid out like the History tab's rows: the rep
+/// count and how heavy it is relative to the max on the left, the load on the right.
+export function ExerciseRepMaxes({ estimated1RmKg, formatEstimate }: {
+  estimated1RmKg: number | null | undefined;
+  formatEstimate: (kg: number) => string;
 }) {
-  const trackRir = useTrackRir();
-  const showRir = trackRir && repMaxes.some(record => record.rir != null);
-  const template = { gridTemplateColumns: `minmax(0, 1fr) minmax(0, 1.3fr) minmax(min-content, 0.7fr) ${showRir ? 'minmax(min-content, 0.6fr) ' : ''}minmax(0, 1.15fr)` };
-  if (repMaxes.length === 0) return null;
+  if (estimated1RmKg == null || estimated1RmKg <= 0) return null;
 
-  return <section aria-label="Best sets by reps">
-    <div className="section-heading"><h3>Best sets by reps</h3></div>
-    <p className="muted detail-note">
-      Heaviest load lifted for at least that many reps{trackRir ? ', counting sets within 2 reps of failure' : ''}.
-    </p>
-    <div className="chart-table" role="table" aria-label="Best sets by reps" style={template}>
-      <div className="chart-table-row chart-table-head" role="row">
-        <span role="columnheader">Reps</span>
-        <span role="columnheader">Load</span>
-        <span role="columnheader">Done</span>
-        {showRir && <span role="columnheader">RIR</span>}
-        <span role="columnheader">Date</span>
-      </div>
-      {repMaxes.map(record => <div className="chart-table-row" role="row" key={record.reps}>
-        <span role="cell" data-label="Reps">{record.reps === 1 ? '1 rep' : `${record.reps} reps`}</span>
-        <span role="cell" data-label="Load">{formatLoad(record.loadKg)}</span>
-        <span role="cell" data-label="Done">{record.actualReps}</span>
-        {showRir && <span role="cell" data-label="RIR">{record.rir ?? '—'}</span>}
-        <span role="cell" data-label="Date">{formatDate(record.date)}</span>
-      </div>)}
-    </div>
+  return <section aria-label="Estimated rep maxes" className="rep-max-section">
+    <div className="section-heading"><h3>Estimated rep maxes</h3></div>
+    <p className="muted detail-note">Worked out from your estimated 1RM of {formatEstimate(estimated1RmKg)}.</p>
+    <ul className="exercise-history-list">
+      {REP_MAX_TARGETS.map(reps => {
+        const load = repMaxLoadKg(estimated1RmKg, reps);
+        return <li className="exercise-history-entry rep-max-entry" key={reps}>
+          <div className="rep-max-row">
+            <span className="row-title">
+              <strong>{reps === 1 ? '1 rep' : `${reps} reps`}</strong>
+              <small>{Math.round((load / estimated1RmKg) * 100)}% of 1RM</small>
+            </span>
+            <strong className="rep-max-load">{formatEstimate(load)}</strong>
+          </div>
+        </li>;
+      })}
+    </ul>
   </section>;
 }

@@ -306,9 +306,10 @@ public sealed partial class TemplateService(AppDb db, CatalogService catalog)
         await using var gate = await MutationLock.Acquire(db, db.CurrentUser, ct);
         var template = await db.Templates.SingleOrDefaultAsync(t => t.Id == id, ct);
         Validation.Require(template != null, "That workout no longer exists.", 404);
+        Validation.Require(template!.ProgramId is null, "Use the program editor to remove a program day.", 409);
         Validation.Require(!await db.Workouts.AnyAsync(w => w.TemplateId == id && w.Active, ct), "Finish or discard the active workout before deleting its plan.", 409);
         db.TemplateExercises.RemoveRange(await db.TemplateExercises.Where(e => e.TemplateId == id).ToListAsync(ct));
-        db.Templates.Remove(template!);
+        db.Templates.Remove(template);
         await db.SaveChangesAsync(ct);
         await gate.Commit(ct);
     }

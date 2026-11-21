@@ -59,6 +59,8 @@ export const reviewDefaultScope = (pending: PendingEdit[]): EditScope =>
   pending.some(item => item.counts.block > 0) ? 'block' : 'occurrence';
 
 /// Applies every edit to one draft, so a single write carries them all and none rewrites another.
-export function applyExerciseEdits(draft: ImportDraft, edits: ExerciseEdit[], library: Exercise[]): ImportDraft {
-  return edits.reduce((current, edit) => applyExerciseEdit(current, edit.base, edit.edited, edit.scope, library), draft);
+export function applyExerciseEdits(
+  draft: ImportDraft, edits: ExerciseEdit[], library: Exercise[], frozenDayIds?: ReadonlySet<string>
+): ImportDraft {
+  return edits.reduce((current, edit) => applyExerciseEdit(current, edit.base, edit.edited, edit.scope, library, frozenDayIds), draft);
 }

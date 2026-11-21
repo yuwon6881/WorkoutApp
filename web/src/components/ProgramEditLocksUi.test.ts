@@ -51,7 +51,8 @@ describe('DraftOutline over an activated program', () => {
 
   it('marks week chips that hold passed days and leaves future weeks plain', () => {
     const markup = render(2, { w2a: 'completed' });
-    expect(markup.match(/\(has passed days\)/g)?.length).toBe(2);
+    expect(markup).toContain('Week 1<span class="sr-only"> (read-only)</span>');
+    expect(markup).toContain('Week 2<span class="sr-only"> (has passed days)</span>');
     expect(markup).toContain('Week 3');
   });
 
@@ -63,5 +64,20 @@ describe('DraftOutline over an activated program', () => {
 
   it('removes the delete action from the week that holds history', () => {
     expect(render(2, { w2a: 'completed' })).not.toContain('Delete week');
+  });
+
+  it('protects the week of an open workout without making its day read-only', () => {
+    const markup = render(1, {}, 'w1a');
+    expect(markup).toContain('has a workout in progress');
+    expect(markup).not.toContain('Delete week 1');
+    expect(markup).toContain('Reorder W1A');
+    expect(markup).toContain('aria-label="Add workout day"');
+  });
+
+  it('exposes the locked block and the day’s status to assistive technology', () => {
+    const markup = render(1, { w1a: 'completed' });
+    expect(markup).toContain('Block 1 (has passed days)');
+    expect(markup).not.toContain('Actions for Block 1');
+    expect(markup).toContain('aria-label="W1A, Done, read-only"');
   });
 });

@@ -203,11 +203,12 @@ export const DraftOutline = forwardRef<DraftOutlineHandle, {
 
   // A saved exercise edit rewrites the whole draft, so the other occurrences it reaches change in
   // the same revision-checked write as the exercise itself.
+  const frozenDayIds = locks?.lockedDayIds;
   const editing = useMemo<Omit<ExerciseEditing, 'unsaved'>>(() => ({
-    saveAll: edits => (onExerciseChange ?? onDraftChange)(applyExerciseEdits(normalizedDraft, edits, exercises)),
-    count: base => countOccurrences(normalizedDraft, base),
+    saveAll: edits => (onExerciseChange ?? onDraftChange)(applyExerciseEdits(normalizedDraft, edits, exercises, frozenDayIds)),
+    count: base => countOccurrences(normalizedDraft, base, frozenDayIds),
     keepWrittenName: editorMode === 'import'
-  }), [editorMode, exercises, normalizedDraft, onDraftChange, onExerciseChange]);
+  }), [editorMode, exercises, frozenDayIds, normalizedDraft, onDraftChange, onExerciseChange]);
 
   if (!week) return null;
 

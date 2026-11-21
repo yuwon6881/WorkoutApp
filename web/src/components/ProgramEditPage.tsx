@@ -134,7 +134,9 @@ export function ProgramEditPage({ programId, exercises, activeTemplateId, onBack
 
     {draft && original && locks && <>
       {hasLocks(locks) && <p className="ptl-lock-note">
-        <Lock size={14} aria-hidden="true" /> Weeks and days you have already passed are locked. Everything from Week {locks.currentWeek} on that you have not done yet can be changed.
+        <Lock size={14} aria-hidden="true" /> Weeks before Week {locks.currentWeek} and days already passed are read-only.
+        Weeks and blocks with passed days cannot be moved or deleted, but pending days in them are still editable.
+        {locks.pinnedDayIds.size > 0 && ' A day with a workout in progress can still be edited, but cannot be deleted or moved to another week.'}
       </p>}
       {notice && <div className="error-banner" role="alert"><span>{notice}</span></div>}
       {saveError && <CardFeedback message={saveError.message}
