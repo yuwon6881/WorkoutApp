@@ -76,6 +76,7 @@ export function SideNav({
             <Button
               key={item.id}
               data-selection-key={item.id}
+              data-tone={item.tone}
               onPointerEnter={() => prefetchView(navView(item.id))}
               onFocus={() => prefetchView(navView(item.id))}
               variant="tertiary"
@@ -95,6 +96,7 @@ export function SideNav({
           variant="tertiary"
           className={`nav-item ${aiOpen ? 'selected' : ''}`.trim()}
           aria-expanded={aiOpen}
+          data-tone="accent"
           onClick={onAskAi}
         >
           <Sparkles size={20} className="nav-icon" aria-hidden="true" />

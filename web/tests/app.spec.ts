@@ -295,7 +295,8 @@ test('personal exercise weights support uneven lists and kg/lb switching', async
       await page.getByRole('textbox', { name: 'Search exercises', exact: true }).fill(name);
       await page.getByRole('button', { name: `View ${name} details`, exact: true }).click();
       const dialog = page.getByRole('dialog', { name, exact: true });
-      await expect(dialog.getByText('No workout history yet. Complete a workout to see progress here.', { exact: true })).toBeVisible();
+      await expect(dialog.getByRole('heading', { name: 'Not logged yet', exact: true })).toBeVisible();
+      await expect(dialog.getByText('Complete a workout with ', { exact: false })).toBeVisible();
       await expect(dialog.getByRole('heading', { name: 'Progress', exact: true })).toHaveCount(0);
       await expect(dialog.locator('.detail-record-grid, .chart-table')).toHaveCount(0);
       await expect(dialog.getByRole('button', { name: 'Clear history', exact: true })).toHaveCount(0);

@@ -3,13 +3,14 @@ import { Trash2 } from 'lucide-react';
 import type { Exercise, ExerciseInsight, Unit } from '../types';
 import { ApiError, api } from '../lib/api';
 import { canEnterPerSide } from '../lib/equipmentGroups';
-import { getExerciseCategory, informativeEquipment } from '../lib/exerciseCategory';
+import { categoryTone, getExerciseCategory, informativeEquipment, type Tone } from '../lib/exerciseCategory';
 import { loadAdjustable } from '../lib/exerciseLoads';
 import { chartMetricLabel, defaultChartMetric, formatMetricValue, metricValue, missingEstimateDetail, showEstimate, type ChartMetric } from '../lib/exerciseMetrics';
 import { useTrackRir } from '../lib/trackRir';
 import { showSetCount, showVolume } from '../lib/training';
 import { showExerciseWeight, weightBasisDescription, type WithWeightBasis } from '../lib/weightBasis';
 import { ExerciseGymAvailability } from './ExerciseGymAvailability';
+import { ExerciseHistoryEmpty, ExerciseProgressEmpty } from './ExerciseEmptyState';
 import { ExerciseHistory } from './ExerciseHistory';
 import { ExerciseHistoryClearing } from './ExerciseHistoryClearing';
 import { ExerciseLoadSettings } from './ExerciseLoadSettings';
@@ -98,7 +99,7 @@ export function ExerciseDetailModal({ exercise, unit, onClose, onChanged }: {
             <span className="pill pill-accent">{typeLabel(exercise)}</span>
             {(exercise.secondaryMuscles ?? []).map(secondary => <span className="pill pill-muted" key={secondary}>{secondary}</span>)}
             {informativeEquipment(exercise) && <span className="pill pill-equipment">{informativeEquipment(exercise)}</span>}
-            <span className="pill pill-category">{getExerciseCategory(exercise)}</span>
+            <span className="pill pill-category" data-tone={categoryTone(getExerciseCategory(exercise))}>{getExerciseCategory(exercise)}</span>
           </div>
           {!exercise.archived && <ExerciseGymAvailability exerciseId={exercise.id} requires={exercise.requires} />}
           {editable && <ExerciseLoadSettings key={exercise.id} exerciseId={exercise.id} exerciseName={exercise.name} unit={unit}
@@ -108,7 +109,9 @@ export function ExerciseDetailModal({ exercise, unit, onClose, onChanged }: {
 
         {error && <div className="error-banner" role="alert">{error}</div>}
         {!insight && !error && <div className="skeleton detail-loading" aria-label="Loading exercise details" />}
-        {insight && !hasHistory && <p className="muted">No workout history yet. Complete a workout to see progress here.</p>}
+        {insight && !hasHistory && <div className="exercise-detail-panel" hidden={!onProgress}>
+          <ExerciseProgressEmpty exerciseName={exercise.name} />
+        </div>}
 
         {insight && hasHistory && <div className="exercise-detail-panel" hidden={!onProgress} aria-busy={rangeLoading || undefined}>
           <ProgressPanel insight={insight} unit={unit} basis={{ weightBasis: insight.weightBasis ?? exercise.weightBasis }}
@@ -116,6 +119,7 @@ export function ExerciseDetailModal({ exercise, unit, onClose, onChanged }: {
         </div>}
 
         <div className="exercise-detail-panel" hidden={onProgress}>
+          {insight && !hasHistory && !insight.historyClears?.length && <ExerciseHistoryEmpty />}
           {insight && hasHistory && <>
             <div className="section-heading exercise-history-heading">
               <h3>History</h3>
@@ -199,17 +203,17 @@ export function ProgressPanel({ insight, unit, basis, range, onRange }: {
       && <p className="muted detail-note">* Volume is partial because one or more logged loads were unknown.</p>}
     <div className="detail-record-grid">
       {/* A record with no logged load behind it (a rep-only movement) is left out, not shown as a dash. */}
-      {insight.estimated1RmKg != null && <Record label="Estimated 1RM" value={showEstimate(insight.estimated1RmKg, unit, basis)}
+      {insight.estimated1RmKg != null && <Record tone="accent" label="Estimated 1RM" value={showEstimate(insight.estimated1RmKg, unit, basis)}
         note={dateLabel(insight.estimated1RmDate)} />}
-      {insight.heaviestKg != null && <Record label="Heaviest load" value={load(insight.heaviestKg)}
+      {insight.heaviestKg != null && <Record tone="blue" label="Heaviest load" value={load(insight.heaviestKg)}
         note={`${insight.heaviestReps ? `${insight.heaviestReps} reps · ` : ''}${dateLabel(insight.heaviestDate)}`} />}
-      {insight.largestSetVolumeKg != null && <Record label="Largest set volume" value={volume(insight.largestSetVolumeKg)}
+      {insight.largestSetVolumeKg != null && <Record tone="teal" label="Largest set volume" value={volume(insight.largestSetVolumeKg)}
         note={dateLabel(insight.largestSetVolumeDate)} />}
-      {insight.largestSessionVolumeKg != null && <Record label="Largest session volume" value={volume(insight.largestSessionVolumeKg)}
+      {insight.largestSessionVolumeKg != null && <Record tone="teal" label="Largest session volume" value={volume(insight.largestSessionVolumeKg)}
         note={dateLabel(insight.largestSessionVolumeDate)} />}
-      <Record label="Rep PR" value={insight.repPr ?? '—'} note={insight.repPr != null ? dateLabel(insight.repPrDate) : undefined} />
-      <Record label="Sessions" value={insight.sessions > 0 ? insight.sessions : '—'} note={insight.sessions > 0 ? 'completed workouts' : undefined} />
-      <Record label="Last performed" value={dateLabel(insight.lastPerformedDate)}
+      <Record tone="amber" label="Rep PR" value={insight.repPr ?? '—'} note={insight.repPr != null ? dateLabel(insight.repPrDate) : undefined} />
+      <Record tone="green" label="Sessions" value={insight.sessions > 0 ? insight.sessions : '—'} note={insight.sessions > 0 ? 'completed workouts' : undefined} />
+      <Record tone="green" label="Last performed" value={dateLabel(insight.lastPerformedDate)}
         note={insight.setCount > 0 ? `${insight.setCount} working sets` : undefined} />
     </div>
     {(showExternalRecord || otherResistanceRecords) && <div className="detail-resistance-records" aria-label="Resistance records">
@@ -223,8 +227,8 @@ export function ProgressPanel({ insight, unit, basis, range, onRange }: {
   </>;
 }
 
-function Record({ label, value, note }: { label: string; value: string | number; note?: string }) {
-  return <div className="stat-card">
+function Record({ label, value, note, tone }: { label: string; value: string | number; note?: string; tone: Tone }) {
+  return <div className="stat-card" data-tone={tone}>
     <span className="stat-label">{label}</span>
     <strong>{value}</strong>
     {note && <small>{note}</small>}

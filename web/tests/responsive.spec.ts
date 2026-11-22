@@ -637,7 +637,8 @@ for (const theme of ['dark', 'light']) {
     await page.getByRole('button', { name: 'View Barbell bench press details' }).first().click();
     const detail = page.getByRole('dialog', { name: 'Barbell bench press', exact: true });
     await expect(detail).toBeVisible();
-    await expect(detail.getByText('No workout history yet. Complete a workout to see progress here.', { exact: true })).toBeVisible();
+    await expect(detail.getByRole('heading', { name: 'Not logged yet', exact: true })).toBeVisible();
+    await expect(detail.getByText('Complete a workout with ', { exact: false })).toBeVisible();
     await expect(detail.locator('.detail-record-grid, .chart-table, .detail-selectors')).toHaveCount(0);
     await screenshot('exercise-detail');
     await detail.getByRole('button', { name: 'Edit weights', exact: true }).click();

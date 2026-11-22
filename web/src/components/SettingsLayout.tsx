@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import type { LucideIcon } from 'lucide-react';
+import type { Tone } from '../lib/exerciseCategory';
 import { Button } from './ui/Button';
 import { SelectionIndicator, useReducedMotion } from './ui/Motion';
 import { useHorizontalOverflow } from './useHorizontalOverflow';
 
-export type SettingsSectionLink = { id: string; label: string; icon: LucideIcon };
+export type SettingsSectionLink = { id: string; label: string; icon: LucideIcon; tone?: Tone };
 
 /// A titled settings group. `card` wraps its rows in one panel; `plain` lets the group hold its own cards.
 export function SettingsSection({ id, title, description, layout = 'card', className = '', children }: {
@@ -123,11 +124,12 @@ export function SettingsNav({ links }: { links: SettingsSectionLink[] }) {
     <nav ref={navRef} className="settings-nav" aria-label="Settings sections"
       data-overflow-start={overflow.start || undefined} data-overflow-end={overflow.end || undefined}>
       <SelectionIndicator active={active} className="settings-nav-list">
-        {links.map(({ id, label, icon: Icon }) => (
+        {links.map(({ id, label, icon: Icon, tone }) => (
           <Button
             key={id}
             variant="tertiary"
             data-selection-key={id}
+            data-tone={tone}
             className={active === id ? 'is-current' : undefined}
             aria-current={active === id ? 'true' : undefined}
             onClick={() => go(id)}

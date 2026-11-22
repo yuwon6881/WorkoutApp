@@ -6,7 +6,7 @@ import { useLastPerformed } from './useLastPerformed';
 import { Button } from './ui/Button';
 import { Select } from './ui/Select';
 import { CustomExerciseModal } from './CustomExerciseModal';
-import { getExerciseCategory, informativeEquipment } from '../lib/exerciseCategory';
+import { categoryTone, getExerciseCategory, informativeEquipment } from '../lib/exerciseCategory';
 import { buildExerciseSearchIndex, searchExerciseScores } from '../lib/exerciseSearch';
 import { ChipScroller } from './ui/ChipScroller';
 import { GymAvailabilityBadge } from './GymAvailabilityBadge';
@@ -146,7 +146,7 @@ export function ExerciseLibrary({ exercises, onSelect, exclude = emptyIds, added
     return groups.map(([cat, catItems]) => {
       if (!catItems.length) return null;
       return (
-        <section className="category-group" key={cat} aria-label={`${cat} exercises`}>
+        <section className="category-group" key={cat} aria-label={`${cat} exercises`} data-tone={categoryTone(cat)}>
           <div className="category-group-header">
             <h4 className="category-group-title">{cat}</h4>
             <span className="tiny-label category-group-count">{catItems.length}</span>
@@ -303,7 +303,7 @@ export function ExerciseLibrary({ exercises, onSelect, exclude = emptyIds, added
               {(current.secondaryMuscles ?? []).map(secondary => <span className="pill pill-muted" key={`cur-${current.id}-${secondary}`}>{secondary}</span>)}
               {informativeEquipment(current) && <span className="pill pill-equipment">{informativeEquipment(current)}</span>}
               <GymAvailabilityBadge exerciseId={current.id} compact />
-              <span className="pill pill-category">{getExerciseCategory(current)}</span>
+              <span className="pill pill-category" data-tone={categoryTone(getExerciseCategory(current))}>{getExerciseCategory(current)}</span>
             </div>
           </div>
           <Button

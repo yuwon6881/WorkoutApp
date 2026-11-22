@@ -14,6 +14,7 @@ import './overview-layout.css';
 import './motion.css';
 import './workout.css';
 import './surfaces.css';
+import './tones.css';
 import { prepareNativeShell } from './lib/nativeShellMigration';
 import { isNative } from './lib/platform';
 // The first paint takes the theme outright; only a later change is cross-faded.

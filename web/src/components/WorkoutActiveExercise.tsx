@@ -224,6 +224,7 @@ export function WorkoutActiveExercise({
         <Button
           variant="tertiary"
           className="action-pill"
+          data-tone="blue"
           aria-haspopup="dialog"
           onClick={() => setShowTargets(true)}
         >
@@ -236,6 +237,7 @@ export function WorkoutActiveExercise({
           <Button
             variant="tertiary"
             className="action-pill"
+            data-tone="teal"
             aria-haspopup="dialog"
             aria-label={`${exercise.name} progress and history`}
             onClick={() => onOpenExercise(exercise.exerciseId!)}

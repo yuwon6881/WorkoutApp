@@ -223,7 +223,7 @@ export function WorkoutHistory({
       {loading && !sessions.length && <HistoryRowsSkeleton />}
 
       {!sessions.length && !loading && (
-        <div className="empty-message">
+        <div className="empty-message" data-tone="teal">
           <History size={26} aria-hidden="true" />
           <h3>No workouts yet</h3>
           <p>Finish a workout to see its sets and volume here.</p>

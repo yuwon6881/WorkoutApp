@@ -36,13 +36,13 @@ type SettingsViewProps = {
 };
 
 const sections: SettingsSectionLink[] = [
-  { id: 'settings-general', label: 'General', icon: SlidersHorizontal },
-  { id: 'settings-training', label: 'Training', icon: Dumbbell },
-  { id: 'settings-gyms', label: 'Gyms', icon: MapPin },
-  { id: 'settings-weights', label: 'Weight increments', icon: Weight },
-  { id: 'settings-rest', label: 'Rest timer', icon: Timer },
-  { id: 'settings-watch', label: 'Wear OS', icon: Watch },
-  { id: 'settings-connections', label: 'Connected apps', icon: Link2 }
+  { id: 'settings-general', label: 'General', icon: SlidersHorizontal, tone: 'accent' },
+  { id: 'settings-training', label: 'Training', icon: Dumbbell, tone: 'blue' },
+  { id: 'settings-gyms', label: 'Gyms', icon: MapPin, tone: 'teal' },
+  { id: 'settings-weights', label: 'Weight increments', icon: Weight, tone: 'amber' },
+  { id: 'settings-rest', label: 'Rest timer', icon: Timer, tone: 'green' },
+  { id: 'settings-watch', label: 'Wear OS', icon: Watch, tone: 'blue' },
+  { id: 'settings-connections', label: 'Connected apps', icon: Link2, tone: 'teal' }
 ];
 
 function initials(name: string) {

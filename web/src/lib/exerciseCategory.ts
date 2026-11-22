@@ -13,6 +13,14 @@ export function informativeEquipment(exercise: { category?: string; equipment?: 
   return letters(equipment) === letters(getExerciseCategory(exercise)) ? null : equipment;
 }
 
+/// The data colour that names an exercise category, so a Free Weights, Machine or Body Weight chip
+/// reads the same everywhere. Anything that is not a category (a "Recently trained" heading) gets none.
+export type Tone = 'accent' | 'blue' | 'teal' | 'green' | 'amber';
+const categoryTones: Record<string, Tone> = { 'Free Weights': 'blue', 'Machine': 'teal', 'Body Weight': 'green' };
+export function categoryTone(category: string): Tone | undefined {
+  return categoryTones[category];
+}
+
 export function getExerciseCategory(exercise: { category?: string; equipment?: string; loadModel?: string }): ExerciseCategory {
   if (exercise.category === 'Free Weights' || exercise.category === 'Machine' || exercise.category === 'Body Weight') {
     return exercise.category;

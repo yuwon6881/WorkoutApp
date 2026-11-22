@@ -31,6 +31,7 @@ export function BottomNav({ tab, onTab, action, actionBusy, onAction, actionProg
     <Button
       key={entry.id}
       data-selection-key={entry.id}
+      data-tone={entry.tone}
       onPointerEnter={() => prefetchView(navView(entry.id))}
       onFocus={() => prefetchView(navView(entry.id))}
       variant="tertiary"

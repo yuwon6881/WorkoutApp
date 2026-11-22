@@ -267,7 +267,7 @@ export function Programs({ data, exercises, onStart, onPreview, onImport, onChan
           : libraryPrograms.length === 0 && (
             <section className="panel pp-library-empty-card" aria-label="Workout library empty">
               <div className="pp-library-empty-content">
-                <div className="pp-library-empty-icon" aria-hidden="true">
+                <div className="pp-library-empty-icon" data-tone="amber" aria-hidden="true">
                   <FolderOpen size={22} />
                 </div>
                 <div className="pp-library-empty-text">

@@ -1,19 +1,22 @@
 import { BicepsFlexed, Dumbbell, LayoutDashboard, Library } from 'lucide-react';
 import type { Tab } from './useTabNavigation';
 import type { LazyView } from './lazyViews';
+import type { Tone } from '../lib/exerciseCategory';
 
 export interface NavItem {
   id: Tab;
   label: string;
   icon: typeof LayoutDashboard;
+  /** The data colour of the destination's icon, so each place in the app has its own. */
+  tone: Tone;
 }
 
 /** The four destinations shared by the sidebar, the medium rail, and the phone dock. */
 export const NAV: NavItem[] = [
-  { id: 'overview', label: 'Overview', icon: LayoutDashboard },
-  { id: 'program', label: 'Workouts', icon: Dumbbell },
-  { id: 'body', label: 'Muscles', icon: BicepsFlexed },
-  { id: 'exercises', label: 'Exercises', icon: Library }
+  { id: 'overview', label: 'Overview', icon: LayoutDashboard, tone: 'accent' },
+  { id: 'program', label: 'Workouts', icon: Dumbbell, tone: 'blue' },
+  { id: 'body', label: 'Muscles', icon: BicepsFlexed, tone: 'teal' },
+  { id: 'exercises', label: 'Exercises', icon: Library, tone: 'amber' }
 ];
 
 /** The view code a destination needs, warmed when its navigation item is hovered or focused. */

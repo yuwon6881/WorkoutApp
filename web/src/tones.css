@@ -1,0 +1,78 @@
+/* Tones: where the app uses colour to say what something is.
+   An element opts in with data-tone="accent|blue|teal|green|amber" and reads --tone, --tone-soft and
+   --tone-border. The tones are the semantic data colours from index.css, so both themes stay tuned.
+   They label a place or a measure (a destination, a category, a record); they never decorate a
+   surface, which stays flat. Text in a tone is mixed a little toward --text so it keeps 4.5:1. */
+[data-tone] {
+  --tone: var(--accent);
+  --tone-soft: var(--accent-soft);
+  --tone-border: var(--accent-border);
+}
+[data-tone="blue"] { --tone: var(--blue); --tone-soft: var(--blue-soft); --tone-border: var(--blue-border); }
+[data-tone="teal"] { --tone: var(--teal); --tone-soft: var(--teal-soft); --tone-border: var(--teal-border); }
+[data-tone="green"] { --tone: var(--green); --tone-soft: var(--green-soft); --tone-border: var(--green-border); }
+[data-tone="amber"] { --tone: var(--amber); --tone-soft: var(--amber-soft); --tone-border: var(--amber-border); }
+
+/* Navigation: each destination keeps its own icon colour, a little quieter until it is the open one. */
+.app-shell > .sidebar .nav-item[data-tone] .nav-icon {
+  color: color-mix(in srgb, var(--tone) 76%, var(--muted));
+}
+.app-shell > .sidebar .nav-item[data-tone]:hover:not(.selected):not(:disabled) .nav-icon,
+.app-shell > .sidebar .nav-item[data-tone].selected .nav-icon,
+.app-shell > .sidebar .nav-item[data-tone].selected svg {
+  color: var(--tone);
+}
+.bottom-nav-track > .bottom-nav-item[data-tone] .bottom-nav-icon-slot {
+  color: color-mix(in srgb, var(--tone) 76%, var(--muted));
+}
+.bottom-nav-track > .bottom-nav-item[data-tone].selected .bottom-nav-icon-slot {
+  color: var(--tone);
+}
+.settings-nav-list > .button[data-tone] svg {
+  color: color-mix(in srgb, var(--tone) 80%, var(--muted));
+}
+.settings-nav-list > .button[data-tone].is-current svg {
+  color: var(--tone);
+}
+
+/* Exercise categories: Free Weights, Machine and Body Weight keep one colour in headings and chips. */
+.pill-category[data-tone] {
+  background: var(--tone-soft);
+  border-color: var(--tone-border);
+  color: color-mix(in srgb, var(--tone) 82%, var(--text));
+}
+.category-group[data-tone] .category-group-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+}
+.category-group[data-tone] .category-group-title::before {
+  content: "";
+  flex: 0 0 auto;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--tone);
+}
+
+/* Exercise details: each record tile is washed in the colour of what it measures. */
+.detail-record-grid .stat-card[data-tone] {
+  background: color-mix(in srgb, var(--tone) 10%, var(--surface-raised));
+  border-color: color-mix(in srgb, var(--tone) 16%, transparent);
+}
+.detail-record-grid .stat-card[data-tone] > strong {
+  color: color-mix(in srgb, var(--tone) 78%, var(--text));
+}
+
+/* The logger's quick actions carry their meaning in the icon: targets in blue, progress in teal. */
+.action-pill[data-tone] svg {
+  color: var(--tone);
+}
+
+/* Empty states: the soft tile around the leading icon takes the colour of the thing that is missing. */
+.empty-message[data-tone] > svg,
+.pp-library-empty-icon[data-tone] {
+  background: var(--tone-soft);
+  border-color: var(--tone-border);
+  color: var(--tone);
+}
