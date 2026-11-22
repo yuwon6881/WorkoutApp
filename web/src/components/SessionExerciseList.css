@@ -182,8 +182,8 @@
   /* The exercise's record gets its own line under the title, so neither squeezes the other. */
   .session-exercise-header { flex-wrap: wrap; row-gap: 8px; }
   .session-exercise-title { flex-basis: calc(100% - 40px); }
-  .session-exercise-header > .pr-exercise-badge { margin-left: 40px; max-width: calc(100% - 40px); }
-  .pr-exercise-badge > span { overflow: hidden; text-overflow: ellipsis; }
+  .session-exercise-header > .pr-exercise-badge { margin-left: 40px; max-width: calc(100% - 40px); white-space: normal; }
+  .pr-exercise-badge > svg { flex-shrink: 0; }
   /* A record set's row is already highlighted and its kind is named in the header, so the row keeps
      only the trophy; the words stay for screen readers. */
   .session-set-target > .pr-set-tag { padding: 4px 6px; }

@@ -800,7 +800,9 @@ for (const theme of ['dark', 'light'] as const) {
     await expect(modal).toBeVisible();
     await expect(modal.getByText('Rep best · 15 reps', { exact: true })).toBeVisible();
     await expect(modal.getByText('Estimated strength best · 75 kg est. 1RM', { exact: true })).toBeVisible();
-    await expect(modal.getByText('Strength & rep best · 80 kg est. 1RM · 20 reps', { exact: true })).toBeVisible();
+    const combinedBadge = modal.getByText('Strength & rep best · 80 kg est. 1RM · 20 reps', { exact: true });
+    await expect(combinedBadge).toBeVisible();
+    expect(await combinedBadge.evaluate(el => el.scrollWidth <= el.clientWidth && el.scrollHeight <= el.clientHeight)).toBe(true);
     // Phones show a record set's tag as the trophy alone; its words stay in the tag for screen readers.
     const setTags = modal.locator('.pr-set-tag');
     await expect(setTags.first()).toBeVisible();

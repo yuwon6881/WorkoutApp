@@ -123,7 +123,11 @@
 
 .slot-card-header.is-clickable {
   cursor: pointer;
+  border-radius: var(--radius-control);
+  transition: background-color var(--motion-control) var(--motion-ease);
 }
+
+.slot-card-header.is-clickable:hover { background: var(--surface-hover); }
 
 [data-slot-dragging='true'] {
   opacity: .4;
@@ -146,7 +150,7 @@
 .slot-card-header {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 14px;
   min-width: 0;
 }
 
@@ -199,6 +203,7 @@
   align-items: center;
   gap: 4px;
   flex: 0 0 auto;
+  align-self: flex-start;
 }
 
 .slot-card-toggle,
@@ -207,6 +212,8 @@
   min-height: 44px;
   border-radius: var(--radius-pill);
 }
+
+.slot-card-header .slot-card-toggle:hover { background: transparent; border-color: transparent; }
 
 .slot-card-toggle svg {
   transition: transform var(--motion-control) var(--motion-ease);
@@ -419,3 +426,6 @@
     min-height: 44px;
   }
 }
+
+/* Library week chips are read-only, so a swipe should move the timeline. */
+.slot-card .import-week-chip { touch-action: pan-x; }

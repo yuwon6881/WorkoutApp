@@ -81,7 +81,7 @@ test('workouts move between the library and the active slot, forgetting progress
     const program = await page.request.post('/api/programs', { headers, data: { name: programName, workouts: [
       { week: 1, name: 'Upper A', exercises: [exercise] },
       { week: 1, name: 'Lower A', exercises: [exercise] },
-      { week: 2, name: 'Upper B', exercises: [exercise] }
+      ...Array.from({ length: 7 }, (_, index) => ({ week: index + 2, name: `Week ${index + 2} workout`, exercises: [exercise] }))
     ] } });
     expect(program.ok(), await program.text()).toBeTruthy();
     const created = await program.json();
@@ -105,6 +105,22 @@ test('workouts move between the library and the active slot, forgetting progress
     // Expanded, a library program is the builder's timeline with nothing editable.
     await libraryCard.getByRole('button', { name: `Expand ${programName}`, exact: true }).click();
     await expect(libraryCard.getByRole('button', { name: 'Upper A', exact: true })).toBeVisible();
+    if (info.project.name === 'mobile') {
+      const strip = libraryCard.getByRole('tablist', { name: 'Program weeks' });
+      await strip.scrollIntoViewIfNeeded();
+      const box = (await strip.boundingBox())!;
+      expect(await strip.evaluate(el => el.scrollWidth > el.clientWidth)).toBe(true);
+      const cdp = await page.context().newCDPSession(page);
+      const y = box.y + box.height / 2;
+      await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: box.x + box.width - 20, y }] });
+      for (let step = 1; step <= 8; step++)
+        await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: box.x + box.width - 20 - step * (box.width - 40) / 8, y }] });
+      await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+      await expect.poll(() => strip.evaluate(el => el.scrollLeft)).toBeGreaterThan(0);
+      await libraryCard.getByRole('tab', { name: 'Week 8', exact: true }).click();
+      await expect(libraryCard.getByRole('button', { name: 'Week 8 workout', exact: true })).toBeVisible();
+      await libraryCard.getByRole('tab', { name: 'Week 1', exact: true }).click();
+    }
     expect(Math.abs((await libraryCard.boundingBox())!.width - collapsedWidth)).toBeLessThan(1);
     await expect(libraryCard.getByRole('button', { name: /^Reorder |^Actions for Upper A|Add workout day/ })).toHaveCount(0);
     await page.screenshot({ path: join(screenshotsDirectory, `${info.project.name}-workout-slot-library-expanded.png`), fullPage: true });

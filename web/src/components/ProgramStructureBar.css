@@ -17,6 +17,7 @@
     gap: 10px;
     margin-bottom: 16px;
   }
+  .ptl-structure-bar .program-block-control-bar { width: 100%; }
 }
 
 .ptl-structure-row {
@@ -86,6 +87,8 @@
   padding: 2px 0 !important;
   margin-bottom: 0 !important;
   scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-x;
 }
 .ptl-block-selector::-webkit-scrollbar {
   display: none;

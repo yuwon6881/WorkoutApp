@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Dumbbell, Layers, RotateCw, Target, Trophy } from 'lucide-react';
+import { Dumbbell, Layers, RotateCw, BicepsFlexed, Trophy } from 'lucide-react';
 import type { MuscleBalanceRow, MuscleBalanceView as MuscleBalanceData } from '../types';
 import { ApiError, api } from '../lib/api';
 import { formatSets, orderBreakdownGroups, peakSets, RANGES } from '../lib/muscleBalance';
@@ -151,7 +151,7 @@ export function MuscleBalanceView({ timeZone, onExercise, refreshKey, unconfirme
               <strong className="muscle-balance-stat-value">{view.totalSets > 0 ? formatSets(view.totalSets) : '—'}</strong>
             </div>
             <div className="muscle-balance-stat-card">
-              <span className="muscle-balance-stat-label" data-tone="blue"><Target size={14} aria-hidden="true" />Trained groups</span>
+              <span className="muscle-balance-stat-label" data-tone="blue"><BicepsFlexed size={14} aria-hidden="true" />Trained groups</span>
               <strong className="muscle-balance-stat-value">{trained.length > 0 ? `${trained.length} of ${muscles.length}` : '—'}</strong>
             </div>
             {trained[0] ? (
