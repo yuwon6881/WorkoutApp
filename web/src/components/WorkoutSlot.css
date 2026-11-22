@@ -111,6 +111,7 @@
   border: 1px solid var(--card-border);
   background: var(--surface);
   box-shadow: var(--shadow);
+  overflow: hidden;
 }
 
 .slot-library-list .panel.slot-card {
@@ -123,11 +124,35 @@
 
 .slot-card-header.is-clickable {
   cursor: pointer;
-  border-radius: var(--radius-control);
+  margin: -18px -20px 0 -20px;
+  padding: 18px 20px 14px 20px;
+  border-radius: var(--radius) var(--radius) 0 0;
   transition: background-color var(--motion-control) var(--motion-ease);
 }
 
-.slot-card-header.is-clickable:hover { background: var(--surface-hover); }
+.slot-card-header.is-clickable:hover {
+  background: var(--surface-hover);
+}
+
+.panel.slot-card.collapsed .slot-card-header.is-clickable,
+.panel.slot-card:not(.expanded) .slot-card-header.is-clickable {
+  margin: -18px -20px;
+  padding: 18px 20px;
+  border-radius: var(--radius);
+}
+
+.slot-library-list .panel.slot-card.collapsed .slot-card-header.is-clickable,
+.slot-library-list .panel.slot-card:not(.expanded) .slot-card-header.is-clickable {
+  margin: -14px -16px;
+  padding: 14px 16px;
+  border-radius: var(--radius);
+}
+
+.slot-library-list .panel.slot-card.expanded .slot-card-header.is-clickable {
+  margin: -18px -20px 0 -20px;
+  padding: 18px 20px 14px 20px;
+  border-radius: var(--radius) var(--radius) 0 0;
+}
 
 [data-slot-dragging='true'] {
   opacity: .4;
@@ -150,8 +175,20 @@
 .slot-card-header {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 14px 20px;
   min-width: 0;
+}
+
+.active-slot-zone .slot-card-header,
+.panel.program-card .slot-card-header {
+  column-gap: 20px;
+}
+
+@media (min-width: 640px) {
+  .active-slot-zone .slot-card-header,
+  .panel.program-card .slot-card-header {
+    column-gap: 24px;
+  }
 }
 
 .slot-card-grip {

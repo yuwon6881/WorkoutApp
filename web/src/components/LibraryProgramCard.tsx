@@ -39,7 +39,7 @@ export function LibraryProgramCard({ program, exercises, busy, onActivate, onEdi
     setExpanded(false);
   }, [program.id]);
 
-  return <section {...dragProps} className={`panel slot-card library-program-card ${expanded ? 'expanded' : ''}`} aria-busy={loading}>
+  return <section {...dragProps} className={`panel slot-card library-program-card ${expanded ? 'expanded' : 'collapsed'}`} aria-busy={loading}>
     <SlotCardHeader title={program.name}
       meta={`${weekCount} ${weekCount === 1 ? 'week' : 'weeks'} · ${workoutDays} workout ${workoutDays === 1 ? 'day' : 'days'}`}
       expanded={expanded} onToggle={() => setExpanded(value => !value)}

@@ -45,6 +45,7 @@ describe('WorkoutSlotCards expand/collapse states', () => {
 
     expect(markup).toContain('aria-expanded="true"');
     expect(markup).toContain('aria-label="Collapse Hypertrophy Block"');
+    expect(markup).toContain('program-card expanded');
   });
 
   it('renders LibraryProgramCard collapsed by default', () => {
@@ -61,6 +62,7 @@ describe('WorkoutSlotCards expand/collapse states', () => {
 
     expect(markup).toContain('aria-expanded="false"');
     expect(markup).toContain('aria-label="Expand Hypertrophy Block"');
+    expect(markup).toContain('library-program-card collapsed');
   });
 });
 

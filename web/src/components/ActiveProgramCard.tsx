@@ -151,7 +151,7 @@ export function ActiveProgramCard({ program, exercises, unit, onStart, onPreview
     ? (saveError || 'Your edits are kept for retry.')
     : (!finished ? readError : '');
 
-  return <section {...dragProps} className={`panel slot-card program-card ${finished ? 'slot-card-finished' : ''} ${moving ? 'slot-card-moving' : ''}`}
+  return <section {...dragProps} className={`panel slot-card program-card ${expanded ? 'expanded' : 'collapsed'} ${finished ? 'slot-card-finished' : ''} ${moving ? 'slot-card-moving' : ''}`}
     aria-busy={actions.busy || loading || saving}>
     <SlotCardHeader title={program.name} meta={meta}
       badge={finished ? <span className="tiny-label slot-finished-label">Finished</span> : undefined}
