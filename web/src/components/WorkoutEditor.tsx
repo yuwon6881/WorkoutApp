@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Dumbbell, Plus } from 'lucide-react';
 import type { Exercise, LoggedSet, Session, Unit } from '../types';
+import type { ExerciseLoadSettings } from '../lib/exerciseLoads';
 import type { RestMode } from '../lib/restRange';
 import { addedSessionExercise } from '../lib/workoutDraft';
 import { Button } from './ui/Button';
@@ -16,7 +17,7 @@ type SetChange = { setId: string; patch: Partial<LoggedSet> };
 export function WorkoutEditor({
   draft, unit, exercises, activeIndex, finishIntentAt, recoveryConflict, online,
   picker, onPicker, onAddExercise, onChange, onEditSet, onToggleSet, onSelectExercise, onMoveExercise,
-  onSwap, onRestore, onRemoveExercise, onCatalogChanged,
+  onSwap, onRestore, onRemoveExercise, onWeightSettingsSaved,
   onCatalogNeeded, onOpenExercise, restMode = 'balanced'
 }: {
   draft: Session; unit: Unit; exercises: Exercise[]; activeIndex: number; online: boolean;
@@ -27,7 +28,7 @@ export function WorkoutEditor({
   onMoveExercise: (from: number, to: number) => void;
   onSwap: (sessionExerciseId: string, replacementExerciseId: string | null, replacementName: string) => Promise<void>;
   onRestore: (sessionExerciseId: string) => Promise<void>; onRemoveExercise: (index: number) => void;
-  onCatalogChanged?: () => void | Promise<void>;
+  onWeightSettingsSaved?: (exerciseId: string, settings: ExerciseLoadSettings) => void | Promise<void>;
   onCatalogNeeded?: () => Promise<void>;
   onOpenExercise?: (exerciseId: string) => void;
   restMode?: RestMode;
@@ -53,7 +54,7 @@ export function WorkoutEditor({
         <div className="workout-page" ref={page}>
           <WorkoutActiveExercise key={currentExercise.id} exercise={currentExercise} index={currentIndex}
             unit={unit} draft={draft} exercises={exercises} change={onChange} editSet={onEditSet} toggle={onToggleSet}
-            onSwap={onSwap} onRestore={onRestore} onRemoveExercise={onRemoveExercise} onCatalogChanged={onCatalogChanged} onCatalogNeeded={onCatalogNeeded}
+            onSwap={onSwap} onRestore={onRestore} onRemoveExercise={onRemoveExercise} onWeightSettingsSaved={onWeightSettingsSaved} onCatalogNeeded={onCatalogNeeded}
             onOpenExercise={onOpenExercise} restMode={restMode} />
         </div>
       ) : (

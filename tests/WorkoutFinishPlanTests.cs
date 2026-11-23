@@ -15,10 +15,15 @@ public sealed class WorkoutFinishPlanTests
         var edited = await Prepare(h);
         var preview = await h.Workouts.PreviewFinishPlan(edited.Id, default);
         Assert.Equal(1, preview.Counts.Program);
+        Assert.Equal("Updated exercise notes", Assert.Single(Assert.Single(preview.Edits).Changes));
         var input = new FinishPlanUpdateInput("program", preview.ChangesHash, preview.ProgramRevision, preview.DayRevisions);
         var mutationId = Guid.NewGuid();
         var saved = await h.Workouts.Finish(edited.Id, edited.Revision, default, mutationId: mutationId, planUpdate: input);
         Assert.False(saved.Active);
+        var update = Assert.Single(saved.ProgramUpdates!);
+        Assert.Equal("Bench", update.Name);
+        Assert.Equal(2, update.Occurrences);
+        Assert.Equal("Updated exercise notes", Assert.Single(update.Changes));
         var days = await h.Db.Templates.Where(t => t.ProgramId == edited.ProgramId).ToListAsync();
         foreach (var day in days)
         {
@@ -29,7 +34,8 @@ public sealed class WorkoutFinishPlanTests
             Assert.Equal(day.Week == 1 ? "2" : "3", sets[0].Rir);
         }
         var revisions = days.Select(d => d.Revision).ToList();
-        await h.Workouts.Finish(edited.Id, edited.Revision, default, mutationId: mutationId, planUpdate: input);
+        var replayed = await h.Workouts.Finish(edited.Id, edited.Revision, default, mutationId: mutationId, planUpdate: input);
+        Assert.Equal(saved.ProgramUpdates![0].Changes, Assert.Single(replayed.ProgramUpdates!).Changes);
         Assert.Equal(revisions, days.Select(d => d.Revision));
     }
 

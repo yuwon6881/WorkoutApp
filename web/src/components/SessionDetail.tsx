@@ -6,6 +6,7 @@ import { duration, showVolume } from '../lib/training';
 import { Button } from './ui/Button';
 import { CardFeedback } from './ui/CardFeedback';
 import { Modal } from './ui/Modal';
+import { ProgramExerciseChanges } from './ProgramExerciseChanges';
 import { SessionExerciseList } from './SessionExerciseList';
 import { SessionMuscleStrip } from './SessionMuscleStrip';
 import { useSessionDetail } from './useSessionDetail';
@@ -75,6 +76,11 @@ export function SessionDetail({ session: initial, preferences, exercises = [], c
           </div>}
         </dl>
       </header>
+
+      {!!session.programUpdates?.length && <section className="session-section" aria-label="Program updated">
+        <h3>Program updated</h3>
+        <ProgramExerciseChanges edits={session.programUpdates} />
+      </section>}
 
       {error ? (
         <CardFeedback title="Exercises unavailable" message={error} action={{ label: 'Retry', onClick: retry }} />

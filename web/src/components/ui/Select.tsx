@@ -260,13 +260,10 @@ export function MultiSelect<T extends string>({
   const listboxRef = useRef<HTMLUListElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const id = useId();
-  const [highlightedIndex, setHighlightedIndex] = useState(0);
+  const [highlightedIndex, setHighlightedIndex] = useState<number | null>(null);
 
   useEffect(() => {
-    if (open) {
-      const firstSelected = options.findIndex(o => values.includes(o.value));
-      setHighlightedIndex(firstSelected >= 0 ? firstSelected : 0);
-    }
+    if (!open) setHighlightedIndex(null);
   }, [open]);
 
   useEffect(() => {
@@ -282,7 +279,7 @@ export function MultiSelect<T extends string>({
   }, [open]);
 
   useEffect(() => {
-    if (open && listboxRef.current) {
+    if (open && listboxRef.current && highlightedIndex !== null) {
       const item = listboxRef.current.children[highlightedIndex] as HTMLElement | undefined;
       if (item) revealInList(listboxRef.current, item);
     }
@@ -301,6 +298,13 @@ export function MultiSelect<T extends string>({
   });
 
   const sheet = usePickerSheet(open, () => setOpen(false));
+  useEffect(() => {
+    if (!open || !portalTarget || !listboxRef.current) return;
+    const firstSelected = options.findIndex(option => values.includes(option.value));
+    const item = listboxRef.current.children[firstSelected] as HTMLElement | undefined;
+    if (item) revealInList(listboxRef.current, item);
+  }, [open, portalTarget]);
+
   const selectedSet = new Set(values);
   const selectedLabels = options.filter(o => selectedSet.has(o.value)).map(o => o.label);
   const summaryText = selectedLabels.length > 0 ? selectedLabels.join(', ') : placeholder;
@@ -322,14 +326,17 @@ export function MultiSelect<T extends string>({
       return;
     }
     if (e.target !== triggerRef.current) return;
-    if (e.key === 'ArrowDown') {
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
       e.preventDefault();
-      if (!open) setOpen(true);
-      else setHighlightedIndex(prev => (prev + 1 < options.length ? prev + 1 : 0));
-    } else if (e.key === 'ArrowUp') {
-      e.preventDefault();
-      if (!open) setOpen(true);
-      else setHighlightedIndex(prev => (prev - 1 >= 0 ? prev - 1 : options.length - 1));
+      if (!options.length) return;
+      const direction = e.key === 'ArrowDown' ? 1 : -1;
+      const selected = options.findIndex(option => selectedSet.has(option.value));
+      setOpen(true);
+      setHighlightedIndex(previous => {
+        if (previous !== null) return (previous + direction + options.length) % options.length;
+        if (selected >= 0) return selected;
+        return direction === 1 ? 0 : options.length - 1;
+      });
     } else if (e.key === 'Home' && open) {
       e.preventDefault();
       setHighlightedIndex(0);
@@ -338,7 +345,9 @@ export function MultiSelect<T extends string>({
       setHighlightedIndex(options.length - 1);
     } else if ((e.key === 'Enter' || e.key === ' ') && open) {
       e.preventDefault();
-      const chosen = options[highlightedIndex];
+      const chosen = highlightedIndex === null
+        ? options.find(option => selectedSet.has(option.value)) ?? options[0]
+        : options[highlightedIndex];
       if (chosen) toggleValue(chosen.value);
     } else if (e.key === 'Tab' && open) {
       const firstAction = !e.shiftKey && panelRef.current?.querySelector<HTMLElement>('input:not(:disabled), button:not(:disabled)');
@@ -361,8 +370,8 @@ export function MultiSelect<T extends string>({
         role="option"
         aria-selected={isSelected}
         className={`custom-select-item ${isSelected ? 'selected' : ''} ${isHighlighted ? 'highlighted' : ''}`}
-        onMouseEnter={() => setHighlightedIndex(idx)}
-        onClick={() => toggleValue(o.value)}
+        onPointerMove={() => { if (highlightedIndex !== null) setHighlightedIndex(null); }}
+        onClick={() => { setHighlightedIndex(null); toggleValue(o.value); }}
       >
         <span>{o.label}</span>
         {isSelected && <Check size={15} className="custom-select-check accent" />}

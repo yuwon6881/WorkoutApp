@@ -128,9 +128,9 @@ export const api = {
   // Load rules are read and typed in the unit on screen, which can be ahead of a unit switch still being saved.
   exerciseLoadSettings: (id: string, unit: Unit, signal?: AbortSignal) =>
     call<ExerciseLoadSettings>(`/api/exercises/${id}/load-settings?unit=${unit}`, 'GET', undefined, signal),
-  saveExerciseLoadSettings: (id: string, input: LoadRule & { revision: number; unit: Unit }) => call<ExerciseLoadSettings>(`/api/exercises/${id}/load-settings`, 'PUT', input),
+  saveExerciseLoadSettings: (id: string, input: LoadRule & { revision: number; unit: Unit; gymProfileId?: string }) => call<ExerciseLoadSettings>(`/api/exercises/${id}/load-settings`, 'PUT', input),
   loadSettings: (unit: Unit, signal?: AbortSignal) => call<LoadSettingsOverview>(`/api/load-settings?unit=${unit}`, 'GET', undefined, signal),
-  saveEquipmentLoad: (group: string, input: LoadRule & { revision: number; unit: Unit }) =>
+  saveEquipmentLoad: (group: string, input: LoadRule & { revision: number; unit: Unit; gymProfileId?: string }) =>
     call<LoadSettingsOverview>(`/api/load-settings/equipment/${encodeURIComponent(group)}`, 'PUT', input),
   gyms: (signal?: AbortSignal) => call<GymsView>('/api/gyms', 'GET', undefined, signal),
   createGym: (name: string, copyFrom: string | null) => call<GymsView>('/api/gyms', 'POST', { name, copyFrom }),

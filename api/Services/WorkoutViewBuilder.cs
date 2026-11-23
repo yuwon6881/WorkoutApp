@@ -283,7 +283,8 @@ public static class WorkoutViewBuilder
             volume.External,
             workingDone.Count, warmupDone.Count, bodyWeight, context,
             volume.System, session.PausedAt, session.PausedSeconds,
-            sessionPrCount, restView, !string.IsNullOrEmpty(session.StartPlanJson));
+            sessionPrCount, restView, !string.IsNullOrEmpty(session.StartPlanJson),
+            ReadOptional<List<FinishPlanEditView>>(session.ProgramUpdatesJson ?? ""));
     }
 
     private static Dictionary<string, int> LegacyRepBests(IEnumerable<PreviousRepRecord> records)

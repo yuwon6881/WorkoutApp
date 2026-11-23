@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState } from 'react';
+import { useContext, useEffect, useRef, useState } from 'react';
 import type { Unit } from '../types';
 import { api, ApiError } from '../lib/api';
 import { describeLoad, describeSource, type ExerciseLoadSettings as Settings, type LoadRule } from '../lib/exerciseLoads';
+import { GymAvailabilityContext } from '../lib/gymAvailability';
 import { Button } from './ui/Button';
 import { Modal } from './ui/Modal';
 import { SettingRow } from './ui/SettingRow';
@@ -16,11 +17,15 @@ export function ExerciseLoadSettings({ exerciseId, exerciseName, unit, perSide =
   perSide?: boolean;
   editor?: boolean;
   onClose?: () => void;
-  onChanged?: () => void | Promise<void>;
+  onChanged?: (settings: Settings) => void | Promise<void>;
 }) {
+  const { gym } = useContext(GymAvailabilityContext);
+  const gymId = gym?.active.id;
+  const latest = useRef({ exerciseId, unit, onChanged });
+  latest.current = { exerciseId, unit, onChanged };
   // Steps are resolved for one unit; settings read for another unit are not shown under this one.
-  const [loaded, setLoaded] = useState<{ unit: Unit; settings: Settings } | null>(null);
-  const settings = loaded?.unit === unit ? loaded.settings : null;
+  const [loaded, setLoaded] = useState<{ unit: Unit; gymId?: string; settings: Settings } | null>(null);
+  const settings = loaded?.unit === unit && loaded.gymId === gymId ? loaded.settings : null;
   const [editing, setEditing] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -31,13 +36,13 @@ export function ExerciseLoadSettings({ exerciseId, exerciseName, unit, perSide =
     const controller = new AbortController();
     setLoaded(null);
     setError('');
-    api.exerciseLoadSettings(exerciseId, unit, controller.signal).then(next => setLoaded({ unit, settings: next })).catch(failure => {
+    api.exerciseLoadSettings(exerciseId, unit, controller.signal).then(next => { if (!controller.signal.aborted) setLoaded({ unit, gymId, settings: next }); }).catch(failure => {
       if (!controller.signal.aborted) setError(failure instanceof Error ? failure.message : 'Could not load weight settings.');
     });
     return () => controller.abort();
-  }, [exerciseId, reload, unit]);
+  }, [exerciseId, reload, unit, gymId]);
 
-  useEffect(() => { setEditing(false); }, [unit, exerciseId]);
+  useEffect(() => { setEditing(false); }, [unit, exerciseId, gymId]);
   useEffect(() => {
     if (editing || busy || !editTrigger.current) return;
     editTrigger.current.focus();
@@ -54,8 +59,13 @@ export function ExerciseLoadSettings({ exerciseId, exerciseName, unit, perSide =
     setBusy(true);
     setError('');
     try {
-      setLoaded({ unit, settings: await api.saveExerciseLoadSettings(exerciseId, { ...rule, revision: settings.revision, unit }) });
-      await onChanged?.();
+      const saved = await api.saveExerciseLoadSettings(exerciseId, {
+        ...rule, revision: settings.revision, unit, gymProfileId: settings.gymProfileId
+      });
+      setLoaded({ unit, gymId, settings: saved });
+      if (latest.current.exerciseId === exerciseId && latest.current.unit === unit) {
+        await latest.current.onChanged?.(saved);
+      }
       setEditing(false);
       if (editor) onClose?.();
     } catch (failure) {
@@ -63,6 +73,9 @@ export function ExerciseLoadSettings({ exerciseId, exerciseName, unit, perSide =
     } finally { setBusy(false); }
   }
 
+  const gymName = settings?.gymProfileId
+    ? gym?.profiles.find(profile => profile.id === settings.gymProfileId)?.name ?? 'your active gym'
+    : gym?.active.name ?? 'your active gym';
   const inherited = settings?.inherited;
   const group = inherited?.equipmentGroup ?? null;
   const failure = error && <div className="error-banner" role="alert">{error} <Button variant="secondary" disabled={busy}
@@ -70,7 +83,8 @@ export function ExerciseLoadSettings({ exerciseId, exerciseName, unit, perSide =
   const weightEditor = <>
     {failure}
     {!settings && !error && <p className="muted" role="status">Loading weight settings…</p>}
-    {settings && <LoadRuleEditor key={unit} unit={unit} name="exercise-load" busy={busy} perSide={perSide}
+    {settings && <p className="muted">Weight settings for {gymName}.</p>}
+    {settings && <LoadRuleEditor key={`${unit}-${settings.gymProfileId}-${settings.revision}`} unit={unit} name="exercise-load" busy={busy} perSide={perSide}
       rule={{ loadStepKg: settings.ownStepKg ?? null, availableLoadsKg: settings.ownAvailableLoadsKg ?? null }}
       inheritedStepKg={inherited?.stepKg} inheritedLoadsKg={inherited?.availableLoadsKg}
       inheritText={inherited
@@ -85,7 +99,7 @@ export function ExerciseLoadSettings({ exerciseId, exerciseName, unit, perSide =
     {/* The description line holds "Loading…" until the rule arrives, so the row keeps its height
         and nothing under it moves. */}
     <SettingRow label={<strong>Weight settings</strong>}
-      description={settings ? `${describeLoad(settings.loadStepKg, settings.availableLoadsKg, unit)} · ${describeSource(settings.source, group)}`
+      description={settings ? `${describeLoad(settings.loadStepKg, settings.availableLoadsKg, unit)} · ${describeSource(settings.source, group)} · ${gymName}`
         : error ? undefined : 'Loading…'}>
       <Button variant="secondary" disabled={busy || !settings} onClick={event => {
         editTrigger.current = event.currentTarget;

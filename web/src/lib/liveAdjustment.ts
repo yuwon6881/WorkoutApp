@@ -21,7 +21,7 @@ export type { CopiedLoadsLog } from './emptyLoadFill';
 /** A result edit, the following straight-set adjustments and the loads copied into empty later sets
  * form one draft change. */
 export function withLoggedSetEdit(draft: Session, ei: number, si: number, patch: Partial<LoggedSet>,
-  catalog: Exercise[], unit: Unit, trackRir: boolean, filled: FilledInputsLog, copied: CopiedLoadsLog = new Map()): Session | null {
+  catalog: Exercise[], unit: Unit, trackRir: boolean, filled: FilledInputsLog, copied: CopiedLoadsLog = new Map(), loadGrid?: LoadGrid): Session | null {
   const exercise = draft.exercises[ei];
   if (!exercise?.sets[si] || ('weightKg' in patch && !loadIsEditable(exercise))) return null;
   const edited = { ...draft, exercises: draft.exercises.map((item, index) => index === ei
@@ -30,7 +30,7 @@ export function withLoggedSetEdit(draft: Session, ei: number, si: number, patch:
   const unlogged = patch.done === false && exercise.sets[si].done;
   const isResult = patch.done === true || unlogged || 'weightKg' in patch || 'reps' in patch || 'rpe' in patch || 'rir' in patch;
   if (!isResult) return edited;
-  const adjusted = withLiveAdjustment(edited, ei, si, exerciseLoadGrid(exercise, catalog, unit), trackRir, filled, copied, unlogged);
+  const adjusted = withLiveAdjustment(edited, ei, si, loadGrid ?? exerciseLoadGrid(exercise, catalog, unit), trackRir, filled, copied, unlogged);
   return withEmptyLoadsFilled(adjusted, ei, si, copied);
 }
 
@@ -157,7 +157,8 @@ function loggedDeviations(exercise: SessionExercise, reading: Reading, baselines
   return byKind;
 }
 
-/// Re-aims every unlogged working set each time a set is logged (or corrected). Each kind of set
+/// Re-aims unlogged working sets after a set result changes or after new weights are saved
+/// (with no set index). Each kind of set
 /// learns from the logged sets of its own kind: how far they landed from their plan today, and
 /// their fade across the session (a drop faster than planned is carried forward), so a lifter who
 /// went 2 RIR then 1 RIR at the same reps is shown one rep fewer next, then another fewer, or a
@@ -170,12 +171,12 @@ function loggedDeviations(exercise: SessionExercise, reading: Reading, baselines
 /// target reserve, and later sets steer from it as they would from a prefill, filling only sets that
 /// are still blank (or hold a load copied into them, or this adjustment's last fill).
 export function withLiveAdjustment(
-  draft: Session, exerciseIndex: number, setIndex: number, grid: LoadGrid, trackRir: boolean, filled: FilledInputsLog,
+  draft: Session, exerciseIndex: number, setIndex: number | null, grid: LoadGrid, trackRir: boolean, filled: FilledInputsLog,
   copied: CopiedLoadsLog = new Map(), unlogged = false
 ): Session {
   const exercise = draft.exercises[exerciseIndex];
-  const logged = exercise?.sets[setIndex];
-  if (!exercise || !(logged?.done || unlogged) || isTimedExercise(exercise) || !steerable(exercise, setIndex)) return draft;
+  if (!exercise || isTimedExercise(exercise)) return draft;
+  if (setIndex !== null && (!(exercise.sets[setIndex]?.done || unlogged) || !steerable(exercise, setIndex))) return draft;
   const entry = loadEntryFor(exercise);
   const reading: Reading = { entry, referenceKg: draft.bodyWeight?.referenceKg, trackRir };
   const axis = loadAxisFor(entry, reading.referenceKg, grid);
@@ -221,6 +222,11 @@ export function withLiveAdjustment(
       next = aimedInputs(base, target, projected, axis, trackRir);
     } else {
       next = kind === 'straight' ? base : followStraightLoad(exercise, sets, index, base, trackRir);
+    }
+    const nextWeight = next?.weightKg;
+    if (!last && axis && next && nextWeight != null && grid.availableLoadsKg?.length &&
+        !axis.candidates(nextWeight).some(load => Math.abs(load - nextWeight) < 1e-4)) {
+      next = aimedInputs(next, target, (next.reps ?? target.low) + target.goal, axis, trackRir);
     }
     if (!next || sameInputs(next, current)) return;
     filled.set(set.id, next);

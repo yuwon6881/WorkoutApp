@@ -210,7 +210,15 @@ test('unified plate defaults and active exercise menu keep weight editing availa
       await dialog.getByRole('spinbutton', { name: 'Other weight (kg)', exact: true }).fill('3');
       await dialog.getByRole('button', { name: 'Add', exact: true }).click();
       await expect(weightList.getByRole('option', { name: '3 kg', exact: true })).toHaveAttribute('aria-selected', 'true');
-      await weightList.getByRole('option', { name: '3 kg', exact: true }).click();
+      const customWeight = weightList.getByRole('option', { name: '3 kg', exact: true });
+      await customWeight.click();
+      await expect(customWeight).toHaveAttribute('aria-selected', 'false');
+      await expect(weightList.getByRole('option', { selected: true })).toHaveCount(4);
+      const weight = weightList.getByRole('option', { name: '5 kg', exact: true });
+      await weight.click();
+      await expect(weight).toHaveAttribute('aria-selected', 'false');
+      await expect(weight).not.toHaveClass(/highlighted/);
+      await weight.click();
       await page.screenshot({ path: join(screenshotsDirectory, `weights-picker-open-${info.project.name}-${theme}.png`) });
       await dialog.getByRole('button', { name: 'Done', exact: true }).click();
       await expect(dialog.getByRole('button', { name: 'Available weights (kg)', exact: true })).toContainText('2.5 kg, 5 kg');
@@ -272,7 +280,9 @@ test('unified plate defaults and active exercise menu keep weight editing availa
 
 test('personal exercise weights support uneven lists and kg/lb switching', async ({ page }, testInfo) => {
   await signIn(page);
-  const originalPreferences = (await (await page.request.get('/api/bootstrap')).json()).preferences;
+  const { preferences: originalPreferences } = await (await page.request.get('/api/bootstrap')).json();
+  const gyms: { activeId: string; profiles: { id: string; name: string }[] } = await (await page.request.get('/api/gyms')).json();
+  const gymName = gyms.profiles.find(profile => profile.id === gyms.activeId)!.name;
   const name = `Weight settings ${testInfo.project.name} ${Date.now()}`;
   const headers = { 'X-Workout-Request': '1', Origin: new URL(page.url()).origin };
   const created = await page.request.post('/api/exercises/custom', {
@@ -315,7 +325,7 @@ test('personal exercise weights support uneven lists and kg/lb switching', async
       await weights.getByRole('button', { name: 'Done', exact: true }).click();
       await weights.getByRole('button', { name: 'Save weights', exact: true }).click();
       await expect(weights).toBeHidden();
-      await expect(dialog.getByText("5, 12.5, 20 kg · This exercise's setting", { exact: true })).toBeVisible();
+      await expect(dialog.getByText(`5, 12.5, 20 kg · This exercise's setting · ${gymName}`, { exact: true })).toBeVisible();
       await dialog.getByRole('button', { name: 'Edit weights', exact: true }).click();
       await expect(weights.getByRole('button', { name: 'Available weights (kg)', exact: true })).toContainText('5 kg, 12.5 kg, 20 kg');
       await expect.poll(() => weights.evaluate(element => element.scrollWidth <= element.clientWidth + 1)).toBeTruthy();
@@ -331,20 +341,20 @@ test('personal exercise weights support uneven lists and kg/lb switching', async
     await page.getByRole('textbox', { name: 'Search exercises', exact: true }).fill(name);
     await page.getByRole('button', { name: `View ${name} details`, exact: true }).click();
     const dialog = page.getByRole('dialog', { name, exact: true });
-    await expect(dialog.getByText("11.02, 27.56, 44.09 lb · This exercise's setting", { exact: true })).toBeVisible();
+    await expect(dialog.getByText(`11.02, 27.56, 44.09 lb · This exercise's setting · ${gymName}`, { exact: true })).toBeVisible();
     await dialog.getByRole('button', { name: 'Edit weights', exact: true }).click();
     const weights = page.getByRole('dialog', { name: `${name} weights`, exact: true });
     await weights.getByRole('button', { name: 'Fixed step', exact: true }).click();
     await weights.getByRole('spinbutton', { name: 'Weight increase (lb)', exact: true }).fill('5');
     await weights.getByRole('button', { name: 'Save weights', exact: true }).click();
     await expect(weights).toBeHidden();
-    await expect(dialog.getByText("5 lb steps · This exercise's setting", { exact: true })).toBeVisible();
+    await expect(dialog.getByText(`5 lb steps · This exercise's setting · ${gymName}`, { exact: true })).toBeVisible();
     const saved = await (await page.request.get(`/api/exercises/${exercise.id}/load-settings`)).json();
     expect(saved.loadStepKg).toBeCloseTo(5 / 2.2046226218, 8);
     await dialog.getByRole('button', { name: 'Edit weights', exact: true }).click();
     await weights.getByRole('button', { name: 'Use default', exact: true }).click();
     await expect(weights).toBeHidden();
-    await expect(dialog.getByText('5 lb steps · App default', { exact: true })).toBeVisible();
+    await expect(dialog.getByText(`5 lb steps · App default · ${gymName}`, { exact: true })).toBeVisible();
     // Old history remains usable even when the chosen chart range contains no points.
     const insight = await (await page.request.get(`/api/exercises/${exercise.id}/insight?range=3m&page=0&size=20`)).json();
     await dialog.getByRole('button', { name: 'Close dialog', exact: true }).click();
@@ -1007,6 +1017,11 @@ test('overview calendar opens matching completed and active sessions and leaves 
   const completed = page.getByRole('dialog', { name: 'Evening Bench & Arms', exact: true });
   await expect(completed).toBeVisible();
   await expect(completed.getByText('Completed workout', { exact: true })).toBeVisible();
+  const stats = completed.locator('.session-summary-stats > div');
+  await expect(stats).toHaveCount(3);
+  const [durationTile, setsTile, volumeTile] = await Promise.all((await stats.all()).map(tile => tile.boundingBox()));
+  expect(volumeTile?.y).toBe(setsTile?.y);
+  expect(volumeTile?.width).toBeCloseTo(durationTile!.width, 0);
   await completed.getByRole('button', { name: 'Close dialog', exact: true }).click();
   if (today.getDay() === 1) {
     await page.locator('.calendar-week-rail').focus();

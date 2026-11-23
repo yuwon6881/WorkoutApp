@@ -1,0 +1,27 @@
+.program-exercise-changes {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.program-exercise-changes > li {
+  display: grid;
+  gap: 4px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  overflow-wrap: anywhere;
+}
+
+.program-exercise-changes ul {
+  margin: 0;
+  padding-inline-start: 18px;
+}
+
+.program-exercise-changes ul,
+.program-exercise-changes small {
+  color: var(--muted);
+  font-size: var(--font-secondary);
+}

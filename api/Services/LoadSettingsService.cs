@@ -5,19 +5,21 @@ using Workout.Api.Domain;
 namespace Workout.Api.Services;
 
 /// Unit is the one the step was typed in; without it the account unit is assumed.
-public record LoadRuleInput(double? LoadStepKg, List<double>? AvailableLoadsKg, int Revision, string? Unit = null);
+public record LoadRuleInput(double? LoadStepKg, List<double>? AvailableLoadsKg, int Revision, string? Unit = null, Guid? GymProfileId = null);
 public record EquipmentLoadView(string Group, double AppDefaultStepKg, double? OwnStepKg, List<double>? OwnAvailableLoadsKg,
     double StepKg, List<double>? AvailableLoadsKg, string Source, int Revision, int ExerciseCount);
-public record LoadSettingsView(List<EquipmentLoadView> Equipment);
+public record LoadSettingsView(List<EquipmentLoadView> Equipment, Guid GymProfileId);
 
 /// Equipment defaults at the active gym. Individual exercise rules are edited with that exercise.
 public sealed class LoadSettingsService(AppDb db, CatalogService catalog)
 {
     public async Task<LoadSettingsView> Get(CancellationToken ct, string? unit = null)
+        => await Read(await GymProfiles.ActiveId(db, ct) ?? Guid.Empty, ct, unit);
+
+    private async Task<LoadSettingsView> Read(Guid gym, CancellationToken ct, string? unit)
     {
         var exercises = await catalog.All(ct);
-        var rules = await LoadRuleReader.Read(db, [], ct, unit);
-        var gym = await GymProfiles.ActiveId(db, ct) ?? Guid.Empty;
+        var rules = await LoadRuleReader.Read(db, [], ct, unit, gymProfileId: gym);
         var defaults = await db.EquipmentLoadDefaults.AsNoTracking().Where(x => x.GymProfileId == gym).ToDictionaryAsync(x => x.Equipment, ct);
         var groupSizes = exercises.Select(x => EquipmentGroups.For(x.Equipment, x.LoadModel))
             .Where(group => group is not null).GroupBy(group => group!).ToDictionary(g => g.Key, g => g.Count());
@@ -29,7 +31,7 @@ public sealed class LoadSettingsService(AppDb db, CatalogService catalog)
                 LoadRuleReader.Loads(row?.AvailableLoadsJson), resolved.StepKg, resolved.AvailableLoadsKg?.ToList(),
                 resolved.Source, row?.Revision ?? 0, groupSizes.GetValueOrDefault(group));
         }).ToList();
-        return new LoadSettingsView(equipment);
+        return new LoadSettingsView(equipment, gym);
     }
 
     /// Both fields empty restores the app default for the group.
@@ -38,9 +40,10 @@ public sealed class LoadSettingsService(AppDb db, CatalogService catalog)
         Validation.Require(EquipmentGroups.IsKnown(group), "That equipment type has no weight settings.", 404);
         var (step, loadsJson) = LoadRuleValidation.Normalize(input.LoadStepKg, input.AvailableLoadsKg);
         var unit = await LoadRuleReader.ReadingUnit(db, input.Unit, ct);
+        Guid gym;
         await using (var gate = await MutationLock.Acquire(db, db.CurrentUser, ct))
         {
-            var gym = await GymProfiles.EnsureActive(db, ct);
+            gym = await GymProfiles.ForWeightSettingsSave(db, input.GymProfileId, ct);
             var row = await db.EquipmentLoadDefaults.SingleOrDefaultAsync(x => x.GymProfileId == gym && x.Equipment == group, ct);
             Validation.Require(input.Revision == (row?.Revision ?? 0),
                 "These weight settings changed elsewhere. Reload them before saving again.", 409);
@@ -56,6 +59,6 @@ public sealed class LoadSettingsService(AppDb db, CatalogService catalog)
             await db.SaveChangesAsync(ct);
             await gate.Commit(ct);
         }
-        return await Get(ct, unit);
+        return await Read(gym, ct, unit);
     }
 }

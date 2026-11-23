@@ -70,6 +70,33 @@ public sealed class GymProfileTests
     }
 
     [Fact]
+    public async Task A_weight_editor_opened_at_another_gym_cannot_save_into_the_current_gym()
+    {
+        await using var h = await Harness.Create();
+        await h.SignIn();
+        await h.Seed(new SeedExercise("pushdown", "Pushdown", "Triceps", "Cable", null));
+        var id = await h.ExerciseId("pushdown");
+        var gyms = Gyms(h);
+        var equipment = new LoadSettingsService(h.Db, h.Catalog);
+        var exercises = new ExerciseLoadSettingsService(h.Db);
+        var home = (await gyms.Get(default)).ActiveId;
+        var equipmentView = await equipment.Get(default);
+        var exerciseView = await exercises.Get(id, default);
+        Assert.Equal(home, equipmentView.GymProfileId);
+        Assert.Equal(home, exerciseView.GymProfileId);
+
+        var hotel = (await gyms.Create(new("Hotel"), default)).Profiles.Single(x => x.Name == "Hotel").Id;
+        await gyms.Activate(hotel, default);
+
+        await Rejected(409, null, () => equipment.SaveEquipment(EquipmentGroups.Cable,
+            new(5, null, 0, GymProfileId: equipmentView.GymProfileId), default));
+        await Rejected(409, null, () => exercises.Save(id,
+            new(1, null, exerciseView.Revision, GymProfileId: exerciseView.GymProfileId), default));
+        Assert.Empty(await h.Db.EquipmentLoadDefaults.ToListAsync());
+        Assert.Empty(await h.Db.ExerciseLoadSettings.ToListAsync());
+    }
+
+    [Fact]
     public async Task A_copied_gym_starts_with_the_source_gym_settings()
     {
         await using var h = await Harness.Create();

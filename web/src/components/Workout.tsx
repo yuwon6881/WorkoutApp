@@ -3,7 +3,8 @@ import type { Exercise, LoggedSet, Preferences, RestMutationInput, Session, Sess
 import { ApiError, api } from '../lib/api';
 import type { SaveQueue } from '../lib/queue';
 import { completedSets, plannedSets } from '../lib/training';
-import { withLoggedSetEdit, type CopiedLoadsLog, type FilledInputsLog } from '../lib/liveAdjustment';
+import { withLiveAdjustment, withLoggedSetEdit, type CopiedLoadsLog, type FilledInputsLog, type LoadGrid } from '../lib/liveAdjustment';
+import type { ExerciseLoadSettings } from '../lib/exerciseLoads';
 import { useTrackRir } from '../lib/trackRir';
 import { exerciseListChanged, indexAfterMove, indexAfterRemoval, setOrderProblem, withExerciseMoved, withServerFlags } from '../lib/workoutDraft';
 import { firstOpenExercise, nextUpText, type AdvanceOptions } from '../lib/workoutLogging';
@@ -88,6 +89,7 @@ export function Workout({
   const setToggleGenerations = useRef(new Map<string, number>());
   // What the logger last filled into each later set, so a typed value is never overwritten.
   const written = useRef<{ filled: FilledInputsLog; copied: CopiedLoadsLog }>({ filled: new Map(), copied: new Map() });
+  const savedLoadGrids = useRef(new Map<string, LoadGrid>());
   const trackRir = useTrackRir();
   const { celebration, afterLog, dismissCelebration } = useAfterLog({
     unit: preferences.unit, advance, onAdvance: index => selectExercise(index)
@@ -196,9 +198,21 @@ export function Workout({
     expectedDraft?: Session
   ): Promise<boolean> {
     const exercise = draft.exercises[ei];
-    const next = withLoggedSetEdit(draft, ei, si, patch, exercises, preferences.unit, trackRir, written.current.filled, written.current.copied);
+    const next = withLoggedSetEdit(draft, ei, si, patch, exercises, preferences.unit, trackRir, written.current.filled,
+      written.current.copied, savedLoadGrids.current.get(`${preferences.unit}:${exercise.exerciseId}`));
     if (!next) return false;
     return change(next, { setId: exercise.sets[si].id, patch }, restMutation, restState, expectedDraft);
+  }
+
+  async function applyWeightSettings(exerciseId: string, settings: ExerciseLoadSettings) {
+    if (isAccountCurrent && !isAccountCurrent(accountId)) return;
+    const grid = { stepKg: settings.loadStepKg, availableLoadsKg: settings.availableLoadsKg };
+    savedLoadGrids.current.set(`${preferences.unit}:${exerciseId}`, grid);
+    const next = draft.exercises.reduce((current, exercise, index) => exercise.exerciseId === exerciseId
+      ? withLiveAdjustment(current, index, null, grid, trackRir, written.current.filled, written.current.copied)
+      : current, draft);
+    if (next !== draft) await change(next);
+    await onCatalogChanged?.();
   }
 
   async function toggle(ei: number, si: number, expectedDraft?: Session) {
@@ -419,7 +433,7 @@ export function Workout({
         picker={picker} onPicker={open => { setPicker(open); if (open) loadCatalog(); }}
         onAddExercise={() => online && !finishIntentAt ? (setPicker(true), loadCatalog()) : setError('Connect before adding an exercise.')}
         onChange={change} onEditSet={editSet} onToggleSet={toggle} onSelectExercise={selectExercise} onMoveExercise={moveExercise}
-        onSwap={swapExercise} onRestore={restoreExercise} onRemoveExercise={removeExercise} onCatalogChanged={onCatalogChanged} onCatalogNeeded={onCatalogNeeded}
+        onSwap={swapExercise} onRestore={restoreExercise} onRemoveExercise={removeExercise} onWeightSettingsSaved={applyWeightSettings} onCatalogNeeded={onCatalogNeeded}
         onOpenExercise={onOpenExercise} restMode={restMode.mode} />
 
       <WorkoutFooter error={error} busy={busy || Boolean(finishIntentAt) || recoveryConflict}

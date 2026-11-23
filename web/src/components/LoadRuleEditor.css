@@ -90,6 +90,7 @@
 /* A small gap keeps neighbouring selected weights reading as separate rows rather than one block. */
 .custom-select-with-footer .custom-select-options { display: flex; flex-direction: column; gap: 4px; padding: 6px; }
 .custom-select-with-footer .custom-select-item { border-radius: var(--radius-control); }
+.custom-select-with-footer .custom-select-item.selected { background: var(--accent-soft); }
 .custom-select-with-footer .custom-select-footer { padding: 10px 14px; }
 
 @media (max-width: 639px) {

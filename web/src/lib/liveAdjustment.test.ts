@@ -38,6 +38,19 @@ const adjust = (draft: Session, index = 0, filled: FilledInputsLog = new Map()) 
 const three = () => draftWith([set('a', 0, 60, 10), set('b', 1, 60, 10), set('c', 2, 60, 10)]);
 
 describe('withLiveAdjustment', () => {
+  it('applies a new available-weight rule to existing prefills while preserving manual and logged weights', () => {
+    const draft = logged(draftWith([set('a', 0, 60, 10), set('b', 1, 60, 10),
+      set('c', 2, 60, 10), set('manual', 3, 60, 10, { weightKg: 62.5 })]), 0, {});
+    const updated = withLiveAdjustment(draft, 0, null, { stepKg: 0, availableLoadsKg: [40, 55] }, true, new Map());
+    expect(updated.exercises[0].sets.map(item => item.weightKg)).toEqual([60, 55, 55, 62.5]);
+    expect(updated.exercises[0].sets[1].suggestion?.suggestedLoadKg).toBe(60);
+  });
+
+  it('updates a prefilled weight even before the first set is logged', () => {
+    const updated = withLiveAdjustment(three(), 0, null, { stepKg: 0, availableLoadsKg: [10, 25] }, true, new Map());
+    expect(updated.exercises[0].sets.map(item => item.weightKg)).toEqual([25, 25, 25]);
+  });
+
   it('leaves later sets alone when the logged set was on plan', () => {
     const draft = logged(three(), 0, { reps: 10, rpe: 8, rir: '2' });
     expect(withLiveAdjustment(draft, 0, 0, grid, true, new Map())).toBe(draft);

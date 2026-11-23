@@ -11,13 +11,14 @@ export function AvailableWeightPicker({ unit, initial, busy, onChange }: {
   unit: Unit; initial: number[]; busy: boolean; onChange: (weights: number[]) => void;
 }) {
   const [selected, setSelected] = useState<Weight[]>(() => initial.map(kg => ({ label: displayLoadSetting(kg, unit), kg })));
+  const [knownWeights, setKnownWeights] = useState<Weight[]>(() => initial.map(kg => ({ label: displayLoadSetting(kg, unit), kg })));
   const [custom, setCustom] = useState('');
   const [error, setError] = useState('');
   const input = useRef<HTMLInputElement>(null);
   const interval = unit === 'kg' ? 2.5 : 5;
   const maximum = unit === 'kg' ? 1000 : 2200;
   const labels = new Set(Array.from({ length: Math.floor(maximum / interval) + 1 }, (_, index) => String(index * interval)));
-  selected.forEach(weight => labels.add(weight.label));
+  knownWeights.forEach(weight => labels.add(weight.label));
   const options = [...labels].sort((a, b) => Number(a) - Number(b)).map(value => ({ value, label: `${value} ${unit}` }));
 
   function update(next: Weight[]) {
@@ -28,7 +29,7 @@ export function AvailableWeightPicker({ unit, initial, busy, onChange }: {
   }
   function select(labels: string[]) {
     if (labels.length > 200) { setError('You can select at most 200 weights.'); return; }
-    update(labels.map(label => selected.find(weight => weight.label === label) ?? { label, kg: loadSettingToKg(Number(label), unit) }));
+    update(labels.map(label => knownWeights.find(weight => weight.label === label) ?? { label, kg: loadSettingToKg(Number(label), unit) }));
   }
   function addCustom() {
     const value = Number(custom);
@@ -40,7 +41,9 @@ export function AvailableWeightPicker({ unit, initial, busy, onChange }: {
     const label = String(value);
     if (!selected.some(weight => weight.label === label)) {
       if (selected.length >= 200) { setError('You can select at most 200 weights.'); return; }
-      update([...selected, { label, kg: loadSettingToKg(value, unit) }]);
+      const weight = knownWeights.find(item => item.label === label) ?? { label, kg: loadSettingToKg(value, unit) };
+      if (!knownWeights.includes(weight)) setKnownWeights([...knownWeights, weight]);
+      update([...selected, weight]);
     }
     setCustom('');
   }

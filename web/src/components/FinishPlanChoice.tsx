@@ -1,6 +1,7 @@
 import { Loader2 } from 'lucide-react';
 import type { FinishPlanChoice as Choice, FinishPlanUpdate } from './useFinishPlanUpdate';
 import './ExerciseScopeOptions.css';
+import { ProgramExerciseChanges } from './ProgramExerciseChanges';
 import { CardFeedback } from './ui/CardFeedback';
 
 const others = (count: number) => `Also ${count} other ${count === 1 ? 'occurrence' : 'occurrences'}`;
@@ -22,14 +23,10 @@ export function FinishPlanChoice({ update, disabled }: { update: FinishPlanUpdat
     ...(summary.counts.block > 0 ? [{ value: 'block' as const, label: 'Same block', detail: others(summary.counts.block) }] : []),
     ...(summary.counts.program > summary.counts.block ? [{ value: 'program' as const, label: 'Whole program', detail: others(summary.counts.program) }] : [])
   ];
-  const names = summary.edits.map(edit => edit.name);
 
   return <fieldset className="exercise-scope-options finish-plan-choice" disabled={disabled}>
     <legend>Update your program?</legend>
-    <p>
-      You changed the {summary.changes.join(', ')} for {names.length === 1 ? names[0] : `${names.length} exercises`}.
-      Only what you changed is carried over; other days keep their own sets, rest and notes.
-    </p>
+    <ProgramExerciseChanges edits={summary.edits} fallback={summary.changes} />
     {options.map(option => <label className="checkbox-row exercise-scope-option" key={option.value}>
       <input type="radio" name="finish-plan-scope" value={option.value} checked={update.choice === option.value}
         onChange={() => update.setChoice(option.value)} />

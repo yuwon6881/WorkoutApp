@@ -1960,6 +1960,9 @@ namespace Workout.Api.Data.Migrations
                     b.Property<string>("ProgramNameSnapshot")
                         .HasColumnType("text");
 
+                    b.Property<string>("ProgramUpdatesJson")
+                        .HasColumnType("text");
+
                     b.Property<DateTime?>("RestDeadlineUtc")
                         .HasColumnType("timestamp with time zone");
 

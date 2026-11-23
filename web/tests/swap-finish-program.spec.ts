@@ -48,6 +48,10 @@ test('finishing a swapped workout with the whole-program update succeeds on the 
     await page.getByRole('button', { name: 'Save workout', exact: true }).click();
     await expect(page.getByText('Workout complete', { exact: true })).toBeVisible({ timeout: 15000 });
     await expect(page.getByText(/program changed before finishing/)).toHaveCount(0);
+    const updates = page.getByRole('region', { name: 'Program updated' });
+    await expect(updates.getByText(other.name, { exact: true })).toBeVisible();
+    await expect(updates.getByText('Changed the linked exercise', { exact: true })).toBeVisible();
+    await expect(updates.getByText('3 occurrences updated', { exact: true })).toBeVisible();
 
     // The update carried the swap and nothing else: every day keeps its three sets and its 120 s rest timer.
     const saved = await (await page.request.get(`/api/programs/${program.id}`)).json();

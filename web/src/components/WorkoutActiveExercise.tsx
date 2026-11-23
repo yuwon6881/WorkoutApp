@@ -16,7 +16,8 @@ import type {
   LoggedSet,
   Preferences,
   Session,
-  SessionExercise
+  SessionExercise,
+  Unit
 } from '../types';
 import { api } from '../lib/api';
 import { restOptions } from '../lib/training';
@@ -41,9 +42,9 @@ import { warmupOffer, withWarmups } from '../lib/workoutWarmups';
 import { DemoLink } from './ui/DemoLink';
 import { isTimedExercise } from '../lib/setDuration';
 import { useTrackRir } from '../lib/trackRir';
+import { loadAdjustable, type ExerciseLoadSettings as WeightSettings } from '../lib/exerciseLoads';
 import { ExerciseLoadSettings } from './ExerciseLoadSettings';
 import { WorkoutTargetsModal } from './WorkoutTargetsModal';
-import { loadAdjustable } from '../lib/exerciseLoads';
 import { canEnterPerSide } from '../lib/equipmentGroups';
 import { GymAvailabilityBadge } from './GymAvailabilityBadge';
 import { loadColumnLabel, loadEntryFor } from '../lib/resistanceVariant';
@@ -63,7 +64,7 @@ export function WorkoutActiveExercise({
   onSwap,
   onRestore,
   onRemoveExercise,
-  onCatalogChanged,
+  onWeightSettingsSaved,
   onCatalogNeeded,
   onOpenExercise,
   restMode = 'balanced'
@@ -79,7 +80,7 @@ export function WorkoutActiveExercise({
   onSwap: (sessionExerciseId: string, replacementExerciseId: string | null, replacementName: string) => Promise<void>;
   onRestore?: (sessionExerciseId: string) => Promise<void>;
   onRemoveExercise: (index: number) => void;
-  onCatalogChanged?: () => void | Promise<void>;
+  onWeightSettingsSaved?: (exerciseId: string, settings: WeightSettings) => void | Promise<void>;
   onCatalogNeeded?: () => Promise<void>;
   /// Opens the library details (progress chart, records, history) over the workout.
   onOpenExercise?: (exerciseId: string) => void;
@@ -153,7 +154,9 @@ export function WorkoutActiveExercise({
     }).catch(() => { /* Explicit load entry and durable offline logging remain available. */ });
     return () => controller.abort();
   }, [exercise.exerciseId, exercise.loadModel, libraryExercise, unit]);
-  const resolvedLoads = libraryExercise ?? focusedLoads;
+  const [savedLoads, setSavedLoads] = useState<{ exerciseId: string; unit: Unit; settings: WeightSettings } | null>(null);
+  const resolvedLoads = savedLoads && savedLoads.exerciseId === exercise.exerciseId && savedLoads.unit === unit
+    ? savedLoads.settings : libraryExercise ?? focusedLoads;
   const rowExercise = useMemo(() => ({ id: exercise.id, name: exercise.name, loadModel: exercise.loadModel,
     trackingMode: exercise.trackingMode, weightBasis: exercise.weightBasis }),
   [exercise.id, exercise.name, exercise.loadModel, exercise.trackingMode, exercise.weightBasis]);
@@ -404,7 +407,10 @@ export function WorkoutActiveExercise({
         <Modal title={`${exercise.name} weights`} onClose={closeWeights}>
           <div className="modal-body">
             {libraryExercise ? <ExerciseLoadSettings exerciseId={libraryExercise.id} exerciseName={exercise.name} unit={unit} editor
-              perSide={canEnterPerSide(libraryExercise)} onClose={closeWeights} onChanged={onCatalogChanged} /> : <div role="status">
+              perSide={canEnterPerSide(libraryExercise)} onClose={closeWeights} onChanged={settings => {
+                setSavedLoads({ exerciseId: libraryExercise.id, unit, settings });
+                return onWeightSettingsSaved?.(libraryExercise.id, settings);
+              }} /> : <div role="status">
               <p>{catalogError || (catalogAnswered
                 ? 'This exercise is no longer in your library, so its weights cannot be changed here.'
                 : 'Loading weight settings…')}</p>

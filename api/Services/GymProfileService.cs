@@ -172,6 +172,17 @@ public sealed class GymProfileService(AppDb db)
 /// Reads shared by every service that needs the account's gym.
 public static class GymProfiles
 {
+    public static async Task<Guid> ForWeightSettingsSave(AppDb db, Guid? expectedGym, CancellationToken ct)
+    {
+        if (expectedGym is { } expected)
+        {
+            var active = await ActiveId(db, ct) ?? Guid.Empty;
+            Validation.Require(expected == active, "Your active gym changed. Reload the weight settings before saving.", 409);
+            if (active != Guid.Empty) return active;
+        }
+        return await EnsureActive(db, ct);
+    }
+
     public static async Task<Guid?> ActiveId(AppDb db, CancellationToken ct)
     {
         if (db.CurrentUser is null) return null;

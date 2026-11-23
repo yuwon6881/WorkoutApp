@@ -51,7 +51,7 @@ public static class LoadRuleReader
     /// Null exerciseIds reads every exercise setting, for the whole catalog. A unit reads the rules
     /// as that unit displays them; without one they follow the account unit.
     public static async Task<LoadRuleSnapshot> Read(AppDb db, IReadOnlyCollection<Guid>? exerciseIds, CancellationToken ct,
-        string? unit = null, AccountLoadContext? account = null)
+        string? unit = null, AccountLoadContext? account = null, Guid? gymProfileId = null)
     {
         if (unit is not null) Validation.Unit(unit);
         if (db.CurrentUser is null)
@@ -60,8 +60,8 @@ public static class LoadRuleReader
         account ??= await ReadAccountContext(db, ct);
         var resolvedUnit = unit ?? account.Unit;
         // Before the first gym exists no rule can have been saved, so skip load-rule table queries.
-        var gym = await GymProfiles.ResolveActiveId(db, account.ActiveGymProfileId, ct);
-        if (gym is null)
+        var gym = gymProfileId ?? await GymProfiles.ResolveActiveId(db, account.ActiveGymProfileId, ct);
+        if (gym is null || gym == Guid.Empty)
             return new LoadRuleSnapshot([], [], resolvedUnit);
 
         var settings = exerciseIds is { Count: 0 }

@@ -15,7 +15,7 @@ internal static class HistoryProjections
         {
             UserId = row.UserId, Id = row.Id, Revision = row.Revision,
             TemplateId = row.TemplateId, ProgramId = row.ProgramId, ProgramNameSnapshot = row.ProgramNameSnapshot, ProgramDayProgressId = row.ProgramDayProgressId,
-            Name = row.Name, Note = row.Note, Active = row.Active,
+            Name = row.Name, Note = row.Note, Active = row.Active, ProgramUpdatesJson = row.ProgramUpdatesJson,
             StartedAt = row.StartedAt, FinishedAt = row.FinishedAt, PausedAt = row.PausedAt, PausedSeconds = row.PausedSeconds,
             LastTimingEventAt = row.LastTimingEventAt, BodyWeightSnapshotJson = row.BodyWeightSnapshotJson,
             NutritionContextRevision = row.NutritionContextRevision, RestGeneration = row.RestGeneration, RestStatus = row.RestStatus,

@@ -14,6 +14,7 @@ export type InheritedLoad = {
 /// loadStepKg and availableLoadsKg are what progression uses now; the own fields are the exercise's
 /// own rule, and none of them set means it inherits.
 export type ExerciseLoadSettings = {
+  gymProfileId?: string;
   loadStepKg: number;
   availableLoadsKg: number[] | null;
   defaultStepKg: number;
@@ -32,7 +33,7 @@ export type EquipmentLoad = {
   group: string; appDefaultStepKg: number; ownStepKg: number | null; ownAvailableLoadsKg: number[] | null;
   stepKg: number; availableLoadsKg: number[] | null; source: LoadSource; revision: number; exerciseCount: number;
 };
-export type LoadSettingsOverview = { equipment: EquipmentLoad[] };
+export type LoadSettingsOverview = { equipment: EquipmentLoad[]; gymProfileId?: string };
 
 // Keep full precision when saving pound-based equipment. Repeated unit switches must
 // not change which loads exist on the machine.

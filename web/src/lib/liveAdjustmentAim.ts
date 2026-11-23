@@ -61,10 +61,15 @@ export function loadAxisFor(entry: LoadEntry, referenceKg: number | null | undef
 function nearbyLoads(planned: number, grid: LoadGrid, zeroAllowed: boolean): number[] {
   const usable = (load: number) => zeroAllowed ? load >= -EPSILON : load > EPSILON;
   const reach = LOAD_REACH_STEPS * Math.max(grid.stepKg, Math.abs(planned) * 0.05, 0.5);
-  const loads = grid.availableLoadsKg?.length
-    ? [...grid.availableLoadsKg, ...(zeroAllowed ? [0] : [])].filter(load => usable(load) && Math.abs(load - planned) <= reach)
-    : Array.from({ length: LOAD_REACH_STEPS * 2 + 1 }, (_, i) => Number((planned + (i - LOAD_REACH_STEPS) * grid.stepKg).toFixed(4)))
-      .filter(usable);
+  if (grid.availableLoadsKg?.length) {
+    const listed = grid.availableLoadsKg.filter(usable);
+    const nearest = listed.reduce<number | null>((best, load) =>
+      best === null || Math.abs(load - planned) < Math.abs(best - planned) ? load : best, null);
+    const candidates = [...new Set([...listed, ...(zeroAllowed ? [0] : [])])];
+    return candidates.filter(load => load === nearest || Math.abs(load - planned) <= reach);
+  }
+  const loads = Array.from({ length: LOAD_REACH_STEPS * 2 + 1 }, (_, i) => Number((planned + (i - LOAD_REACH_STEPS) * grid.stepKg).toFixed(4)))
+    .filter(usable);
   return [planned, ...loads.filter(load => Math.abs(load - planned) > EPSILON)];
 }
 

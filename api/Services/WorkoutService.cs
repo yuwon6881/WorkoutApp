@@ -35,7 +35,8 @@ public sealed record SessionRestView(
 public record SessionView(Guid Id, Guid? TemplateId, Guid? ProgramId, string Name, string Note, bool Active, DateTime StartedAt, DateTime? FinishedAt, int Revision,
     List<SessionExerciseView> Exercises, double? VolumeKg, int CompletedSets, int WarmupSets = 0,
     BodyWeightSnapshot? BodyWeight = null, NutritionTrainingContext? NutritionContext = null,
-    double? SystemVolumeKg = null, DateTime? PausedAt = null, long PausedSeconds = 0, int PrCount = 0, SessionRestView? Rest = null, bool RestoreIncludesRemovedExercises = false);
+    double? SystemVolumeKg = null, DateTime? PausedAt = null, long PausedSeconds = 0, int PrCount = 0, SessionRestView? Rest = null, bool RestoreIncludesRemovedExercises = false,
+    List<FinishPlanEditView>? ProgramUpdates = null);
 
 public sealed record WorkoutActivityItem(Guid Id, string Name, string Status, DateOnly Date,
     int? WorkingSets = null, int? TrainingMinutes = null);
@@ -411,7 +412,8 @@ public sealed partial class WorkoutService(
         // A workout of warm-ups alone records no training, and the phone and watch refuse it too.
         Validation.Require(sets.Any(s => s.Done && !s.Warmup), "Complete at least one working set to save this workout.");
         Validation.Require(planUpdate is null || !retainExerciseSwaps, "Choose one program update method.");
-        if (planUpdate is not null) await ApplyFinishPlan(session, planUpdate, ct);
+        if (planUpdate is not null)
+            session.ProgramUpdatesJson = Json.Write(await ApplyFinishPlan(session, planUpdate, ct));
         db.Sets.RemoveRange(sets.Where(s => !s.Done));
         foreach (var exercise in exercises.Where(e => !sets.Any(s => s.Done && s.SessionExerciseId == e.Id))) db.SessionExercises.Remove(exercise);
 
