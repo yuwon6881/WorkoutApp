@@ -129,9 +129,9 @@ export const api = {
   exerciseLoadSettings: (id: string, unit: Unit, signal?: AbortSignal) =>
     call<ExerciseLoadSettings>(`/api/exercises/${id}/load-settings?unit=${unit}`, 'GET', undefined, signal),
   saveExerciseLoadSettings: (id: string, input: LoadRule & { revision: number; unit: Unit; gymProfileId?: string }) => call<ExerciseLoadSettings>(`/api/exercises/${id}/load-settings`, 'PUT', input),
-  loadSettings: (unit: Unit, signal?: AbortSignal) => call<LoadSettingsOverview>(`/api/load-settings?unit=${unit}`, 'GET', undefined, signal),
-  saveEquipmentLoad: (group: string, input: LoadRule & { revision: number; unit: Unit; gymProfileId?: string }) =>
-    call<LoadSettingsOverview>(`/api/load-settings/equipment/${encodeURIComponent(group)}`, 'PUT', input),
+  loadSettings: (gymId: string, unit: Unit, signal?: AbortSignal) => call<LoadSettingsOverview>(`/api/gyms/${gymId}/load-settings?unit=${unit}`, 'GET', undefined, signal),
+  saveEquipmentLoad: (gymId: string, group: string, input: LoadRule & { revision: number; unit: Unit }) =>
+    call<LoadSettingsOverview>(`/api/gyms/${gymId}/load-settings/equipment/${encodeURIComponent(group)}`, 'PUT', input),
   gyms: (signal?: AbortSignal) => call<GymsView>('/api/gyms', 'GET', undefined, signal),
   createGym: (name: string, copyFrom: string | null) => call<GymsView>('/api/gyms', 'POST', { name, copyFrom }),
   updateGym: (id: string, input: { name: string; missingEquipment: string[]; exerciseOverrides: Record<string, GymExerciseOverride>; revision: number }) =>

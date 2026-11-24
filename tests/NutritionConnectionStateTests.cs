@@ -1,4 +1,5 @@
 using System.Net;
+using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
 using Microsoft.AspNetCore.Hosting;
@@ -52,6 +53,56 @@ public sealed class NutritionConnectionStateTests
             var row = JsonDocument.Parse(await response.Content.ReadAsStringAsync()).RootElement[0];
             Assert.Equal("connected", row.GetProperty("connectionState").GetString());
             Assert.True(row.GetProperty("syncWarning").GetBoolean());
+        }
+        finally
+        {
+            try { File.Delete(tempDb); } catch { }
+        }
+    }
+
+    [Fact]
+    public async Task Workout_starts_while_the_preview_is_still_waiting_for_a_nutrition_token()
+    {
+        using var central = new BlockedTokenExchange();
+        var tempDb = Path.Combine(Path.GetTempPath(), $"workout-test-{Guid.NewGuid():N}.db");
+        try
+        {
+            using var factory = new TestAppFactory(tempDb, central);
+            using var scope = factory.Services.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<AppDb>();
+            await db.Database.EnsureCreatedAsync();
+            var user = new AppUser { Id = Guid.NewGuid(), DisplayName = "Alice", IdentitySubject = "sub_test" };
+            var token = Guid.NewGuid().ToString("N");
+            db.Users.Add(user);
+            db.Sessions.Add(new AuthSession { Hash = AuthService.Hash(token), UserId = user.Id, Expires = DateTime.UtcNow.AddDays(1) });
+            db.CurrentUser = user.Id;
+            db.IntegrationGrants.Add(ActiveGrant(user.Id, 4));
+            await db.SaveChangesAsync();
+
+            using var client = factory.CreateClient();
+            client.DefaultRequestHeaders.Add("Cookie", $"{AuthService.Cookie}={token}");
+            client.DefaultRequestHeaders.Add("Origin", "https://localhost");
+            client.DefaultRequestHeaders.Add("X-Workout-Request", "1");
+
+            var warm = client.PostAsync("/api/integrations/warm", null);
+            try
+            {
+                await central.Entered.Task.WaitAsync(TimeSpan.FromSeconds(5));
+
+                using var start = await client.PostAsJsonAsync("/api/workouts", new { name = "First workout" });
+
+                Assert.Equal(HttpStatusCode.OK, start.StatusCode);
+                Assert.False(warm.IsCompleted);
+                var session = await start.Content.ReadFromJsonAsync<SessionView>();
+                Assert.NotNull(session);
+                Assert.True(session.Active);
+                Assert.Null(session.NutritionContext);
+            }
+            finally
+            {
+                central.Release.TrySetResult();
+                using var response = await warm;
+            }
         }
         finally
         {
@@ -271,6 +322,7 @@ public sealed class NutritionConnectionStateTests
             {
                 ["Database:SqlitePath"] = dbPath,
                 ["PublicOrigin"] = "https://localhost",
+                ["Integrations:NutritionTrainingContextUrl"] = ContextUrl,
                 ["Identity:Authority"] = "https://fitness-account.example.invalid",
                 ["Identity:ClientId"] = "workout-api",
                 ["Identity:ClientSecret"] = "secret"
@@ -283,6 +335,20 @@ public sealed class NutritionConnectionStateTests
     private sealed class SingleClientFactory(HttpMessageHandler handler) : IHttpClientFactory
     {
         public HttpClient CreateClient(string name) => new(handler, disposeHandler: false);
+    }
+
+    private sealed class BlockedTokenExchange : HttpMessageHandler
+    {
+        public TaskCompletionSource Entered { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public TaskCompletionSource Release { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken ct)
+        {
+            Assert.Equal("/connect/token", request.RequestUri?.AbsolutePath);
+            Entered.TrySetResult();
+            await Release.Task.WaitAsync(ct);
+            return JsonResponse("{}");
+        }
     }
 
     private sealed class DelayedHandler(Func<HttpRequestMessage, HttpResponseMessage> respond, TimeSpan delay = default) : HttpMessageHandler

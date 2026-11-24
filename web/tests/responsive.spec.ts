@@ -301,6 +301,58 @@ for (const theme of ['dark', 'light']) {
     }
   });
 
+  test(`active supersets stay joined in ${theme} theme`, async ({ page }, info) => {
+    await signIn(page);
+    await navigate(page, 'Settings');
+    await page.getByRole('group', { name: 'Appearance' })
+      .getByRole('button', { name: theme === 'dark' ? 'Dark' : 'Light' }).click();
+
+    const headers = { 'X-Workout-Request': '1', Origin: new URL(page.url()).origin };
+    const catalog: Exercise[] = await (await page.request.get('/api/exercises')).json();
+    const exercises = ['Barbell bench press', 'Seated cable row'].map((name, index) => {
+      const exercise = catalog.find(item => item.name === name);
+      if (!exercise) throw new Error(`Missing fixture exercise ${name}`);
+      return {
+        exerciseId: exercise.id,
+        sourceName: exercise.name,
+        sequenceGroup: `A${index + 1}`,
+        sets: [{ repMin: 8, repMax: 10, targetRpe: 8 }]
+      };
+    });
+    const name = `Superset layout ${info.project.name} ${theme}`;
+    const template = await page.request.post('/api/templates', { headers, data: { name, exercises } });
+    expect(template.ok(), await template.text()).toBeTruthy();
+    const { id: templateId } = await template.json();
+    let sessionId: string | undefined;
+    try {
+      const started = await page.request.post('/api/workouts', { headers, data: { templateId } });
+      expect(started.ok(), await started.text()).toBeTruthy();
+      sessionId = (await started.json()).id;
+      await page.reload();
+
+      const strip = page.getByRole('dialog', { name, exact: true }).getByRole('tablist');
+      const first = strip.getByRole('tab', { name: /superset A1 of 2/ });
+      const second = strip.getByRole('tab', { name: /superset A2 of 2/ });
+      await expect(first.getByText('A1', { exact: true })).toBeVisible();
+      await expect(second.getByText('A2', { exact: true })).toBeVisible();
+      await expect(first).toHaveAttribute('aria-selected', 'true');
+      const [firstBox, secondBox] = await Promise.all([first.boundingBox(), second.boundingBox()]);
+      expect(firstBox!.x + firstBox!.width).toBeCloseTo(secondBox!.x);
+      expect(firstBox!.height).toBeGreaterThanOrEqual(44);
+      await expect(first).toHaveCSS('border-top-right-radius', '0px');
+      await expect(second).toHaveCSS('border-top-left-radius', '0px');
+      await expect(first).toHaveCSS('background-image', 'none');
+      await expect(first).toHaveCSS('box-shadow', 'none');
+      await second.click();
+      await expect(second).toHaveAttribute('aria-selected', 'true');
+      await expect(second).toHaveCSS('box-shadow', 'none');
+      await strip.screenshot({ animations: 'disabled', path: join(screenshotsDirectory, 'responsive', `${info.project.name}-${theme}-active-superset.png`) });
+    } finally {
+      if (sessionId) await page.request.post(`/api/workouts/${sessionId}/discard`, { headers });
+      await page.request.delete(`/api/templates/${templateId}`, { headers });
+    }
+  });
+
   test(`active logger layout in ${theme} theme`, async ({ page }, info) => {
     await signIn(page);
     await page.evaluate(async () => {

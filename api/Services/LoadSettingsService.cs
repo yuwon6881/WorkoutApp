@@ -10,11 +10,17 @@ public record EquipmentLoadView(string Group, double AppDefaultStepKg, double? O
     double StepKg, List<double>? AvailableLoadsKg, string Source, int Revision, int ExerciseCount);
 public record LoadSettingsView(List<EquipmentLoadView> Equipment, Guid GymProfileId);
 
-/// Equipment defaults at the active gym. Individual exercise rules are edited with that exercise.
+/// Equipment defaults at the selected gym, or the active gym for unscoped callers.
 public sealed class LoadSettingsService(AppDb db, CatalogService catalog)
 {
-    public async Task<LoadSettingsView> Get(CancellationToken ct, string? unit = null)
-        => await Read(await GymProfiles.ActiveId(db, ct) ?? Guid.Empty, ct, unit);
+    public async Task<LoadSettingsView> Get(CancellationToken ct, string? unit = null, Guid? gymProfileId = null)
+        => await Read(gymProfileId is { } gym ? await RequireGym(gym, ct) : await GymProfiles.ActiveId(db, ct) ?? Guid.Empty, ct, unit);
+
+    private async Task<Guid> RequireGym(Guid gym, CancellationToken ct)
+    {
+        Validation.Require(await db.GymProfiles.AnyAsync(x => x.Id == gym, ct), "That gym no longer exists.", 404);
+        return gym;
+    }
 
     private async Task<LoadSettingsView> Read(Guid gym, CancellationToken ct, string? unit)
     {
@@ -35,15 +41,17 @@ public sealed class LoadSettingsService(AppDb db, CatalogService catalog)
     }
 
     /// Both fields empty restores the app default for the group.
-    public async Task<LoadSettingsView> SaveEquipment(string group, LoadRuleInput input, CancellationToken ct)
+    public async Task<LoadSettingsView> SaveEquipment(string group, LoadRuleInput input, CancellationToken ct, Guid? gymProfileId = null)
     {
         Validation.Require(EquipmentGroups.IsKnown(group), "That equipment type has no weight settings.", 404);
+        Validation.Require(gymProfileId is null || input.GymProfileId is null || gymProfileId == input.GymProfileId,
+            "These weight settings are for another gym.", 409);
         var (step, loadsJson) = LoadRuleValidation.Normalize(input.LoadStepKg, input.AvailableLoadsKg);
         var unit = await LoadRuleReader.ReadingUnit(db, input.Unit, ct);
         Guid gym;
         await using (var gate = await MutationLock.Acquire(db, db.CurrentUser, ct))
         {
-            gym = await GymProfiles.ForWeightSettingsSave(db, input.GymProfileId, ct);
+            gym = gymProfileId is { } target ? await RequireGym(target, ct) : await GymProfiles.ForWeightSettingsSave(db, input.GymProfileId, ct);
             var row = await db.EquipmentLoadDefaults.SingleOrDefaultAsync(x => x.GymProfileId == gym && x.Equipment == group, ct);
             Validation.Require(input.Revision == (row?.Revision ?? 0),
                 "These weight settings changed elsewhere. Reload them before saving again.", 409);

@@ -84,7 +84,8 @@ public sealed class NutritionContextService(AppDb db, IHttpClientFactory clients
                 await SaveError(rejection, now, ct, rejected: true);
                 return new(null, ProgressionModes.Normal, false, false, rejection);
             }
-            catch (Exception ex) when ((ex is HttpRequestException or TaskCanceledException or JsonException or InvalidOperationException)
+            // The token exchange gate can throw OperationCanceledException directly on the local deadline.
+            catch (Exception ex) when ((ex is HttpRequestException or OperationCanceledException or JsonException or InvalidOperationException)
                 && !ct.IsCancellationRequested)
             {
                 const string warning = "Nutrition data could not be refreshed right now.";

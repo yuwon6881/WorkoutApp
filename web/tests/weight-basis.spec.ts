@@ -153,3 +153,57 @@ test('weight basis persists from custom creation through workout entry and unit 
     await page.request.put('/api/preferences', { headers, data: original.preferences });
   }
 });
+
+test('Settings edits another gym’s weights without switching gyms', async ({ page }, info) => {
+  await signIn(page);
+  const headers = { 'X-Workout-Request': '1', Origin: new URL(page.url()).origin };
+  const bootstrap = await (await page.request.get('/api/bootstrap')).json();
+  if (bootstrap.activeWorkout?.active)
+    await page.request.post(`/api/workouts/${bootstrap.activeWorkout.id}/discard`, { headers });
+  const original = bootstrap.preferences;
+  const gymsBeforeEdit = await page.request.get('/api/gyms');
+  expect(gymsBeforeEdit.ok(), await gymsBeforeEdit.text()).toBeTruthy();
+  const overview = await (await page.request.get('/api/load-settings?unit=kg')).json();
+  const activeCable = overview.equipment.find((item: { group: string }) => item.group === 'cable');
+  const name = `Hotel gym ${info.project.name}`;
+  const created = await page.request.post('/api/gyms', { headers, data: { name } });
+  expect(created.ok(), await created.text()).toBeTruthy();
+  const gymId = (await created.json()).profiles.find((profile: { name: string }) => profile.name === name).id;
+
+  try {
+    const preferences = await page.request.put('/api/preferences', { headers, data: { ...original, unit: 'kg' } });
+    expect(preferences.ok()).toBeTruthy();
+    await page.goto('/settings');
+    const gyms = page.getByRole('region', { name: 'Gyms', exact: true });
+    const defaults = gyms.getByRole('article', { name: 'Equipment defaults' });
+    const select = defaults.getByRole('button', { name: 'Gym for weight increments' });
+    await expect(select).toContainText('(in use)');
+    await select.click();
+    await page.getByRole('option', { name, exact: true }).click();
+    await expect(select).toHaveText(name);
+    await defaults.getByRole('button', { name: 'Edit Cable weights', exact: true }).click();
+    const editor = page.getByRole('dialog', { name: 'Cable weights', exact: true });
+    await expect(editor.getByText(`Weight settings for ${name}.`)).toBeVisible();
+    await editor.getByRole('spinbutton', { name: 'Weight increase (kg)', exact: true }).fill('7.5');
+    await editor.getByRole('button', { name: 'Save weights', exact: true }).click();
+    await expect(editor).toBeHidden();
+    await expect(defaults.getByText(/7\.5 kg steps/)).toBeVisible();
+
+    const refreshed = await (await page.request.get('/api/load-settings?unit=kg')).json();
+    expect(refreshed.gymProfileId).toBe(overview.gymProfileId);
+    expect(refreshed.equipment.find((item: { group: string }) => item.group === 'cable')).toEqual(activeCable);
+    await page.reload();
+    await select.click();
+    await page.getByRole('option', { name, exact: true }).click();
+    await expect(defaults.getByText(/7\.5 kg steps/)).toBeVisible();
+    for (const theme of ['dark', 'light']) {
+      await page.getByRole('group', { name: 'Appearance' }).getByRole('button', { name: theme === 'dark' ? 'Dark' : 'Light' }).click();
+      await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= Math.round(visualViewport!.width) + 1)).toBe(true);
+      await gyms.screenshot({ path: info.outputPath(`gym-weight-settings-${theme}.png`) });
+    }
+  } finally {
+    await page.request.put('/api/preferences', { headers, data: original });
+    await page.request.delete(`/api/gyms/${gymId}`, { headers });
+  }
+});

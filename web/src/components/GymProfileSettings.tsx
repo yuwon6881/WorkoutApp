@@ -1,7 +1,7 @@
 import { useContext, useEffect, useRef, useState } from 'react';
 import { GymAvailabilityContext } from '../lib/gymAvailability';
 import { Pencil, Plus } from 'lucide-react';
-import type { GymProfile, GymsView } from '../types';
+import type { GymProfile, GymsView, Unit } from '../types';
 import { api, ApiError } from '../lib/api';
 import { Button } from './ui/Button';
 import { Field } from './ui/Field';
@@ -10,6 +10,7 @@ import { Select } from './ui/Select';
 import { SettingRow } from './ui/SettingRow';
 import { Skeleton } from './ui/Skeleton';
 import { GymProfileEditor } from './GymProfileEditor';
+import { LoadIncrementSettings } from './LoadIncrementSettings';
 import './GymProfileSettings.css';
 
 const NAME_LIMIT = 60;
@@ -27,7 +28,11 @@ function summary(profile: GymProfile): string {
 
 /// Every gym the lifter trains at. The active one decides missing-equipment warnings, the weights
 /// suggestions snap to, and the gym a new workout records.
-export function GymProfileSettings({ notify }: { notify: (message: string) => void }) {
+export function GymProfileSettings({ unit, notify, onWeightsChanged }: {
+  unit: Unit;
+  notify: (message: string) => void;
+  onWeightsChanged?: () => void | Promise<void>;
+}) {
   const { gym, apply, switchLocked: hasActiveWorkout = false } = useContext(GymAvailabilityContext);
   const [view, setView] = useState<GymsView | null>(null);
   // An account's first gym is made by this read, so the rest of the app learns of it here.
@@ -122,6 +127,8 @@ export function GymProfileSettings({ notify }: { notify: (message: string) => vo
         }}><Plus size={15} aria-hidden="true" /> Add gym</Button>
       </div>
     </article>
+
+    <LoadIncrementSettings profiles={view.profiles} activeId={view.activeId} unit={unit} notify={notify} onChanged={onWeightsChanged} />
 
     {adding && <Modal title="Add a gym" onClose={() => !busy && setAdding(false)}>
       <form className="gym-dialog-form" noValidate onSubmit={event => { event.preventDefault(); void create(); }}>

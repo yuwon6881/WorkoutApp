@@ -1,7 +1,6 @@
-import { Dumbbell, Link2, LogOut, MapPin, Moon, SlidersHorizontal, Sun, Timer, Watch, Weight } from 'lucide-react';
+import { Dumbbell, Link2, LogOut, MapPin, Moon, SlidersHorizontal, Sun, Timer, Watch } from 'lucide-react';
 import type { Account, Preferences } from '../types';
-import { useContext, useState } from 'react';
-import { GymAvailabilityContext } from '../lib/gymAvailability';
+import { useState } from 'react';
 import { GymProfileSettings } from './GymProfileSettings';
 import { AppVersionInfo } from './AppVersionInfo';
 import type { DevicePreferences } from '../lib/workoutRecovery';
@@ -16,7 +15,6 @@ import { GoogleHealthSettings } from './GoogleHealthSettings';
 import { RestAlertSettings } from './RestAlertSettings';
 import { WatchPairingSettings } from './WatchPairingSettings';
 import { WorkoutFlowSettings } from './WorkoutFlowSettings';
-import { LoadIncrementSettings } from './LoadIncrementSettings';
 import { SettingsNav, SettingsSection, type SettingsSectionLink } from './SettingsLayout';
 import './Settings.css';
 
@@ -39,7 +37,6 @@ const sections: SettingsSectionLink[] = [
   { id: 'settings-general', label: 'General', icon: SlidersHorizontal, tone: 'accent' },
   { id: 'settings-training', label: 'Training', icon: Dumbbell, tone: 'blue' },
   { id: 'settings-gyms', label: 'Gyms', icon: MapPin, tone: 'teal' },
-  { id: 'settings-weights', label: 'Weight increments', icon: Weight, tone: 'amber' },
   { id: 'settings-rest', label: 'Rest timer', icon: Timer, tone: 'green' },
   { id: 'settings-watch', label: 'Wear OS', icon: Watch, tone: 'blue' },
   { id: 'settings-connections', label: 'Connected apps', icon: Link2, tone: 'teal' }
@@ -55,8 +52,7 @@ export function SettingsView(props: SettingsViewProps) {
   const { account, preferences, devicePreferences, onDevicePreferences, onPreferences, notify, onSignOut, version, onCatalogChanged } = props;
   const [saveError, setSaveError] = useState('');
   const [signingOut, setSigningOut] = useState(false);
-  const [general, training, gyms, weights, rest, watch, connections] = sections;
-  const { gym } = useContext(GymAvailabilityContext);
+  const [general, training, gyms, rest, watch, connections] = sections;
 
   async function signOut() {
     setSigningOut(true);
@@ -149,14 +145,8 @@ export function SettingsView(props: SettingsViewProps) {
             <WorkoutFlowSettings devicePreferences={devicePreferences} onDevicePreferences={saveDevice} />
           </SettingsSection>
 
-          <SettingsSection {...gyms} layout="plain" title="Gyms" description="What each place has, and which one you train at now.">
-            <GymProfileSettings notify={notify} />
-          </SettingsSection>
-
-          <SettingsSection {...weights} layout="plain" title="Weight increments"
-            description={gym ? `The weights ${gym.active.name} offers, used for suggestions.` : 'The weights your equipment offers, used for suggestions.'}>
-            {/* Each gym keeps its own weights, so a switch reads them afresh. */}
-            <LoadIncrementSettings key={gym?.active.id ?? 'none'} unit={preferences.unit} notify={notify} onChanged={onCatalogChanged} />
+          <SettingsSection {...gyms} layout="plain" title="Gyms" description="Manage equipment and weight increments for each place you train.">
+            <GymProfileSettings unit={preferences.unit} notify={notify} onWeightsChanged={onCatalogChanged} />
           </SettingsSection>
 
           <SettingsSection {...rest} title="Rest timer & alerts" description="Timer and notification preferences.">

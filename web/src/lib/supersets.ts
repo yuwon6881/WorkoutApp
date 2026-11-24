@@ -99,8 +99,6 @@ export interface SupersetSlot {
   /** 1-based place within the group, in workout order. */
   position: number;
   size: number;
-  /** Alternates between groups so two supersets side by side never share a colour. */
-  tone: 0 | 1;
 }
 
 /// Where each paired exercise sits in its superset, for the markers that show which exercises belong
@@ -112,11 +110,9 @@ export function supersetLayout<T extends ExerciseWithGroup>(exercises: T[]): Map
     if (group) members.set(group, [...(members.get(group) ?? []), exercise.id]);
   }
   const layout = new Map<string, SupersetSlot>();
-  let tone = 0;
   for (const [group, ids] of members) {
     if (ids.length < 2) continue;
-    ids.forEach((id, index) => layout.set(id, { group, position: index + 1, size: ids.length, tone: (tone % 2) as 0 | 1 }));
-    tone++;
+    ids.forEach((id, index) => layout.set(id, { group, position: index + 1, size: ids.length }));
   }
   return layout;
 }

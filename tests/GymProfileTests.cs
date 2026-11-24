@@ -97,6 +97,36 @@ public sealed class GymProfileTests
     }
 
     [Fact]
+    public async Task Equipment_defaults_can_be_edited_for_an_inactive_gym_during_a_workout()
+    {
+        await using var h = await Harness.Create();
+        await h.SignIn();
+        var gyms = Gyms(h);
+        var equipment = new LoadSettingsService(h.Db, h.Catalog);
+        var home = (await gyms.Get(default)).ActiveId;
+        await equipment.SaveEquipment(EquipmentGroups.Cable, new(5, null, 0), default);
+        var hotel = (await gyms.Create(new("Hotel"), default)).Profiles.Single(x => x.Name == "Hotel").Id;
+        var workout = await h.Workouts.Start(null, "At home", default);
+
+        var before = await equipment.Get(default, gymProfileId: hotel);
+        var cable = before.Equipment.Single(x => x.Group == EquipmentGroups.Cable);
+        Assert.Equal(hotel, before.GymProfileId);
+        Assert.Equal(LoadSources.App, cable.Source);
+
+        await equipment.SaveEquipment(EquipmentGroups.Cable, new(7.5, null, cable.Revision), default, gymProfileId: hotel);
+
+        Assert.Equal(7.5, (await equipment.Get(default, gymProfileId: hotel)).Equipment.Single(x => x.Group == EquipmentGroups.Cable).StepKg);
+        Assert.Equal(5, (await equipment.Get(default)).Equipment.Single(x => x.Group == EquipmentGroups.Cable).StepKg);
+        Assert.Equal(home, (await gyms.Get(default)).ActiveId);
+        Assert.Equal(home, (await h.Db.Workouts.AsNoTracking().SingleAsync(x => x.Id == workout.Id)).GymProfileId);
+        await Rejected(409, null, () => equipment.SaveEquipment(EquipmentGroups.Cable, new(10, null, cable.Revision), default, gymProfileId: hotel));
+
+        await h.SignIn("another lifter");
+        await Rejected(404, null, () => equipment.Get(default, gymProfileId: hotel));
+        await Rejected(404, null, () => equipment.SaveEquipment(EquipmentGroups.Cable, new(10, null, 1), default, gymProfileId: hotel));
+    }
+
+    [Fact]
     public async Task A_copied_gym_starts_with_the_source_gym_settings()
     {
         await using var h = await Harness.Create();

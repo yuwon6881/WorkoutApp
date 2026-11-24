@@ -94,10 +94,8 @@
   border-color: var(--accent-border);
   color: var(--accent);
 }
-.workout-strip-item.completed:not(.active) {
-  border-color: var(--border);
-  color: var(--text);
-}
+.workout-strip-item.completed:not(.active) { color: var(--text); }
+.workout-strip-item.completed:not(.active, .in-superset) { border-color: var(--border); }
 
 .workout-strip-item.pressing { transform: scale(0.97); transition: transform 0.12s ease; }
 .workout-strip-item.held {
@@ -168,28 +166,28 @@
 }
 .workout-strip-item.active .workout-strip-count { color: var(--accent); opacity: 0.85; }
 
-/* Paired exercises read as one joined unit: tabs of a superset touch, share a tinted outline and carry
-   their group letter and place (A1, A2). Neighbouring supersets alternate tone, and the letter tells
-   them apart without colour. */
-.workout-strip-item.superset-tone-0 { --superset-tone: var(--accent); }
-.workout-strip-item.superset-tone-1 { --superset-tone: var(--blue); }
-.workout-strip-item.in-superset:not(.active) {
-  border-color: color-mix(in srgb, var(--superset-tone) 45%, transparent);
-  background: color-mix(in srgb, var(--superset-tone) 8%, var(--surface-raised));
+/* The shared outline and single divider keep adjacent partners joined in every selection state. */
+.workout-strip-item.in-superset { border-color: var(--border-hover); }
+.workout-strip-item.in-superset.active { background: var(--surface-hover); }
+.workout-strip-item.joins-prev {
+  margin-inline-start: -4px;
+  border-inline-start-color: transparent;
+  border-start-start-radius: 0;
+  border-end-start-radius: 0;
 }
-.workout-strip-item.in-superset.active { box-shadow: inset 0 -3px 0 var(--superset-tone); }
-.workout-strip-item.joins-prev { margin-inline-start: -4px; border-start-start-radius: 0; border-end-start-radius: 0; }
 .workout-strip-item.joins-next { border-start-end-radius: 0; border-end-end-radius: 0; }
+.workout-strip-item.in-superset:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+  box-shadow: none;
+}
 .workout-strip-superset {
   display: inline-block;
   margin-inline-end: 6px;
-  padding: 0 6px;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--superset-tone) 18%, var(--surface));
-  color: var(--superset-tone);
+  color: var(--muted);
   font-size: var(--font-secondary);
   font-weight: 700;
-  line-height: 1.4;
+  line-height: 1.25;
 }
 
 /* The add tile stretches with the strip so it matches the exercise tabs' height and edges. */
@@ -222,7 +220,9 @@
     border-radius: var(--radius-control);
   }
   .workout-strip-ring { flex-basis: 26px; width: 26px; height: 26px; }
-  .workout-strip-count { display: none; }
+  .workout-strip-count,
+  .workout-strip-set-count { display: none; }
+  .workout-strip-item.in-superset .workout-strip-count { display: block; line-height: 1.25; }
 }
 
 /* Each exercise is a page; a sideways swipe anywhere on the workout turns it, and the page follows

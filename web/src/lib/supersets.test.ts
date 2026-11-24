@@ -106,13 +106,6 @@ describe('supersetLayout', () => {
     expect(layout.get('e5')).toMatchObject({ group: 'B', position: 3, size: 3 });
   });
 
-  it('alternates the tone between groups so neighbouring supersets read as different', () => {
-    const layout = supersetLayout(rows('A1', 'A2', 'B1', 'B2', 'C1', 'C2'));
-    expect(layout.get('e0')!.tone).toBe(0);
-    expect(layout.get('e2')!.tone).toBe(1);
-    expect(layout.get('e4')!.tone).toBe(0);
-  });
-
   it('ignores a group with a single exercise', () => {
     expect(supersetLayout(rows('A1', '', 'B1')).size).toBe(0);
   });

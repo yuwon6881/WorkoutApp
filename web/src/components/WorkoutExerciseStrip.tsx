@@ -122,7 +122,7 @@ export function WorkoutExerciseStrip({
               aria-selected={isSelected}
               aria-label={`${exercise.name}, ${doneCount} of ${counted.length} sets completed${slot ? `, superset ${slot.group}${slot.position} of ${slot.size}` : ''}`}
               aria-describedby={exercises.length > 1 ? 'workout-strip-reorder-hint' : undefined}
-              className={`workout-strip-item ${isSelected ? 'active' : ''} ${completed ? 'completed' : ''} ${justCompleted ? 'just-completed' : ''} ${slot ? `in-superset superset-tone-${slot.tone}` : ''} ${joinsPrev ? 'joins-prev' : ''} ${joinsNext ? 'joins-next' : ''} ${isHeld ? 'held' : ''} ${isPressing ? 'pressing' : ''}`.replace(/\s+/g, ' ').trim()}
+              className={`workout-strip-item ${isSelected ? 'active' : ''} ${completed ? 'completed' : ''} ${justCompleted ? 'just-completed' : ''} ${slot ? 'in-superset' : ''} ${joinsPrev ? 'joins-prev' : ''} ${joinsNext ? 'joins-next' : ''} ${isHeld ? 'held' : ''} ${isPressing ? 'pressing' : ''}`.replace(/\s+/g, ' ').trim()}
               {...itemProps(index)}
               onClick={() => onSelect(index)}
             >
@@ -144,7 +144,7 @@ export function WorkoutExerciseStrip({
                 <span className="workout-strip-name">{exercise.name}</span>
                 <span className="workout-strip-count">
                   {slot && <span className="workout-strip-superset" aria-hidden="true">{slot.group}{slot.position}</span>}
-                  {doneCount}/{counted.length} sets
+                  <span className="workout-strip-set-count">{doneCount}/{counted.length} sets</span>
                 </span>
               </span>
             </Button>
