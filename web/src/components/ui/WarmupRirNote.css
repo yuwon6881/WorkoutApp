@@ -74,7 +74,7 @@
 }
 
 .warmup-rir-popover-title {
-  font-size: 13px;
+  font-size: var(--font-secondary);
   font-weight: 700;
   color: var(--text);
   margin: 0;
@@ -82,7 +82,7 @@
 }
 
 .warmup-rir-popover-desc {
-  font-size: 12px;
+  font-size: var(--font-secondary);
   color: var(--muted);
   margin: 0;
   line-height: 1.45;

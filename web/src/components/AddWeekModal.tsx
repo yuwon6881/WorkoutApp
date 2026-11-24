@@ -29,7 +29,7 @@ export function AddWeekModal({
       <div className="modal-body week-create-options">
         <p>Choose how the new week should start. You can customize its days and prescriptions after it is added.</p>
 
-        <div className="tiny-label" style={{ display: 'flex', gap: '6px', alignItems: 'center', margin: '4px 0 2px' }}>
+        <div className="tiny-label week-create-targeting">
           <span>Targeting:</span>
           <span className="pill pill-accent">{blockName || 'Current Block'}</span>
           {phaseName && <span className="pill">{phaseName}</span>}

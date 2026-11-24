@@ -423,7 +423,7 @@ export function WorkoutActiveExercise({
       {restTimerOpen && (
         <Modal title={`${exercise.name} rest timer`} onClose={() => setRestTimerOpen(false)}>
           <div className="modal-body">
-            <p className="muted" style={{ margin: 0 }}>
+            <p className="muted">
               Adjust the rest interval between sets for this exercise.
             </p>
             <label className="field">
@@ -449,9 +449,9 @@ export function WorkoutActiveExercise({
                 }}
               />
             </label>
-            <div className="modal-actions" style={{ padding: 0, border: 0, marginTop: 12 }}>
-              <Button variant="primary" onClick={() => setRestTimerOpen(false)}>Done</Button>
-            </div>
+          </div>
+          <div className="modal-actions">
+            <Button variant="primary" onClick={() => setRestTimerOpen(false)}>Done</Button>
           </div>
         </Modal>
       )}

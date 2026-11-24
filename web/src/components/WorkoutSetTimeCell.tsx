@@ -145,7 +145,7 @@ export function WorkoutSetTimeCell({
       {modalOpen && (
         <Modal title="Set duration" onClose={() => setModalOpen(false)}>
           <div className="modal-body timer-modal-body">
-            <p className="muted" style={{ margin: 0 }}>{label}</p>
+            <p className="muted">{label}</p>
             <div
               className={`timer-modal-clock ${running ? 'timing' : 'editable'}`}
               onClick={() => { if (!running) clockInputRef.current?.focus(); }}
@@ -186,7 +186,7 @@ export function WorkoutSetTimeCell({
               <span>{running ? 'Pause timer' : targetSeconds != null ? `Start ${showSetDuration(targetSeconds)} timer` : 'Start timer'}</span>
             </Button>
 
-            <div className="timer-modal-actions" style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
+            <div className="timer-modal-actions">
               {(set.durationSeconds != null || digits !== '') && !running && (
                 <Button variant="tertiary" onClick={resetDuration}>
                   <RotateCcw size={16} /> Reset

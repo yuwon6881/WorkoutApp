@@ -5,7 +5,8 @@
 /// enforces it, this only avoids sending a file that is certain to be refused.
 export const MAX_EXTERNAL_IMPORT_BYTES = 8 * 1024 * 1024;
 
-export type ExternalImportFieldError = { path: string; message: string };
+import type { ExternalImportFieldError } from './externalImportErrors';
+export { readFieldErrors, type ExternalImportFieldError } from './externalImportErrors';
 
 export type ExternalImportPrompt = { version: string; prompt: string };
 
@@ -25,16 +26,6 @@ export function checkExternalImportFile(file: { name: string; size: number }): s
 /// Returns what is wrong with pasted JSON text, or null when it may be sent.
 export function checkExternalImportText(text: string): string | null {
   return checkSize(text.trim() === '' ? 0 : new TextEncoder().encode(text).length, 'text');
-}
-
-/// Keeps only well-formed entries from an untrusted error payload.
-export function readFieldErrors(payload: unknown): ExternalImportFieldError[] {
-  if (!payload || typeof payload !== 'object' || !('errors' in payload) || !Array.isArray(payload.errors)) return [];
-  return payload.errors.flatMap((item: unknown) => {
-    if (!item || typeof item !== 'object') return [];
-    const { path, message } = item as Record<string, unknown>;
-    return typeof path === 'string' && typeof message === 'string' ? [{ path, message }] : [];
-  });
 }
 
 /// A problem about the file as a whole (not valid JSON, wrong version) has no field to point at.

@@ -94,17 +94,17 @@ export function ExerciseHistoryClearing({ exerciseId, clearableSets, onCleared }
     {dialog?.hasActiveWorkout && <Modal title="Workout in progress" onClose={close}>
       <div className="modal-body">
         <p>{blockedReason(dialog)}</p>
-        <div className="modal-actions"><Button variant="primary" onClick={close}>OK</Button></div>
       </div>
+      <div className="modal-actions"><Button variant="primary" onClick={close}>OK</Button></div>
     </Modal>}
     {dialog && !dialog.hasActiveWorkout && <Modal title="Clear exercise history?" onClose={close}>
       <div className="modal-body">
         <p>This permanently removes <strong>{showSetCount(dialog.affectedSets)}</strong> from <strong>{dialog.affectedWorkouts} {dialog.affectedWorkouts === 1 ? 'workout' : 'workouts'}</strong> and resets the exercise's progress records. The workouts themselves stay saved. This cannot be undone.</p>
         {error && <p className="error-text" role="alert">{error}</p>}
-        <div className="modal-actions">
-          <Button variant="tertiary" onClick={close} disabled={clearing}>Cancel</Button>
-          <Button variant="destructive" onClick={() => void clear()} disabled={clearing}>{clearing ? 'Clearing…' : 'Clear history'}</Button>
-        </div>
+      </div>
+      <div className="modal-actions">
+        <Button variant="tertiary" onClick={close} disabled={clearing}>Cancel</Button>
+        <Button variant="destructive" onClick={() => void clear()} disabled={clearing}>{clearing ? 'Clearing…' : 'Clear history'}</Button>
       </div>
     </Modal>}
   </section>;

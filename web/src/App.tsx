@@ -30,7 +30,7 @@ import { NAV } from './app/navigation';
 import { AppLoading } from './components/AppLoading';
 import { AppFirstFrame } from './components/AppFirstFrame';
 import { ShellToast } from './components/ShellToast';
-import { loggedWorkingShare } from './lib/workoutLogging';
+import { loggedWorkingShare } from './lib/workoutShare';
 import { AuthLoading } from './components/AuthLoading';
 import { ViewSkeleton } from './components/ViewSkeleton';
 import { Auth, Dashboard, ExerciseDetailModal, ExerciseLibrary, ImportReview, MuscleBalanceView, Programs, SessionDetail, SettingsView, Workout, WorkoutSheet, WorkoutPreviewModal, ResumeWorkoutButton, ShellRestTimer, prefetchView } from './app/lazyViews';
@@ -94,6 +94,7 @@ export default function App() {
   const [sheetContinues, setSheetContinues] = useState(false);
   useEffect(() => { if (!training) setSheetContinues(false); }, [training]);
   const [actionError, setActionError] = useState('');
+  useEffect(() => { setActionError(''); }, [tab]);
   const [isAiOpen, setIsAiOpen] = useState(false);
   const [aiInvocation, setAiInvocation] = useState<AiInvocationRequest | null>(null);
   const recovery = app.recovery;
@@ -384,7 +385,7 @@ export default function App() {
           <Button variant="secondary" onClick={() => { setReviewRecovery(true); setTraining(true); }}>Review saved workout</Button>
         </div>}
         {!online && <div className="error-banner" role="status"><WifiOff size={17} />Offline. Set logging, notes, pause, and finish are saved on this device; exercise-list changes and discard need a connection.<Button variant="tertiary" onClick={() => void app.reload()}><RefreshCw size={15} />Retry</Button></div>}
-        {actionError && <CardFeedback title="Could not complete this action" message={actionError}/>}
+        {actionError && <CardFeedback title="Could not complete this action" message={actionError} action={{ label: 'Dismiss', onClick: () => setActionError('') }} />}
         {tab === 'overview' && <Suspense fallback={null}><InstallAppCard /></Suspense>}
 
         {app.resourceError && <CardFeedback tone="warning" title="Could not load this view" message={app.resourceError}

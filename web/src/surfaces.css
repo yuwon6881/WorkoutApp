@@ -35,6 +35,7 @@ h2{font-weight:640;letter-spacing:-.022em}
 .button.primary:active:not(:disabled){transform:scale(.98);filter:brightness(.94)}
 .button.secondary{background:var(--surface);border-color:var(--border)}
 :root:not([data-theme=light]) .button.secondary{background:var(--surface-raised);border-color:transparent}
+:root:not([data-theme=light]) :is(.exercise-load-settings,.card-feedback,.error-banner,.integration-stream,.irev-uncertainty-row) .button.secondary{background:var(--control-surface);border-color:var(--control-border)}
 @media (hover:hover) and (pointer:fine){.button.secondary:hover:not(:disabled){border-color:var(--border-hover)}}
 .button.destructive{border-color:var(--red-border)}
 .button.tertiary{border-color:transparent}
@@ -72,6 +73,12 @@ input:not([type=checkbox]):not([type=radio]):not([type=range]):focus,select:focu
 /* A chip strip that already fits has nothing to scroll: no disabled arrows, and no space kept for them. */
 .filter-chips-nav:not(.has-overflow){grid-template-columns:minmax(0,1fr)}
 .filter-chips-nav:not(.has-overflow)>.filter-nav-btn{display:none}
+/* Below 1024 px chip strips scroll by touch without arrow buttons; fade only edges with hidden chips. */
+@media(max-width:1023px){
+.filter-chips-nav.can-scroll-left:not(.can-scroll-right) .filter-chips{-webkit-mask-image:linear-gradient(to left,#000 calc(100% - 28px),transparent);mask-image:linear-gradient(to left,#000 calc(100% - 28px),transparent)}
+.filter-chips-nav.can-scroll-right:not(.can-scroll-left) .filter-chips{-webkit-mask-image:linear-gradient(to right,#000 calc(100% - 28px),transparent);mask-image:linear-gradient(to right,#000 calc(100% - 28px),transparent)}
+.filter-chips-nav.can-scroll-left.can-scroll-right .filter-chips{-webkit-mask-image:linear-gradient(to right,transparent,#000 24px,#000 calc(100% - 24px),transparent);mask-image:linear-gradient(to right,transparent,#000 24px,#000 calc(100% - 24px),transparent)}
+}
 
 /* Empty states: the leading icon sits in a soft accent tile above a short title and one next step. */
 .empty-message>svg{box-sizing:content-box;width:26px;height:26px;padding:15px;margin-bottom:6px;border-radius:18px;background:var(--accent-soft);color:var(--accent)}

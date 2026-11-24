@@ -84,10 +84,10 @@ export function WorkoutWarmupButton({ exercise, offer, unit, catalogReady, loadC
           <div><dt>Keep the plan's {offer.existing}</dt><dd>{describe(offer.steps(offer.existing)) || 'No ramp needed'}</dd></div>
           <div><dt>Use {offer.recommended}</dt><dd>{describe(offer.steps(offer.recommended)) || 'No ramp needed'}</dd></div>
         </dl>
-        <div className="modal-actions">
-          <Button variant="secondary" onClick={() => apply(offer.existing)}>Keep {offer.existing}</Button>
-          <Button variant="primary" onClick={() => apply(offer.recommended)}>Use {offer.recommended}</Button>
-        </div>
+      </div>
+      <div className="modal-actions">
+        <Button variant="secondary" onClick={() => apply(offer.existing)}>Keep {offer.existing}</Button>
+        <Button variant="primary" onClick={() => apply(offer.recommended)}>Use {offer.recommended}</Button>
       </div>
     </Modal>}
   </>;

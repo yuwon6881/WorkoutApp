@@ -119,7 +119,7 @@
     margin-inline:auto;
   }
   .body-map-figure{
-    max-height:min(62dvh,460px);
+    max-height:min(46dvh,340px);
   }
   .body-map-detail {
     grid-template-columns: minmax(0, 1fr) auto;

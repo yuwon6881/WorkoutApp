@@ -4,6 +4,14 @@ import { Button } from './Button';
 import { useReducedMotion } from './Motion';
 import { readHorizontalOverflow } from '../useHorizontalOverflow';
 
+/// Builds the nav wrapper classes so overflowing strips only show relevant arrows and fade hidden edges.
+export function chipScrollerNavClass(canScrollLeft: boolean, canScrollRight: boolean): string {
+  const overflowClass = canScrollLeft || canScrollRight ? ' has-overflow' : '';
+  const startClass = canScrollLeft ? ' can-scroll-left' : '';
+  const endClass = canScrollRight ? ' can-scroll-right' : '';
+  return `filter-chips-nav${overflowClass}${startClass}${endClass}`;
+}
+
 export function ChipScroller({
   ariaLabel,
   children,
@@ -92,9 +100,7 @@ export function ChipScroller({
 
   // The classes let a strip drop its arrows (and their space) when every chip already fits, and
   // fade only the edge that hides a chip.
-  const overflowClass = canScrollLeft || canScrollRight ? ' has-overflow' : '';
-  const endClass = canScrollRight ? ' can-scroll-right' : '';
-  return <div className={`filter-chips-nav${overflowClass}${endClass}`}>
+  return <div className={chipScrollerNavClass(canScrollLeft, canScrollRight)}>
     <Button presentation="plain" className="filter-nav-btn" aria-label={leftLabel}
       disabled={!canScrollLeft} onClick={() => scroll('left')}>
       <ChevronLeft size={18} />

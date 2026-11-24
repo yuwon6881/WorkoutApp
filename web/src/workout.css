@@ -20,6 +20,7 @@
 .timer-modal-clock.editable:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft-glow); }
 .timer-modal-clock-input { width: 100%; max-width: 240px; background: transparent !important; border: 0 !important; box-shadow: none !important; outline: none !important; text-align: center; padding: 0 !important; min-height: unset !important; height: auto !important; caret-color: var(--accent); }
 .timer-modal-toggle-btn { min-height: 48px; font-size: 15px; font-weight: 680; border-radius: var(--radius-pill); }
+.timer-modal-actions { display: flex; gap: 8px; margin-top: 8px; }
 
 /* Workout builder modal */
 .workout-builder-body { display: flex; flex-direction: column; gap: 16px; }

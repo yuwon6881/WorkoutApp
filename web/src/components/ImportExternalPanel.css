@@ -74,7 +74,7 @@
 /* An action row that does not fill its line sits on the trailing edge. */
 .iep-actions--end { justify-content: flex-end; }
 
-.iep-status { min-height: 1.2em; font-size: 0.85rem; color: var(--muted); }
+.iep-status { min-height: 1.2em; font-size: var(--font-secondary); color: var(--muted); }
 .iep-status:empty { display: none; }
 
 .iep-inline-error { margin: 0; color: var(--red); font-size: 0.9rem; }
@@ -85,7 +85,7 @@
   box-sizing: border-box;
   resize: vertical;
   font: inherit;
-  font-size: 0.85rem;
+  font-size: var(--font-secondary);
   color: var(--text);
   background: var(--surface);
   border: 1px solid var(--border-hover);
@@ -134,7 +134,7 @@
 }
 
 .iep-error-path {
-  font-size: 0.8rem;
+  font-size: var(--font-secondary);
   color: var(--muted);
   overflow-wrap: anywhere;
 }
@@ -227,11 +227,10 @@
   background: var(--surface);
   border: 1px solid var(--border-hover);
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: 0.8rem;
+  font-size: var(--font-secondary);
   line-height: 1.5;
   color: var(--text);
 }
 
 .iep-excerpt-code span { color: var(--red); }
-.iep-status-busy { display: inline-flex; align-items: center; gap: 10px; }
 .iep-status-busy { display: inline-flex; align-items: center; gap: 10px; }

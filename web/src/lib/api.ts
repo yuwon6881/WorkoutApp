@@ -3,7 +3,8 @@ import { integrationGeneration, signalIntegrationPending } from './integrationDi
 import type { ExerciseLoadSettings, LoadRule, LoadSettingsOverview } from './exerciseLoads';
 import { sharedReads } from './readCoordinator';
 import type { StartPreviewExercise } from './startPreviewLoads';
-import { readFieldErrors, type ExternalImportFieldError, type ExternalImportPrompt } from './externalImport';
+import type { ExternalImportPrompt } from './externalImport';
+import { readFieldErrors, type ExternalImportFieldError } from './externalImportErrors';
 import type { Exercise, GymExerciseOverride, GymsView, HistorySummaryPage, ShellBootstrap, TrackingMode, Unit } from '../types';
 import type { Bootstrap, CustomExerciseCreated, DraftWorkout, ExerciseClearPreview, ExerciseInsight, HistoryPage, ImportDraft, ImportView, MuscleBalanceRange, MuscleBalanceView, Preferences, ProgressSummary, Program, ProgramDayActionInput, ProgramEditInput, ProgramEditorDocument, ProgramSummary, ProgramWeekResetInput, RestMutationInput, Session, Template, TemplateSubstitutionResult, WatchDevice, WorkoutActivityItem } from '../types';
 

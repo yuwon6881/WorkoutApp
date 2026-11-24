@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import type { Exercise } from '../types';
 import { getExerciseCategory } from '../lib/exerciseCategory';
 import { buildExerciseSearchIndex, searchExerciseScores } from '../lib/exerciseSearch';
-import { ExerciseLibrary } from './Exercises';
+import { ExerciseLibrary, hasActiveExerciseFilters } from './Exercises';
 
 const sampleExercises: Exercise[] = [
   { id: 'ex-bench', slug: 'bench', name: 'Barbell bench press', muscle: 'Chest', equipment: 'Barbell', aliases: [], loadStepKg: 2.5, category: 'Free Weights' },
@@ -319,5 +319,26 @@ describe('defaultChartMetric and ExerciseProgressChart', () => {
     expect(markup).toContain('Nov 17, 2026');
     expect(markup).toContain('aria-valuetext="Nov 17, 2026: 84 kg"');
     expect(markup).toContain('exercise-chart-gap');
+  });
+});
+
+describe('ExerciseLibrary empty filters', () => {
+  it('detects active search and filter criteria accurately', () => {
+    expect(hasActiveExerciseFilters({ query: '', muscle: 'All muscles', source: 'all', category: 'all' })).toBe(false);
+    expect(hasActiveExerciseFilters({ query: '   ', muscle: 'All muscles', source: 'all', category: 'all' })).toBe(false);
+    expect(hasActiveExerciseFilters({ query: 'squat', muscle: 'All muscles', source: 'all', category: 'all' })).toBe(true);
+    expect(hasActiveExerciseFilters({ query: '', muscle: 'Chest', source: 'all', category: 'all' })).toBe(true);
+    expect(hasActiveExerciseFilters({ query: '', muscle: 'All muscles', source: 'custom', category: 'all' })).toBe(true);
+    expect(hasActiveExerciseFilters({ query: '', muscle: 'All muscles', source: 'all', category: 'Machine' })).toBe(true);
+  });
+
+  it('does not show Clear filters when all exercises are excluded and no filters are active', () => {
+    const markup = renderToStaticMarkup(createElement(ExerciseLibrary, {
+      exercises: sampleExercises,
+      exclude: sampleExercises.map(exercise => exercise.id),
+      onSelect: () => {}
+    }));
+    expect(markup).toContain('No matching exercises.');
+    expect(markup).not.toContain('Clear filters');
   });
 });

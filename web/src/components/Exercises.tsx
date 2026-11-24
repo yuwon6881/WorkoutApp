@@ -25,6 +25,16 @@ const RECENT_LIMIT = 6;
 
 export type ExercisePickerAction = 'add' | 'swap' | 'map';
 
+/// Whether any search or filter control is currently narrowing the exercise list.
+export function hasActiveExerciseFilters(filters: {
+  query: string;
+  muscle: string;
+  source: string;
+  category: string;
+}): boolean {
+  return Boolean(filters.query.trim()) || filters.muscle !== 'All muscles' || filters.source !== 'all' || filters.category !== 'all';
+}
+
 function normalized(value: string) {
   return value.trim().toLowerCase().replace(/[^a-z0-9]+/g, ' ').replace(/\s+/g, ' ');
 }
@@ -226,6 +236,14 @@ export function ExerciseLibrary({ exercises, onSelect, exclude = emptyIds, added
     });
   }
 
+  const hasActiveFilters = hasActiveExerciseFilters({ query, muscle, source, category });
+  const clearFilters = () => {
+    setQuery('');
+    setMuscle('All muscles');
+    setSource('all');
+    setCategory('all');
+  };
+
   if (!exercises.length) return <>
     {!onSelect && <div className="page-heading"><h1 data-page-heading tabIndex={-1}>Exercises</h1><Button variant="primary" onClick={() => setCreateOpen(true)}><Plus size={16} />Create exercise</Button></div>}
     <div className="empty-message">
@@ -361,7 +379,14 @@ export function ExerciseLibrary({ exercises, onSelect, exclude = emptyIds, added
       </>
     )}
 
-    {!filtered.length && !showCurrentAtTop && <p className="empty-message">No matching exercises.</p>}
+    {!filtered.length && !showCurrentAtTop && (
+      <div className="empty-message">
+        <p>No matching exercises.</p>
+        {hasActiveFilters && (
+          <Button variant="secondary" onClick={clearFilters}>Clear filters</Button>
+        )}
+      </div>
+    )}
     {createOpen && <CustomExerciseModal onClose={() => setCreateOpen(false)} onCreated={async () => { setCreateOpen(false); await onChanged?.(); }} />}
   </div>;
 }

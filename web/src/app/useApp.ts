@@ -9,8 +9,6 @@ import type { QueueStatus } from '../lib/queue';
 import type { AppResource, Bootstrap, Preferences, Session, ShellBootstrap } from '../types';
 import { clearLaunchSnapshot, readLaunchSnapshot, saveLaunchSnapshot } from '../lib/launchSnapshot';
 import { forgetSignedInDevice, markSignedInDevice } from '../lib/signedInDevice';
-import { deleteWorkoutPushToken, getWorkoutPushDeviceId } from '../lib/push/firebaseMessaging';
-import { retireWorkoutPushAfterAccountSwitch, retireWorkoutPushDevice } from '../lib/push/cleanup';
 import { defaultDevicePreferences, loadDevicePreferences, saveDevicePreferences as persistDevicePreferences } from '../lib/workoutDevicePreferences';
 import { getLastAccountId, getLastRecovery, getRecovery, setLastAccount } from '../lib/workoutRecoveryReads';
 import { sameWorkoutEdits } from '../lib/workoutRecoveryComparison';
@@ -169,10 +167,17 @@ export function useApp(): AppState {
           }
         }
       }
-      if (previousAccountId && previousAccountId !== next.account.id) { sharedReads.reset(); viewReadCache.reset(); }
-      const deviceId = getWorkoutPushDeviceId();
-      await retireWorkoutPushAfterAccountSwitch(previousAccountId, next.account.id, deviceId,
-        deviceId ? () => api.unregisterRestAlertDevice(deviceId) : undefined, deleteWorkoutPushToken);
+      if (previousAccountId && previousAccountId !== next.account.id) {
+        sharedReads.reset();
+        viewReadCache.reset();
+        const [{ deleteWorkoutPushToken, getWorkoutPushDeviceId }, { retireWorkoutPushAfterAccountSwitch }] = await Promise.all([
+          import('../lib/push/firebaseMessaging'),
+          import('../lib/push/cleanup'),
+        ]);
+        const deviceId = getWorkoutPushDeviceId();
+        await retireWorkoutPushAfterAccountSwitch(previousAccountId, next.account.id, deviceId,
+          deviceId ? () => api.unregisterRestAlertDevice(deviceId) : undefined, deleteWorkoutPushToken);
+      }
       await waitForStartupStorage(cachedRecovery);
       let local: WorkoutRecoveryRecord | null = null;
       try {
@@ -441,6 +446,10 @@ function shellBootstrap(shell: ShellBootstrap): Bootstrap {
 }
 
 async function retireCurrentPushDevice(): Promise<void> {
+  const [{ deleteWorkoutPushToken, getWorkoutPushDeviceId }, { retireWorkoutPushDevice }] = await Promise.all([
+    import('../lib/push/firebaseMessaging'),
+    import('../lib/push/cleanup'),
+  ]);
   const deviceId = getWorkoutPushDeviceId();
   await retireWorkoutPushDevice(deviceId, deviceId ? () => api.unregisterRestAlertDevice(deviceId) : undefined, deleteWorkoutPushToken);
 }

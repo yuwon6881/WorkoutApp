@@ -1,4 +1,4 @@
-.gym-availability-badge{display:inline-flex;align-items:flex-start;gap:6px;min-width:0;max-width:100%;padding:3px 8px;border:1px solid color-mix(in srgb,var(--amber) 38%,transparent);border-radius:var(--radius-pill);background:color-mix(in srgb,var(--amber) 9%,transparent);color:var(--text);font-size:.75rem;font-weight:550;line-height:1.35}
+.gym-availability-badge{display:inline-flex;align-items:flex-start;gap:6px;min-width:0;max-width:100%;padding:3px 8px;border:1px solid color-mix(in srgb,var(--amber) 38%,transparent);border-radius:var(--radius-pill);background:color-mix(in srgb,var(--amber) 9%,transparent);color:var(--text);font-size:var(--font-secondary);font-weight:550;line-height:1.35}
 .gym-availability-badge svg{flex:0 0 auto;margin-top:2px;color:var(--amber)}
 .gym-availability-badge.compact{align-items:center;white-space:nowrap}
 .gym-availability-badge.compact>span{overflow:hidden;text-overflow:ellipsis}
