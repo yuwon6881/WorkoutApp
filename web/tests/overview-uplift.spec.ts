@@ -3,7 +3,7 @@ import { signIn } from './signIn';
 
 test.use({ serviceWorkers: 'block', reducedMotion: 'reduce' });
 
-test('navigation previews the next workout and creates a session only after Start', async ({ page }, info) => {
+test('navigation previews before Start and keeps starting through temporary server failures', async ({ page }, info) => {
   await signIn(page);
   const headers = { 'X-Workout-Request': '1', Origin: new URL(page.url()).origin };
   const initial = await (await page.request.get('/api/bootstrap')).json();
@@ -21,7 +21,19 @@ test('navigation previews the next workout and creates a session only after Star
   expect(created.ok(), await created.text()).toBeTruthy();
   const template = await created.json();
   let starts = 0;
-  page.on('request', request => { if (request.method() === 'POST' && new URL(request.url()).pathname === '/api/workouts') starts++; });
+  let savedId: string | undefined;
+  await page.route('**/api/workouts', async route => {
+    if (route.request().method() !== 'POST') return route.continue();
+    starts++;
+    if (starts === 1) return route.fulfill({ status: 429, headers: { 'Retry-After': '0' }, body: 'No available instance' });
+    if (starts === 2) {
+      const response = await route.fetch();
+      savedId = (await response.json()).id;
+      expect(response.ok()).toBe(true);
+      return route.fulfill({ status: 503, body: 'The response could not be delivered' });
+    }
+    await route.continue();
+  });
   await page.route('**/api/bootstrap/launch', async route => {
     const response = await route.fetch();
     const launch = await response.json();
@@ -43,8 +55,11 @@ test('navigation previews the next workout and creates a session only after Star
     await expect(preview).toBeHidden();
     await action.click();
     await preview.getByRole('button', { name: 'Start workout', exact: true }).click();
-    await expect(page.getByRole('dialog', { name, exact: true }).locator('.workout-set-row')).toBeVisible();
-    expect(starts).toBe(1);
+    await expect(preview.getByText('Starting workout…', { exact: true })).toBeVisible();
+    await expect(page.getByRole('dialog', { name, exact: true }).locator('.workout-set-row')).toBeVisible({ timeout: 25_000 });
+    expect(starts).toBe(3);
+    expect(savedId).toBeTruthy();
+    expect((await (await page.request.get('/api/bootstrap')).json()).activeWorkout.id).toBe(savedId);
   } finally {
     const current = await (await page.request.get('/api/bootstrap')).json();
     if (current.activeWorkout?.active) {

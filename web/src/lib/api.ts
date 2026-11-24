@@ -42,6 +42,7 @@ async function requestWithMeta<T>(path: string, method: string, body?: unknown, 
   extraHeaders?: Record<string, string>): Promise<{ data: T | null; notModified: boolean; etag: string | null }> {
   let response: Response;
   const integrationEpoch = integrationGeneration();
+  const startingWorkout = method === 'POST' && path === '/api/workouts';
   try {
     response = await fetchWithAvailabilityRecovery(path, {
       method, signal, credentials: 'same-origin', cache: 'no-store',
@@ -52,8 +53,8 @@ async function requestWithMeta<T>(path: string, method: string, body?: unknown, 
         ...extraHeaders
       },
       body: body === undefined ? undefined : body instanceof FormData ? body : body instanceof Uint8Array ? body as BodyInit : JSON.stringify(body)
-    }, method === 'GET' && (path.startsWith('/api/bootstrap') || path === '/api/integrations/google-health')
-      || method === 'POST' && path === '/api/integrations/google-health/sync-data', requestTimeout(path));
+    }, startingWorkout ? 'workout-start' : method === 'GET' && (path.startsWith('/api/bootstrap') || path === '/api/integrations/google-health')
+      || method === 'POST' && path === '/api/integrations/google-health/sync-data', startingWorkout ? 60_000 : requestTimeout(path));
   } catch (error) {
     if (signal?.aborted) throw error;
     if (error instanceof DOMException && error.name === 'TimeoutError') throw new ApiError(error.message, 0);
@@ -174,7 +175,8 @@ export const api = {
 
   activeWorkout: () => call<Session | null>('/api/workouts/active'),
   getWorkout: (id: string, signal?: AbortSignal) => call<Session>(`/api/workouts/${id}`, 'GET', undefined, signal),
-  startWorkout: (templateId: string | null, name?: string) => call<Session>('/api/workouts', 'POST', { templateId, name }),
+  startWorkout: (templateId: string | null, name?: string) =>
+    call<Session>('/api/workouts', 'POST', { templateId, name, mutationId: crypto.randomUUID() }),
   saveWorkout: (id: string, input: unknown) => call<Session>(`/api/workouts/${id}`, 'PUT', input),
   patchWorkoutSet: (sessionId: string, setId: string, input: { revision: number; mutationId: string; weightKg?: number | null; reps?: number | null; rpe?: number | null; rir?: string | null; done?: boolean; warmup?: boolean; resistanceMode?: string; rest?: RestMutationInput | null }) => call<Session>(`/api/workouts/${sessionId}/sets/${setId}`, 'PATCH', input),
   mutateWorkoutRest: (sessionId: string, input: RestMutationInput) => call<Session>(`/api/workouts/${sessionId}/rest`, 'POST', input),

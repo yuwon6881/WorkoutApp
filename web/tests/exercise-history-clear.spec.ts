@@ -1,6 +1,28 @@
 import { expect, test } from '@playwright/test';
 import { signIn } from './signIn';
 
+test('empty exercise history shrinks to its content after viewing Progress', async ({ page }, info) => {
+  await signIn(page);
+  const catalog = await (await page.request.get('/api/exercises')).json();
+  const exercise = catalog.find((row: { slug: string }) => row.slug === 'barbell-bench-press') ?? catalog[0];
+  await page.route(`**/api/exercises/${exercise.id}/insight?*`, async route => {
+    const insight = await (await route.fetch()).json();
+    await route.fulfill({ json: { ...insight, totalHistoryRows: 0, historyClears: [], clearableSetCount: 0 } });
+  });
+  await page.goto('/exercises');
+  await page.getByRole('textbox', { name: 'Search exercises', exact: true }).fill(exercise.name);
+  await page.getByRole('button', { name: `View ${exercise.name} details`, exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: exercise.name, exact: true });
+  await expect(dialog.getByRole('heading', { name: 'Not logged yet' })).toBeVisible();
+  await expect.poll(() => dialog.evaluate(node => !!node.style.getPropertyValue('--modal-min-height'))).toBe(true);
+  const progressHeight = await dialog.evaluate(node => node.offsetHeight);
+  await dialog.getByRole('button', { name: 'History', exact: true }).click();
+  await expect(dialog.getByRole('heading', { name: 'No sessions yet' })).toBeVisible();
+  expect(await dialog.evaluate(node => node.offsetHeight)).toBeLessThan(progressHeight - 100);
+  expect(await dialog.evaluate(node => node.offsetHeight - node.scrollHeight)).toBeLessThanOrEqual(2);
+  await dialog.screenshot({ path: info.outputPath('exercise-empty-history.png') });
+});
+
 // Clearing an exercise's history is permanent, so it lives at the end of the History tab and every
 // press answers in a dialog. An open workout that includes the exercise reads its history, so the
 // section names it up front, and a workout opened between the check and the confirmation is caught.

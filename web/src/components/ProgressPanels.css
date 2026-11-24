@@ -106,9 +106,7 @@
   }
 }
 
-/* On Overview the week's totals sit inside the calendar card, under the days they count, as three
-   soft tiles: a labelled icon in the measure's data colour, then the figure in ink. The tint is a
-   flat wash of that one colour; the numbers never take it. */
+/* The icon distinguishes each measure while the tiles use the same surface as the week strip. */
 .training-calendar-card .stats-grid.progress-stats {
   gap: 8px;
   padding: 0;
@@ -127,7 +125,7 @@
   padding: 12px 12px 13px;
   border: none;
   border-radius: 14px;
-  background: color-mix(in srgb, var(--stat-tone) 10%, transparent);
+  background: var(--surface-raised);
 }
 
 .training-calendar-card .progress-stat-card[data-tone="accent"] { --stat-tone: var(--accent); }
@@ -145,7 +143,7 @@
 
 .training-calendar-card .stat-label-text > svg {
   flex: 0 0 auto;
-  color: var(--stat-tone);
+  color: color-mix(in srgb, var(--stat-tone) 55%, var(--muted));
 }
 
 .training-calendar-card .progress-stat-card strong,

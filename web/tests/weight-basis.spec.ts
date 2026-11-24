@@ -178,10 +178,33 @@ test('Settings edits another gym’s weights without switching gyms', async ({ p
     const defaults = gyms.getByRole('article', { name: 'Equipment defaults' });
     const select = defaults.getByRole('button', { name: 'Gym for weight increments' });
     await expect(select).toContainText('(in use)');
+    const editCable = defaults.getByRole('button', { name: 'Edit Cable weights', exact: true });
+    await expect(editCable).toBeVisible();
+    const beforeSwitch = await defaults.boundingBox();
+    let releaseWeights!: () => void;
+    const waitForWeights = new Promise<void>(resolve => { releaseWeights = resolve; });
+    const gymWeights = `**/api/gyms/${gymId}/load-settings?unit=kg`;
+    await page.route(gymWeights, async route => {
+      await waitForWeights;
+      await route.continue();
+    });
     await select.click();
     await page.getByRole('option', { name, exact: true }).click();
     await expect(select).toHaveText(name);
-    await defaults.getByRole('button', { name: 'Edit Cable weights', exact: true }).click();
+    try {
+      await expect(defaults.getByRole('status')).toHaveText(`Loading weights for ${name}…`);
+      const staleEdit = defaults.locator('button[aria-label="Edit Cable weights"]');
+      expect(await staleEdit.evaluate(button => {
+        button.focus();
+        return document.activeElement === button;
+      })).toBe(false);
+      expect((await defaults.boundingBox())?.height).toBe(beforeSwitch?.height);
+    } finally {
+      releaseWeights();
+    }
+    await expect(defaults.getByRole('status')).toBeHidden();
+    await page.unroute(gymWeights);
+    await editCable.click();
     const editor = page.getByRole('dialog', { name: 'Cable weights', exact: true });
     await expect(editor.getByText(`Weight settings for ${name}.`)).toBeVisible();
     await editor.getByRole('spinbutton', { name: 'Weight increase (kg)', exact: true }).fill('7.5');

@@ -5,6 +5,7 @@ import { api, ApiError } from '../lib/api';
 import { describeLoad, describeSource, type EquipmentLoad, type LoadRule, type LoadSettingsOverview } from '../lib/exerciseLoads';
 import { equipmentGroupInfo } from '../lib/equipmentGroups';
 import { Button } from './ui/Button';
+import { LiftLoader } from './ui/LiftLoader';
 import { Modal } from './ui/Modal';
 import { Select } from './ui/Select';
 import { SettingRow } from './ui/SettingRow';
@@ -34,19 +35,22 @@ export function LoadIncrementSettings({ profiles, activeId, onChanged, ...props 
         options={profiles.map(profile => ({ value: profile.id, label: profile.active ? `${profile.name} (in use)` : profile.name }))}
         onChange={setSelectedId} />
     </SettingRow>}
-    <EquipmentLoadRows key={gym.id} {...props} gym={gym} onChanged={gym.id === activeId ? onChanged : undefined} />
+    <EquipmentLoadRows {...props} gym={gym} onChanged={gym.id === activeId ? onChanged : undefined} />
   </article>;
 }
 
 function EquipmentLoadRows({ gym, unit, notify, onChanged }: WeightSettingsProps & { gym: GymProfile }) {
   // Steps are resolved for one unit, so they are kept and drawn with the unit they were read in
   // until the next unit's read arrives; a pound label never shows a kilogram step.
-  const [loaded, setLoaded] = useState<{ unit: Unit; overview: LoadSettingsOverview } | null>(null);
+  const [loaded, setLoaded] = useState<{ gymId: string; unit: Unit; overview: LoadSettingsOverview } | null>(null);
   const [editing, setEditing] = useState<EquipmentLoad | null>(null);
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState('');
+  const [failure, setFailure] = useState<{ gymId: string; message: string } | null>(null);
   const [reload, setReload] = useState(0);
+  const [loadingGymId, setLoadingGymId] = useState<string | null>(null);
   const editingTrigger = useRef<HTMLButtonElement | null>(null);
+  const error = failure?.gymId === gym.id ? failure.message : '';
+  const switching = Boolean(loaded && loaded.gymId !== gym.id && !error);
 
   useEffect(() => {
     if (editing || busy || !editingTrigger.current) return;
@@ -57,29 +61,46 @@ function EquipmentLoadRows({ gym, unit, notify, onChanged }: WeightSettingsProps
 
   useEffect(() => {
     const controller = new AbortController();
-    setError('');
-    api.loadSettings(gym.id, unit, controller.signal).then(overview => { if (!controller.signal.aborted) setLoaded({ unit, overview }); }).catch(failure => {
-      if (!controller.signal.aborted) setError(failure instanceof Error ? failure.message : 'Could not load weight settings.');
+    setFailure(null);
+    api.loadSettings(gym.id, unit, controller.signal).then(overview => {
+      if (!controller.signal.aborted) setLoaded({ gymId: gym.id, unit, overview });
+    }).catch(reason => {
+      if (!controller.signal.aborted) setFailure({ gymId: gym.id, message: reason instanceof Error ? reason.message : 'Could not load weight settings.' });
     });
     return () => controller.abort();
   }, [gym.id, reload, unit]);
 
+  useEffect(() => {
+    if (!switching) return;
+    const timer = setTimeout(() => setLoadingGymId(gym.id), 200);
+    return () => {
+      clearTimeout(timer);
+      setLoadingGymId(null);
+    };
+  }, [gym.id, switching]);
+
   async function run(actionUnit: Unit, action: () => Promise<LoadSettingsOverview>, done: string) {
     setBusy(true);
-    setError('');
+    setFailure(null);
     try {
-      setLoaded({ unit: actionUnit, overview: await action() });
+      setLoaded({ gymId: gym.id, unit: actionUnit, overview: await action() });
       setEditing(null);
       notify(done);
       await onChanged?.();
-    } catch (failure) {
-      setError(failure instanceof ApiError ? failure.message : 'Could not save weight settings. Please retry.');
+    } catch (reason) {
+      setFailure({ gymId: gym.id, message: reason instanceof ApiError ? reason.message : 'Could not save weight settings. Please retry.' });
     } finally { setBusy(false); }
   }
 
-  if (!loaded) return error
-    ? <div className="error-banner" role="alert">{error} <Button variant="secondary" onClick={() => setReload(value => value + 1)}>Retry</Button></div>
-    : <div role="status" aria-label="Loading weight settings"><Skeleton className="load-settings-skeleton" /></div>;
+  if (error && (!loaded || loaded.gymId !== gym.id)) return <div className="error-banner" role="alert">
+    {error} <Button variant="secondary" onClick={() => setReload(value => value + 1)}>Retry</Button>
+  </div>;
+  if (!loaded) return <div role="status" aria-label="Loading weight settings">
+    {[0, 1, 2, 3].map(row => <SettingRow key={row} className="load-settings-placeholder"
+      label={<span className="skeleton load-settings-label-placeholder" />} description={<span className="skeleton load-settings-value-placeholder" />}>
+      <Skeleton className="load-settings-button-placeholder" />
+    </SettingRow>)}
+  </div>;
 
   const { overview, unit: shown } = loaded;
   const saveEquipment = (item: EquipmentLoad, rule: LoadRule) =>
@@ -93,19 +114,26 @@ function EquipmentLoadRows({ gym, unit, notify, onChanged }: WeightSettingsProps
     {error && !editing && <div className="error-banner" role="alert">{error} <Button variant="secondary"
       onClick={() => { setLoaded(null); setReload(value => value + 1); }}>Reload settings</Button></div>}
 
-    {groups.map(item => {
-      const info = equipmentGroupInfo(item.group);
-      return <SettingRow key={item.group} label={<strong>{info.label}</strong>} descriptionId={`load-${item.group}-description`}
-        description={`${describeLoad(item.stepKg, item.availableLoadsKg, shown)} · ${describeSource(item.source, item.group)}`}>
-        <Button variant="secondary" disabled={busy || Boolean(error)} aria-label={`Edit ${info.label} weights`} aria-describedby={`load-${item.group}-description`}
-          onClick={event => {
-            editingTrigger.current = event.currentTarget;
-            setEditing(item);
-          }}>
-          <Pencil size={15} aria-hidden="true" /> Edit
-        </Button>
-      </SettingRow>;
-    })}
+    <div className="load-settings-rows">
+      <div inert={switching} className={loadingGymId === gym.id && switching ? 'load-settings-pending' : undefined}>
+        {groups.map(item => {
+          const info = equipmentGroupInfo(item.group);
+          return <SettingRow key={item.group} label={<strong>{info.label}</strong>} descriptionId={`load-${item.group}-description`}
+            description={`${describeLoad(item.stepKg, item.availableLoadsKg, shown)} · ${describeSource(item.source, item.group)}`}>
+            <Button variant="secondary" disabled={busy || Boolean(error)} aria-label={`Edit ${info.label} weights`} aria-describedby={`load-${item.group}-description`}
+              onClick={event => {
+                editingTrigger.current = event.currentTarget;
+                setEditing(item);
+              }}>
+              <Pencil size={15} aria-hidden="true" /> Edit
+            </Button>
+          </SettingRow>;
+        })}
+      </div>
+      {switching && loadingGymId === gym.id && <div className="load-settings-status" role="status">
+        <LiftLoader size="sm" /> <span>Loading weights for {gym.name}…</span>
+      </div>}
+    </div>
 
     {editing && <Modal title={`${equipmentGroupInfo(editing.group).label} weights`} onClose={() => !busy && setEditing(null)}>
       <div className="modal-body">

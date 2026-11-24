@@ -1,4 +1,8 @@
 /* Exercise detail modal: big chart & compact record tiles */
+.modal.exercise-details-empty-history {
+  min-height: 0;
+}
+
 .exercise-detail-modal {
   gap: 20px;
 }
@@ -106,7 +110,7 @@
   padding: 12px 14px;
   border-radius: var(--radius-control);
   background: var(--surface-raised);
-  border: 1px solid transparent;
+  border: 1px solid var(--border);
   box-shadow: none;
   display: flex;
   flex-direction: column;

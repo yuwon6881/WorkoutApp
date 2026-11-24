@@ -39,6 +39,25 @@ public class ActiveSlotTests
         => await h.Templates.Create(Harness.Template("Quick push", Harness.Exercise(benchId, "Bench press", Harness.Set(8, 10))), null, 1, 0, default);
 
     [Fact]
+    public async Task Retrying_start_replays_the_same_workout_until_it_closes()
+    {
+        var (h, benchId) = await Ready();
+        await using var _h = h;
+        var template = await Standalone(h, benchId);
+        var startId = Guid.NewGuid();
+        var session = await h.Workouts.Start(template.Id, null, default, startId);
+
+        Assert.Equal(session.Id, (await h.Workouts.Start(template.Id, null, default, startId)).Id);
+        await Assert.ThrowsAsync<DomainException>(() => h.Workouts.Start(template.Id, "Different", default, startId));
+        await Assert.ThrowsAsync<DomainException>(() => h.Workouts.Start(template.Id, null, default, Guid.NewGuid()));
+        await h.Workouts.Discard(session.Id, default);
+        await Assert.ThrowsAsync<DomainException>(() => h.Workouts.Start(template.Id, null, default, startId));
+        Assert.Null(await h.Workouts.Active(default));
+
+        Assert.NotEqual(session.Id, (await h.Workouts.Start(template.Id, null, default, Guid.NewGuid())).Id);
+    }
+
+    [Fact]
     public async Task Moving_a_program_to_the_library_forgets_its_run_but_keeps_history()
     {
         var (h, benchId) = await Ready();

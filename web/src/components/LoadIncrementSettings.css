@@ -42,8 +42,45 @@
   }
 }
 
-.load-settings-skeleton {
-  height: 180px;
-  margin-block: 16px;
-  border-radius: var(--radius-control);
+.load-settings-rows {
+  position: relative;
+}
+
+.load-settings-pending {
+  opacity: 0.16;
+}
+
+.load-settings-status {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 12px;
+  color: var(--text);
+  font-size: var(--font-secondary);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+  background: color-mix(in srgb, var(--surface) 72%, transparent);
+}
+
+.load-settings-group .load-settings-placeholder {
+  min-height: 76px;
+}
+
+.load-settings-label-placeholder,
+.load-settings-value-placeholder {
+  display: block;
+  width: min(100%, 94px);
+  height: 14px;
+}
+
+.load-settings-value-placeholder {
+  width: min(100%, 152px);
+}
+
+.load-settings-button-placeholder {
+  width: 72px;
+  height: 40px;
 }

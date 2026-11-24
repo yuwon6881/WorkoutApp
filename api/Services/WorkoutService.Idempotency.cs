@@ -8,17 +8,18 @@ namespace Workout.Api.Services;
 
 public sealed partial class WorkoutService
 {
-    private async Task<SessionView?> ReplayWorkoutMutation(Guid sessionId, Guid? mutationId, string operation,
+    private async Task<SessionView?> ReplayWorkoutMutation(Guid? sessionId, Guid? mutationId, string operation,
         string requestHash, CancellationToken ct)
     {
         if (mutationId is not { } id) return null;
         var receipt = await db.Receipts.AsNoTracking().SingleOrDefaultAsync(row => row.Id == id, ct);
         if (receipt is null) return null;
 
-        Validation.Require(receipt.Operation == operation && receipt.ResourceId == sessionId &&
+        Validation.Require(receipt.Operation == operation && receipt.ResourceId.HasValue &&
+            (sessionId is null || receipt.ResourceId == sessionId) &&
             string.Equals(receipt.RequestHash, requestHash, StringComparison.Ordinal),
             "This change was already saved with different details.", 409);
-        return await Get(sessionId, ct);
+        return await Get(receipt.ResourceId!.Value, ct);
     }
 
     private async Task RecordWorkoutMutation(Guid? mutationId, Guid sessionId, string operation,

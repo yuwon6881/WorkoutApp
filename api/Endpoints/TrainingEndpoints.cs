@@ -20,7 +20,7 @@ public record PreferencesInput(string Unit, string Theme, int? RestSeconds = nul
         if (TrackRir is { } trackRir) user.TrackRir = trackRir;
     }
 }
-public record StartInput(Guid? TemplateId, string? Name);
+public record StartInput(Guid? TemplateId, string? Name, Guid? MutationId = null);
 public record FinishInput(int? Revision, bool RetainExerciseSwaps = false, Guid? MutationId = null, DateTimeOffset? FinishedAt = null, FinishPlanUpdateInput? PlanUpdate = null);
 public record ActivateInput(bool Active, int? Revision);
 public record RevisionInput(int? Revision);
@@ -198,7 +198,8 @@ public static class TrainingEndpoints
     public static void MapWorkouts(this WebApplication app)
     {
         app.MapGet("/api/workouts/active", async (WorkoutService workouts, CancellationToken ct) => await workouts.Active(ct));
-        app.MapPost("/api/workouts", async (StartInput input, WorkoutService workouts, CancellationToken ct) => await workouts.Start(input.TemplateId, input.Name, ct));
+        app.MapPost("/api/workouts", async (StartInput input, WorkoutService workouts, CancellationToken ct) =>
+            await workouts.Start(input.TemplateId, input.Name, ct, input.MutationId));
         app.MapPut("/api/workouts/{id:guid}", async (Guid id, SessionInput input, WorkoutService workouts, CancellationToken ct) => await workouts.Save(id, input, ct));
         app.MapPatch("/api/workouts/{id:guid}/sets/{setId:guid}", async (Guid id, Guid setId, JsonElement payload, WorkoutService workouts, CancellationToken ct)
             => await workouts.PatchSet(id, setId, payload, ct));

@@ -55,15 +55,6 @@
   background: var(--tone);
 }
 
-/* Exercise details: each record tile is washed in the colour of what it measures. */
-.detail-record-grid .stat-card[data-tone] {
-  background: color-mix(in srgb, var(--tone) 10%, var(--surface-raised));
-  border-color: color-mix(in srgb, var(--tone) 16%, transparent);
-}
-.detail-record-grid .stat-card[data-tone] > strong {
-  color: color-mix(in srgb, var(--tone) 78%, var(--text));
-}
-
 /* The logger's quick actions carry their meaning in the icon: targets in blue, progress in teal. */
 .action-pill[data-tone] svg {
   color: var(--tone);

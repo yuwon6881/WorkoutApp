@@ -105,14 +105,21 @@ public sealed partial class WorkoutService(
 
     /// Start-time snapshots are the contract: all set suggestions and Nutrition context are made
     /// once here, then saved on the session so later settings/history changes cannot rewrite them.
-    public async Task<SessionView> Start(Guid? templateId, string? name, CancellationToken ct)
+    public async Task<SessionView> Start(Guid? templateId, string? name, CancellationToken ct, Guid? mutationId = null)
     {
+        const string operation = "start-workout";
+        var requestHash = mutationId is null ? "" : Fingerprint(new { templateId, name });
         // Nutrition is advisory and may require a peer HTTP/KMS round trip. Resolve it before
         // taking the account mutation lock so a slow provider cannot block saves, finishes, or
         // another tab. The active-workout and template checks below are repeated under the lock;
         // the context is frozen only after those authoritative checks succeed.
         var contextResult = await nutrition.Get(ct);
         await using var gate = await MutationLock.Acquire(db, db.CurrentUser, ct);
+        if (await ReplayWorkoutMutation(null, mutationId, operation, requestHash, ct) is { } replay)
+        {
+            Validation.Require(replay.Active, "That workout is already finished.", 409);
+            return replay;
+        }
         Validation.Require(!await db.Workouts.AnyAsync(w => w.Active, ct), "Finish or discard your current workout before starting another.", 409);
         WorkoutTemplate? template = null;
         Guid? programDayProgressId = null;
@@ -152,6 +159,7 @@ public sealed partial class WorkoutService(
         if (template != null) await PlanSessionSets(session, template, contextResult, bodyWeight, ct);
         session.StartPlanJson = Json.Write(db.SessionExercises.Local.Where(row => row.SessionId == session.Id)
             .OrderBy(row => row.Position).Select(SessionStartPlan.Capture).ToList());
+        await RecordWorkoutMutation(mutationId, session.Id, operation, requestHash, ct, receiptChecked: true);
         await db.SaveChangesAsync(ct);
         await gate.Commit(ct);
         return await Get(session.Id, ct);
