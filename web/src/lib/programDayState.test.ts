@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { ProgramProgressDay, ProgramSummary } from '../types';
-import { dayRowState, inProgressDayId, nextDayId, passableRestDayId, passableRestDayIds, passRestDaysInOrder, programDayActionInput } from './programDayState';
+import { canResetProgramWeek, dayRowState, inProgressDayId, nextDayId, passableRestDayId, passableRestDayIds, passRestDaysInOrder, programDayActionInput } from './programDayState';
 
 const day = (templateId: string, status: ProgramProgressDay['status'] = 'pending', isRestDay = false): ProgramProgressDay =>
   ({ templateId, status, isRestDay, position: 0 });
@@ -136,5 +136,33 @@ describe('passRestDaysInOrder', () => {
       return program;
     });
     expect(result).toEqual({ passed: 1, failure: boom });
+  });
+});
+
+describe('canResetProgramWeek', () => {
+  const summary = (overrides: Partial<ProgramSummary> = {}): ProgramSummary => ({
+    id: 'p1', name: 'Block', weeks: 1, active: true, revision: 4, sourceImportId: null, completedTemplateIds: [], nextTemplateId: 'b',
+    lifecycleStatus: 'active', days: [],
+    progress: { runId: 'r1', currentWeek: 1, currentAttempt: 1, passedDays: 1, totalDays: 2, days: [day('a', 'completed'), day('b')] },
+    ...overrides
+  });
+
+  it('offers a reset once a day of the running week is passed', () => {
+    expect(canResetProgramWeek(summary())).toBe(true);
+  });
+
+  it('offers nothing before a day is passed, outside the slot, or while activation is in flight', () => {
+    const base = summary().progress!;
+    expect(canResetProgramWeek(summary({ progress: { ...base, passedDays: 0 } }))).toBe(false);
+    expect(canResetProgramWeek(summary({ active: false }))).toBe(false);
+    expect(canResetProgramWeek(summary({ progress: { ...base, runId: 'optimistic' } }))).toBe(false);
+    expect(canResetProgramWeek(summary({ progress: null }))).toBe(false);
+  });
+
+  it('offers no reset on a finished run, whose last week stays fully passed', () => {
+    const base = summary().progress!;
+    const finished = summary({ lifecycleStatus: 'completed', nextTemplateId: null,
+      progress: { ...base, passedDays: 2, days: [day('a', 'completed'), day('b', 'skipped')] } });
+    expect(canResetProgramWeek(finished)).toBe(false);
   });
 });

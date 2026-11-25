@@ -1,7 +1,7 @@
 import { useCallback, useRef, useState } from 'react';
 import { ApiError, api } from '../lib/api';
 import { activeSlotApi } from '../lib/api/activeSlot';
-import { hasSlotProgress, isSlotItemFinished, slotItemId, slotItemName, type SlotItem } from '../lib/activeSlot';
+import { hasSlotProgress, isSlotItemFinished, optimisticRunProgress, slotItemId, slotItemName, type SlotItem } from '../lib/activeSlot';
 import type { SlotZone } from './useWorkoutSlotDrag';
 
 export type SlotConfirmation = {
@@ -54,27 +54,7 @@ export function useWorkoutSlotActions({ holder, onChanged, onTemplateDeleted }: 
 
   const withActiveItem = useCallback((item: SlotItem): SlotItem => {
     if (item.kind === 'program') {
-      const firstWeek = item.program.days.length > 0 ? Math.min(...item.program.days.map(d => d.week)) : 1;
-      return {
-        kind: 'program',
-        program: {
-          ...item.program,
-          active: true,
-          progress: item.program.progress ?? (item.program.days.length > 0 ? {
-            runId: 'optimistic',
-            currentWeek: firstWeek,
-            currentAttempt: 1,
-            passedDays: 0,
-            totalDays: item.program.days.length,
-            days: item.program.days.filter(d => d.week === firstWeek).map((d, idx) => ({
-              templateId: d.id,
-              status: 'pending',
-              isRestDay: d.isRestDay,
-              position: idx
-            }))
-          } : null)
-        }
-      };
+      return { kind: 'program', program: { ...item.program, active: true, progress: optimisticRunProgress(item.program) } };
     }
     return {
       kind: 'template',

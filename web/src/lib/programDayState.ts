@@ -36,6 +36,15 @@ export function dayRowState(day: DayInput, nextId: string | undefined, runningId
   return day.templateId === nextId ? 'next' : 'upcoming';
 }
 
+/// Whether the running week can be reset: the program holds the slot with a confirmed run that is
+/// still going and has passed a day this week. A finished run's last week stays fully passed, but
+/// the server refuses to reset it; Restart is the way back from there.
+export function canResetProgramWeek(program: ProgramSummary): boolean {
+  const progress = program.progress;
+  return Boolean(program.active && program.lifecycleStatus !== 'completed' && progress
+    && progress.runId !== 'optimistic' && progress.passedDays > 0);
+}
+
 /// What every program day action (skip, pass a rest day) sends so the server can reject a stale view.
 export function programDayActionInput(program: ProgramSummary): ProgramDayActionInput {
   const progress = program.progress;

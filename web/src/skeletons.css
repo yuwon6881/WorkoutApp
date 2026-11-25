@@ -74,7 +74,6 @@
   .cal-sk-range { width: 140px; height: 40px; }
   .cal-sk-week { gap: 6px; padding: 4px; }
   .cal-sk-stats .skeleton-stat { min-height: 80px; }
-  .cal-sk-legend { align-self: flex-start; }
 }
 @media (min-width: 1024px) {
   .panel.calendar-skeleton { min-height: 378px; }

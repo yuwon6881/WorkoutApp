@@ -11,10 +11,25 @@ const EXERCISE_CARDS = [2, 1, 2];
 /// and the exercise cards with their set lines, built from the real classes so the sheet keeps its
 /// height and the content lands where its outline was. One polite status line names what loads;
 /// the shapes are hidden from assistive technology.
-export function WorkoutDaySkeleton({ label }: { label: string }) {
+export function WorkoutDaySkeleton({ label, summary = false }: {
+  label: string;
+  /** The start preview leads with its time, exercise and set tiles; reserve that strip too. */
+  summary?: boolean;
+}) {
   return (
     <div className="workout-day-skeleton" role="status" aria-busy="true">
       <span className="sr-only">{label}</span>
+      {summary && <div className="workout-preview-summary" aria-hidden="true">
+        {Array.from({ length: 3 }, (_, index) => (
+          <div key={index} className="workout-preview-tile">
+            <Skeleton className="workout-preview-tile-icon" />
+            <span className="workout-day-skeleton-copy">
+              <Skeleton className="workout-day-skeleton-line" />
+              <Skeleton className="workout-day-skeleton-line workout-day-skeleton-line-short" />
+            </span>
+          </div>
+        ))}
+      </div>}
       <div className="draft-day-muscles" aria-hidden="true">
         <div className="program-muscle-preview">
           <div className="program-muscle-header">

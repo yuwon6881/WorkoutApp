@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Program, ProgramSummary, SetPrescription, Template } from '../types';
-import { hasSlotProgress, isSlotItemFinished, programToDraft } from './activeSlot';
+import { hasSlotProgress, isSlotItemFinished, optimisticRunProgress, programToDraft } from './activeSlot';
 
 const set: SetPrescription = {
   repMin: 8, repMax: 10, targetRpe: 8, restSeconds: 90, tempo: null, loadText: null, notes: null, repsText: null, restText: null,
@@ -71,5 +71,30 @@ describe('programToDraft', () => {
     expect(draft.workouts[0]).toMatchObject({ block: 'Base', phase: 'Accumulation', sourcePage: 4, focus: null });
     expect(draft.workouts[0].exercises[0]).toMatchObject({ lineId: 'e1', sourceName: 'Bench press', exerciseId: 'bench' });
     expect(draft.workouts[0].exercises[0].sets[0]).toMatchObject({ repMin: 8, repMax: 10, rir: '2', warmup: false });
+  });
+});
+
+describe('optimisticRunProgress', () => {
+  it('keeps a run the server already reported', () => {
+    const reported = program().progress!;
+    const summary = program({ progress: reported });
+    expect(optimisticRunProgress(summary)).toBe(reported);
+  });
+
+  it("counts only the first week's days, as the server does, while activation is in flight", () => {
+    const days = [
+      { id: 'w1a', name: 'A', focus: '', block: '', phase: '', week: 1, phaseWeek: 1, position: 0, isRestDay: false, exerciseCount: 1 },
+      { id: 'w1r', name: 'Rest', focus: '', block: '', phase: '', week: 1, phaseWeek: 1, position: 1, isRestDay: true, exerciseCount: 0 },
+      { id: 'w2a', name: 'A', focus: '', block: '', phase: '', week: 2, phaseWeek: 2, position: 0, isRestDay: false, exerciseCount: 1 },
+      { id: 'w3a', name: 'A', focus: '', block: '', phase: '', week: 3, phaseWeek: 3, position: 0, isRestDay: false, exerciseCount: 1 }
+    ];
+    const progress = optimisticRunProgress(program({ active: false, progress: null, days }));
+    expect(progress).toMatchObject({ runId: 'optimistic', currentWeek: 1, currentAttempt: 1, passedDays: 0, totalDays: 2 });
+    expect(progress!.days.map(day => [day.templateId, day.status, day.isRestDay, day.position]))
+      .toEqual([['w1a', 'pending', false, 0], ['w1r', 'pending', true, 1]]);
+  });
+
+  it('has no run for a program without days', () => {
+    expect(optimisticRunProgress(program({ progress: null, days: [] }))).toBeNull();
   });
 });

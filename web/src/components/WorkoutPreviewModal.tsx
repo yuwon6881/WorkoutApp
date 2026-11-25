@@ -14,6 +14,7 @@ import { Modal } from './ui/Modal';
 import { ReadOnlyDay } from './ReadOnlyDay';
 import { WorkoutDaySkeleton } from './WorkoutDaySkeleton';
 import { GymSwitcher } from './GymSwitcher';
+import { WorkoutPreviewSummary } from './WorkoutPreviewSummary';
 import { GymAvailabilityContext, useGymAvailabilityCheck } from '../lib/gymAvailability';
 import './ImportDaySheet.css';
 
@@ -67,10 +68,11 @@ export function WorkoutPreviewModal({ templateId, name, exercises, unit, default
   return <Modal title={template?.name ?? name} wide className="day-detail-modal" onClose={onClose}>
     <div className="modal-body day-detail-modal-body">
       {template && day && requirementsReady ? <>
-        {minutes !== null && <p className="muted small-copy workout-preview-estimate">About {minutes} min, at the {hasRange ? 'average of the printed rests' : 'planned rests'}{hasRange && '. Change it to Minimal or Maximal in the workout menu.'}</p>}
+        <WorkoutPreviewSummary exercises={day.exercises} minutes={minutes} restRange={hasRange} />
+        {/* Switching here makes the workout record that gym and follow its weights. It is rarely
+            changed, so it stays a quiet trailing control rather than a full-width field. */}
+        <GymSwitcher quiet />
         {template.note && <p className="muted small-copy">{template.note}</p>}
-        {/* Switching here makes the workout record that gym and follow its weights. */}
-        <GymSwitcher />
         {unavailable[0] && !unavailable[0].available && <p className="workout-preview-gym-note small-copy" role="note">
           {unavailable.length === 1 ? '1 exercise needs' : `${unavailable.length} exercises need`} something {unavailable[0].gymName} does
           not have. You can swap {unavailable.length === 1 ? 'it' : 'them'} once the workout starts.
@@ -79,7 +81,7 @@ export function WorkoutPreviewModal({ templateId, name, exercises, unit, default
           selectedMuscle={selectedMuscle} onMuscleSelect={setSelectedMuscle} />
       </> : error ? <CardFeedback title="Could not load workout preview" message={error}
         action={{ label: 'Retry', onClick: () => setRetry(value => value + 1) }} />
-        : <WorkoutDaySkeleton label="Loading workout preview…" />}
+        : <WorkoutDaySkeleton label="Loading workout preview…" summary />}
     </div>
     <div className="modal-actions">
       <Button variant="secondary" onClick={onClose}>Cancel</Button>

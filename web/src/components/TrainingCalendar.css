@@ -348,9 +348,11 @@
 }
 
 /* Footer */
+/* The legend is the footer's only content, so it sits centred under the card rather than trailing
+   off the leading edge. */
 .calendar-card-footer {
   display: flex;
-  justify-content: space-between;
+  justify-content: center;
   align-items: center;
   gap: 10px;
   flex-wrap: wrap;
@@ -359,6 +361,7 @@
 /* A key, not controls: plain text beside its dot, so nothing here reads as a button. */
 .calendar-legend-pills {
   display: flex;
+  justify-content: center;
   gap: 4px 14px;
   align-items: center;
   flex-wrap: wrap;

@@ -225,3 +225,70 @@ test('workouts move between the library and the active slot, forgetting progress
     }
   }
 });
+
+test('days skipped one after another each skip, without the card holding a stale run', async ({ page }, info) => {
+  await signIn(page, USER);
+  const headers = { 'X-Workout-Request': '1', Origin: new URL(page.url()).origin };
+  const open = await (await page.request.get('/api/workouts/active')).json();
+  if (open) await page.request.post(`/api/workouts/${open.id}/discard`, { headers });
+  const original = await currentSlot(page.request);
+  const programName = `Skip twice ${info.project.name} ${Date.now()}`;
+  let programId: string | null = null;
+  try {
+    const catalog = await (await page.request.get('/api/exercises')).json();
+    const bench = catalog.find((exercise: { name: string }) => exercise.name === 'Barbell bench press') ?? catalog[0];
+    const exercise = { exerciseId: bench.id, sourceName: bench.name, sets: [{ repMin: 8, repMax: 10, targetRpe: 8, restSeconds: 90 }] };
+    await vacate(page.request, headers);
+    const created = await page.request.post('/api/programs', { headers, data: { name: programName, workouts: [
+      { week: 1, name: 'Push', exercises: [exercise] },
+      { week: 1, name: 'Pull', exercises: [exercise] },
+      { week: 1, name: 'Legs', exercises: [exercise] }
+    ] } });
+    expect(created.ok(), await created.text()).toBeTruthy();
+    const program = await created.json();
+    programId = program.id;
+    const activated = await page.request.post(`/api/programs/${program.id}/active`, { headers, data: { active: true, revision: program.revision } });
+    expect(activated.ok(), await activated.text()).toBeTruthy();
+
+    await page.goto('/workouts');
+    const card = page.locator('[data-slot-zone="active"] .program-card').filter({ hasText: programName });
+    const row = (name: string) => card.getByRole('button', { name: `View ${name}`, exact: true });
+    const skip = async (name: string) => {
+      await row(name).click();
+      const dialog = page.locator('.day-detail-modal');
+      await dialog.getByRole('button', { name: `Actions for ${name}`, exact: true }).click();
+      await page.getByRole('menuitem', { name: 'Skip this workout day', exact: true }).click();
+      await expect(dialog).toBeHidden();
+    };
+
+    // A slow program refetch: a skip must not settle (and offer the next skip) while the card still
+    // shows the run it changed, or that next skip would send a stale revision.
+    await page.route(/\/api\/programs(\?.*)?$/, async route => {
+      if (route.request().method() === 'GET') await new Promise(resolve => setTimeout(resolve, 2500));
+      await route.continue();
+    });
+    await skip('Push');
+    await row('Pull').click();
+    const dialog = page.locator('.day-detail-modal');
+    await dialog.getByRole('button', { name: 'Actions for Pull', exact: true }).click();
+    await expect(page.getByRole('menuitem', { name: 'Skip this workout day', exact: true })).toBeEnabled();
+    await expect(row('Push')).toContainText('Skipped', { timeout: 500 });
+    await page.keyboard.press('Escape');
+    await page.keyboard.press('Escape');
+    await expect(dialog).toBeHidden();
+    await skip('Pull');
+    await expect(row('Pull')).toContainText('Skipped');
+    await expect(card.getByRole('alert')).toHaveCount(0);
+    await expect(row('Legs')).toContainText('Next');
+  } finally {
+    if (programId) await page.request.delete(`/api/programs/${programId}`, { headers });
+    const data = await bootstrap(page.request);
+    if (original.programId) {
+      const program = data.programs.find((item: { id: string }) => item.id === original.programId);
+      if (program && !program.active) await page.request.post(`/api/programs/${program.id}/active`, { headers, data: { active: true, revision: program.revision } });
+    } else if (original.templateId) {
+      const template = data.templates.find((item: { id: string }) => item.id === original.templateId);
+      if (template && !template.active) await page.request.post(`/api/templates/${template.id}/active`, { headers, data: { active: true, revision: template.revision } });
+    }
+  }
+});

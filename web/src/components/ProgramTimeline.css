@@ -47,18 +47,26 @@
   max-width: 580px;
 }
 
+/* Icon and kicker share one line, so the small tile matches the line it labels instead of floating
+   beside the name field below. */
+.ptl-kicker-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
 .ptl-icon-tile {
   display: grid;
   place-items: center;
-  width: 44px;
-  height: 44px;
-  flex: 0 0 44px;
+  width: 28px;
+  height: 28px;
+  flex: 0 0 28px;
   border: 1px solid var(--accent-border);
-  border-radius: var(--radius-control);
+  border-radius: 8px;
   background: var(--accent-soft);
   color: var(--accent);
   box-shadow: none;
-  margin-top: 2px;
 }
 
 .ptl-title-content {
@@ -66,7 +74,11 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 8px;
+}
+
+.ptl-kicker-row .ptl-kicker {
+  margin: 0;
 }
 
 .ptl-kicker {
@@ -93,7 +105,7 @@
 .ptl-program-name-field {
   width: 100%;
   max-width: 480px;
-  margin-top: 4px;
+  margin-top: 0;
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -241,12 +253,6 @@
     grid-area: title;
     max-width: 100%;
     gap: 10px;
-  }
-
-  .import-program-card.ptl-timeline-card .ptl-icon-tile {
-    width: 38px;
-    height: 38px;
-    flex: 0 0 38px;
   }
 
   .import-program-card.ptl-timeline-card .ptl-title-text {

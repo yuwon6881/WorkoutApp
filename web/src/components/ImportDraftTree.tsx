@@ -225,10 +225,14 @@ export const DraftOutline = forwardRef<DraftOutlineHandle, {
   return <>
     <section className="panel import-program-card ptl-timeline-card" data-editor-mode={editorMode}>
       <div className="section-heading import-program-heading ptl-header">
+        {/* The icon belongs to the one-line kicker, not to the title block: beside a labelled name
+            field it would float against three rows of text. */}
         <div className="import-program-title ptl-title-block">
-          <span className="import-program-icon ptl-icon-tile" aria-hidden="true"><CalendarDays size={18} /></span>
           <div className="ptl-title-content">
-            <span className="import-program-kicker ptl-kicker">Program timeline · {weeks.length} {weeks.length === 1 ? 'week' : 'weeks'}</span>
+            <span className="ptl-kicker-row">
+              <span className="ptl-icon-tile" aria-hidden="true"><CalendarDays size={15} /></span>
+              <span className="import-program-kicker ptl-kicker">Program timeline · {weeks.length} {weeks.length === 1 ? 'week' : 'weeks'}</span>
+            </span>
             {editableProgramName
               ? <Field
                   label="Program name"

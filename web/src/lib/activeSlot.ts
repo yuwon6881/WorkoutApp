@@ -1,4 +1,4 @@
-import type { DraftExercise, DraftSet, DraftWorkout, ImportDraft, Program, ProgramSummary, SetPrescription, Template } from '../types';
+import type { DraftExercise, DraftSet, DraftWorkout, ImportDraft, Program, ProgramProgress, ProgramSummary, SetPrescription, Template } from '../types';
 
 /// The active slot holds one program or one standalone workout. Library items carry no run
 /// state: leaving the slot forgets progress, so only the active holder is ever "in progress".
@@ -35,6 +35,22 @@ export function hasSlotProgress(item: SlotItem): boolean {
   if (!progress) return false;
   const firstWeek = program.days.length ? Math.min(...program.days.map(day => day.week)) : progress.currentWeek;
   return progress.passedDays > 0 || progress.currentWeek > firstWeek || progress.currentAttempt > 1;
+}
+
+/// The run a program shows while its activation is still in flight: the reported run when there is
+/// one, else a fresh first week shaped as the server reports it (only that week's days, so the
+/// week meter does not jump from every day of the program to this week's when the answer lands).
+export function optimisticRunProgress(program: ProgramSummary): ProgramProgress | null {
+  if (program.progress) return program.progress;
+  if (program.days.length === 0) return null;
+  const firstWeek = Math.min(...program.days.map(day => day.week));
+  const days = program.days.filter(day => day.week === firstWeek).map(day => ({
+    templateId: day.id,
+    status: 'pending' as const,
+    isRestDay: day.isRestDay,
+    position: day.position
+  }));
+  return { runId: 'optimistic', currentWeek: firstWeek, currentAttempt: 1, passedDays: 0, totalDays: days.length, days };
 }
 
 /// The resistance mode rides along although the editor never shows it: a saved day sends its sets

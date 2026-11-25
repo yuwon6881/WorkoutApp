@@ -277,9 +277,111 @@
   }
 }
 
-.workout-preview-estimate {
-  margin: 0;
+/* Start preview at a glance: three tiles in one hairline strip. */
+.workout-preview-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius);
+  background: var(--surface-card);
+}
+.workout-preview-tile {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  padding: 12px 14px;
+}
+.workout-preview-tile + .workout-preview-tile {
+  border-left: 1px solid var(--border);
+}
+.workout-preview-tile-icon {
+  display: grid;
+  place-items: center;
+  flex: 0 0 32px;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-control);
+  background: var(--tone-soft);
+  color: var(--tone);
+}
+.workout-preview-tile-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.workout-preview-tile-text strong {
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+  color: var(--text);
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.workout-preview-tile-text strong small {
+  font-size: var(--font-secondary);
+  font-weight: 600;
+  color: var(--muted);
+}
+.workout-preview-tile-text > span {
+  font-size: var(--font-secondary);
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+@media (max-width: 639px) {
+  .workout-preview-tile {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+    padding: 10px 12px;
+  }
+  .workout-preview-tile-icon {
+    flex-basis: 28px;
+    width: 28px;
+    height: 28px;
+  }
+}
+
+/* The gym is rarely changed before a workout: a small trailing text control, not a field. */
+.gym-switcher.gym-switcher-quiet {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  margin-top: -6px;
+}
+.gym-switcher-quiet .custom-select-wrap.custom-select-wrap {
+  width: auto;
+  min-width: 0;
+  max-width: 100%;
+}
+.gym-switcher-quiet .custom-select-trigger {
+  width: auto;
+  min-height: 36px;
+  padding: 4px 6px 4px 8px;
+  gap: 6px;
+  background: transparent;
+  border-color: transparent;
+  color: var(--muted);
+  font-size: var(--font-secondary);
+  font-weight: 600;
+}
+.gym-switcher-quiet .custom-select-trigger:hover {
+  background: var(--surface-hover);
+  border-color: transparent;
+  color: var(--text);
+}
+.gym-switcher-quiet .custom-select-trigger:focus-visible,
+.gym-switcher-quiet .custom-select-trigger.active {
+  border-color: var(--accent);
+  color: var(--text);
+}
+@media (max-width: 1023px) {
+  .gym-switcher-quiet .custom-select-trigger {
+    min-height: 44px;
+  }
 }
 
 .workout-preview-gym-note {

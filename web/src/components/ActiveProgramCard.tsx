@@ -2,7 +2,8 @@ import { useEffect, useMemo, useState, type FormEvent, type HTMLAttributes } fro
 import { ArrowRight, Library, Pencil, RotateCcw, Trash2 } from 'lucide-react';
 import type { Exercise, ImportDraft, ProgramSummary, Session, Unit } from '../types';
 import { ApiError, api } from '../lib/api';
-import { isProgramFinished, programToDraft } from '../lib/activeSlot';
+import { isProgramFinished, optimisticRunProgress, programToDraft } from '../lib/activeSlot';
+import { canResetProgramWeek } from '../lib/programDayState';
 import { ProgramDayWrites } from '../lib/programDayWrites';
 import { Button } from './ui/Button';
 import { CardFeedback } from './ui/CardFeedback';
@@ -53,23 +54,10 @@ export function ActiveProgramCard({ program, exercises, unit, onStart, onPreview
   const [resetError, setResetError] = useState('');
   const finished = isProgramFinished(program);
   const next = program.days.find(day => day.id === program.nextTemplateId);
-  const firstWeek = program.days.length > 0 ? Math.min(...program.days.map(d => d.week)) : 1;
-  const progress = program.progress ?? (program.days.length > 0 ? {
-    runId: 'optimistic',
-    currentWeek: firstWeek,
-    currentAttempt: 1,
-    passedDays: 0,
-    totalDays: program.days.length,
-    days: program.days.filter(d => d.week === firstWeek).map((d, idx) => ({
-      templateId: d.id,
-      status: 'pending' as const,
-      isRestDay: d.isRestDay,
-      position: idx
-    }))
-  } : null);
+  const progress = optimisticRunProgress(program);
   const weekCount = new Set(program.days.map(day => day.week)).size;
   const weekIndex = progress ? [...new Set(program.days.map(day => day.week))].sort((a, b) => a - b).indexOf(progress.currentWeek) + 1 : 1;
-  const canReset = Boolean(program.active && (progress?.passedDays ?? 0) > 0);
+  const canReset = canResetProgramWeek({ ...program, progress });
 
   const detail = useCachedViewRead(`program:${program.id}`, program.revision,
     signal => api.getProgram(program.id, signal), !finished && Boolean(program.id));
