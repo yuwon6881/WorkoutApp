@@ -38,7 +38,7 @@ export const testServers = [
       Identity__RedirectUri: `http://localhost:${webPort}/api/auth/central/callback`,
       Identity__ReturnUrl: '/',
       OpenAi__ApiKey: 'e2e-test-key',
-      OpenAi__Model: 'gpt-5.4-mini',
+      OpenAi__Model: 'gpt-5.4',
     }
   },
   {

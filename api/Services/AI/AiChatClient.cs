@@ -10,7 +10,7 @@ namespace Workout.Api.Services.AI;
 // streaming. This serves the Ask AI chat engine.
 public sealed class AiChatClient
 {
-    private const string DefaultModel = "gpt-5.4-mini";
+    private const string DefaultModel = "gpt-5.4";
     private const string ResponsesEndpoint = "https://api.openai.com/v1/responses";
     private static readonly TimeSpan RetryDelay = TimeSpan.FromMilliseconds(250);
     private static readonly TimeSpan DefaultResponseTimeout = TimeSpan.FromSeconds(45);
