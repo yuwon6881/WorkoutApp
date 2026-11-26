@@ -35,10 +35,9 @@ backup overhead, compute-hours, or billed transfer; those remain unknown.
 
 PDF extraction runs in the browser; no import worker service or Cloud Tasks import queue exists.
 The API stores extracted text only for the documented unfinished-import period and deletes source
-text at terminal state. The historical `workout-imports-396431756440` bucket remains present, but the
+text at terminal state. The historical `workout-imports-396431756440` bucket was deleted on 2026-11-26; before that, the
 2026-10-02 read-only inventory found zero live objects, zero generations, zero soft-deleted objects,
-and zero Workout runtime IAM bindings. It was not deleted; the empty inventory demonstrates no
-current object-storage reduction from deleting it.
+and zero Workout runtime IAM bindings. Deleting it removed no stored data.
 
 The daily `workout-import-maintenance` Scheduler request coexists with the hourly in-process
 `ImportCleanupWorker` timer. Keep both. The timer is not evidence of an always-on Cloud Run instance;

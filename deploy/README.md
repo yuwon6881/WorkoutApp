@@ -92,9 +92,8 @@ service to provision.
 The former `workout-import-worker` Cloud Run service and `workout-imports` Cloud Tasks queue were
 retired after the client-side extraction cutover and removed from the project on 2026-09-18. A
 read-only inventory on 2026-10-02 found zero live objects, zero object generations, and zero
-soft-deleted objects in `workout-imports-396431756440`; no Workout runtime IAM binding remains. The
-bucket still exists but has no current object-storage footprint. Do not delete the bucket or alter
-its policy without separate approval from the retention owner.
+soft-deleted objects in `workout-imports-396431756440`; no Workout runtime IAM binding remains. The empty
+bucket was deleted on 2026-11-26 with the owner's approval.
 
 ### Optional Workout rest-alert push
 
