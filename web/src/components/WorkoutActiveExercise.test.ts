@@ -9,8 +9,8 @@ const exercise: SessionExercise = {
   prescription: [], sets: [], sequenceGroup: '', substitutions: [], progression: null
 };
 
-function render(current: SessionExercise, onOpenExercise?: (id: string) => void) {
-  const draft = { id: 'session', name: 'Pull', exercises: [current] } as unknown as Session;
+function render(current: SessionExercise, onOpenExercise?: (id: string) => void, others: SessionExercise[] = []) {
+  const draft = { id: 'session', name: 'Pull', exercises: [current, ...others] } as unknown as Session;
   return renderToStaticMarkup(createElement(WorkoutActiveExercise, {
     exercise: current, index: 0, unit: 'kg', draft, exercises: [],
     change: () => undefined, editSet: () => undefined, toggle: () => undefined,
@@ -26,6 +26,13 @@ describe('WorkoutActiveExercise', () => {
   it('offers no progress for an exercise outside the library, or without a way to open it', () => {
     expect(render({ ...exercise, exerciseId: null }, () => undefined)).not.toContain('progress and history');
     expect(render(exercise)).not.toContain('progress and history');
+  });
+
+  it('keeps a superset editable during the workout: the pill opens the superset dialog', () => {
+    const curl = { ...exercise, id: 'curl', exerciseId: 'curl-id', name: 'Curl', sequenceGroup: 'A2' };
+    const html = render({ ...exercise, sequenceGroup: 'A1' }, undefined, [curl]);
+    expect(html).toContain('aria-label="Superset A1 of 2 with Curl. Edit superset"');
+    expect(html).toMatch(/<button[^>]*aria-label="Superset A1 of 2 with Curl\. Edit superset"/);
   });
 
   it('renders Done column header text in the set table head', () => {

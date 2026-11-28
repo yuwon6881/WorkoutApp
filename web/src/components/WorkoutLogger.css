@@ -17,8 +17,12 @@
   font-weight: 700;
   letter-spacing: -0.03em;
   line-height: 1.15;
+  /* An unbroken long name wraps instead of widening the sheet. */
+  overflow-wrap: anywhere;
 }
 .workout-active-exercise .workout-active-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin-top: 6px; }
+/* "Swapped · <original name>" is capped to one line; the full name is the exercise's restore baseline. */
+.workout-active-exercise .workout-active-meta .tiny-label { min-width: 0; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .workout-set-progress { display: inline-flex; align-items: center; gap: 5px; color: var(--muted); font-size: var(--font-secondary); font-weight: 600; font-variant-numeric: tabular-nums; }
 .workout-set-progress.complete { color: var(--accent); }
 .workout-last-time { margin: 6px 0 0; color: var(--muted); font-size: var(--font-secondary) !important; font-variant-numeric: tabular-nums; }
@@ -75,9 +79,15 @@
 .workout-action-pills .action-pill.button:focus-visible { border-color: var(--accent); }
 .workout-action-pills .action-pill svg { color: var(--muted); }
 .workout-action-pills .action-pill.pill-static { color: var(--muted); cursor: default; }
-/* A long partner list truncates instead of pushing the other pills off the row. */
-.workout-action-pills .action-pill.superset-pill { min-width: 0; max-width: 100%; }
-.workout-action-pills .action-pill.superset-pill span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* A long partner list is capped and ends in an ellipsis instead of pushing the other pills off the
+   row; the pill's title and accessible name keep every partner, and its dialog lists them in full.
+   The label needs its own min-width: 0, or as a flex item it keeps its full width and never clips. */
+.workout-action-pills .action-pill.superset-pill { min-width: 0; max-width: min(100%, 280px); }
+.workout-action-pills .action-pill.superset-pill svg { flex: 0 0 auto; }
+.workout-action-pills .action-pill.superset-pill span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (min-width: 1024px) {
+  .workout-action-pills .action-pill.superset-pill { max-width: min(100%, 360px); }
+}
 .workout-active-exercise .workout-action-pills .ui-menu-trigger { width: 40px; min-width: 40px; height: 40px; min-height: 40px; border: 1px solid var(--control-border); border-radius: var(--radius-pill); background: var(--surface-raised); }
 .workout-active-exercise .workout-action-pills .ui-menu-trigger:focus-visible { border-color: var(--accent); }
 @media (max-width: 639px) {

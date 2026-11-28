@@ -144,10 +144,24 @@
   min-width: 0;
 }
 
+/* Long exercise names are capped so the dialog keeps its shape: the title to two lines (the shared
+   header already carries the full name as its tooltip), partners to three, each candidate to two. */
+.modal:has(.superset-modal-body) > header h2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
 .superset-current-names {
   font-size: var(--font-secondary, 14px);
   color: var(--text);
   margin: 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  overflow-wrap: anywhere;
 }
 
 .superset-current-names strong {
@@ -227,6 +241,12 @@
   font-weight: 650;
   color: var(--text);
   overflow-wrap: anywhere;
+  /* The row is a Button, whose base style keeps text on one line; a name may take two. */
+  white-space: normal;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .superset-candidate-muscle {

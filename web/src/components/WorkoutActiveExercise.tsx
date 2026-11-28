@@ -23,7 +23,7 @@ import { api } from '../lib/api';
 import { restOptions } from '../lib/training';
 import { showExerciseWeight } from '../lib/weightBasis';
 import { ProgressionChangeBadge } from './ProgressionChangeBadge';
-import { getSupersetPartners, supersetLayout } from '../lib/supersets';
+import { WorkoutSupersetDialog, workoutSupersetLabel } from './WorkoutSupersetDialog';
 import { earlierPendingSet,setNumberLabel, setOrderProblem, withSetAdded, withSetRemoved } from '../lib/workoutDraft';
 import { allowedSetTypes, withSetType } from '../lib/workoutSetTypes';
 import { Button } from './ui/Button';
@@ -103,6 +103,7 @@ export function WorkoutActiveExercise({
       .catch(failure => setCatalogError(failure instanceof Error ? failure.message : 'Exercises could not be loaded.'));
   };
   const [showTargets, setShowTargets] = useState(false);
+  const [supersetOpen, setSupersetOpen] = useState(false);
   const [confirmRemove, setConfirmRemove] = useState(false);
   const actionToolbar = useRef<HTMLDivElement>(null);
   const restoreWeightFocus = useRef(false);
@@ -182,12 +183,7 @@ export function WorkoutActiveExercise({
     }
   }), []);
   const warmups = warmupOffer(draft, index, exercises, unit);
-  // Which exercises this one alternates with, so two supersets in one workout are never confused.
-  const superset = supersetLayout(draft.exercises).get(exercise.id);
-  const partnerNames = getSupersetPartners(exercise.id, draft.exercises).map(partner => partner.name).join(', ');
-  const supersetLabel = superset
-    ? `Superset ${superset.group}${superset.position} of ${superset.size}${partnerNames ? ` with ${partnerNames}` : ''}`
-    : `Superset ${exercise.sequenceGroup}`;
+  const supersetLabel = workoutSupersetLabel(exercise, draft);
   const nextUnloggedWorkingIndex = workingSets.findIndex(s => !s.done);
   // The row the lifter is on: the first set, warm-up or working, still to log.
   const nextSetIndex = exercise.sets.findIndex(s => !s.done);
@@ -263,10 +259,17 @@ export function WorkoutActiveExercise({
         )}
 
         {exercise.sequenceGroup && (
-          <div className="action-pill pill-static superset-pill" title={supersetLabel}>
+          <Button
+            variant="tertiary"
+            className="action-pill superset-pill"
+            aria-haspopup="dialog"
+            aria-label={`${supersetLabel}. Edit superset`}
+            title={supersetLabel}
+            onClick={() => setSupersetOpen(true)}
+          >
             <Layers size={15} />
             <span>{supersetLabel}</span>
-          </div>
+          </Button>
         )}
 
         {/* Swap lives in the menu so the pill row never reflows when the first set is logged; it is
@@ -275,6 +278,9 @@ export function WorkoutActiveExercise({
           <MenuItem disabled={hasCompletedSets} onClick={() => setSwapOpen(true)}>
             <RefreshCw size={15} /> {hasCompletedSets ? 'Swap (before logging only)' : 'Swap exercise'}
           </MenuItem>
+          {!exercise.sequenceGroup && draft.exercises.length > 1 && <MenuItem onClick={() => setSupersetOpen(true)}>
+            <Layers size={15} /> Link superset
+          </MenuItem>}
           <MenuItem onClick={() => setRestTimerOpen(true)}>
             <Timer size={15} /> Rest timer
           </MenuItem>
@@ -289,6 +295,11 @@ export function WorkoutActiveExercise({
           </MenuItem>
         </MenuButton>
       </div>
+
+      {supersetOpen && (
+        <WorkoutSupersetDialog exercise={exercise} draft={draft} change={change}
+          onClose={() => setSupersetOpen(false)} />
+      )}
 
       {showTargets && (
         <WorkoutTargetsModal exercise={exercise} unit={unit} trackRir={trackRir}
